@@ -17,52 +17,52 @@ const data = {
     navItems: [
       {
         title: "Library",
-        url: "#",
+        url: "/library",
         icon: BookOpen,
       },
       {
         title: "Favorites",
-        url: "#",
+        url: "/favorites",
         icon: Star,
       },
       {
         title: "Playlists",
-        url: "#",
+        url: "/playlists",
         icon: ListMusic,
       },
       {
         title: "Tags",
-        url: "#",
+        url: "/tags",
         icon: Tag,
       },
       {
         title: "Channels",
-        url: "#",
+        url: "/channels",
         icon: Tv,
       },
     ],
     collapsibleItems: [
       {
         title: "Settings",
-        url: "#",
+        url: "/settings",
         icon: Settings2,
         isActive: false,
         items: [
           {
             title: "General",
-            url: "#",
+            url: "/settings/general",
           },
           {
-            title: "Team",
-            url: "#",
+            title: "Account",
+            url: "/settings/account",
           },
           {
             title: "Billing",
-            url: "#",
+            url: "/settings/billing",
           },
           {
-            title: "Limits",
-            url: "#",
+            title: "Notifications",
+            url: "/settings/notifications",
           },
         ],
       },
