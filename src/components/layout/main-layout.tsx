@@ -3,6 +3,7 @@ import { AppBreadcrumb } from "@/components/parts/sidebar/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Header } from "../parts/header";
+import { MultiVideoPlayer } from "../parts/multi-video-player";
 
 type MainLayoutProps = {
   children: React.ReactNode;
@@ -20,8 +21,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <AppBreadcrumb />
           </div>
         </header>
-        <main>
+        <main className="px-4">
           <Header />
+          <MultiVideoPlayer />
           {children}
         </main>
       </SidebarInset>
