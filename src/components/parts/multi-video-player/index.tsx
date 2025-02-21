@@ -4,8 +4,9 @@ import { Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from "lucide-reac
 import YouTube from "react-youtube";
 import { Button } from "../../ui/button";
 import { Card, CardContent } from "../../ui/card";
+import { videoList } from "./consts";
 import { useMultiVideoPlayer } from "./hooks";
-import { extractVideoId, getPlayerOpts, videoList } from "./utils";
+import { extractVideoId, getPlayerOpts } from "./utils";
 
 export const MultiVideoPlayer = () => {
   const {
