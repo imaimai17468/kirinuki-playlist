@@ -119,6 +119,7 @@ export const useMultiVideoPlayer = ({ videoList }: UseMultiVideoPlayerProps) => 
       handleNextTrack,
       toggleShuffle,
       toggleLoop,
+      setState,
     },
   };
 };

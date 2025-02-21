@@ -19,6 +19,7 @@ export const MultiVideoPlayer = () => {
       handleNextTrack,
       toggleShuffle,
       toggleLoop,
+      setState,
     },
   } = useMultiVideoPlayer({ videoList });
 
@@ -67,6 +68,28 @@ export const MultiVideoPlayer = () => {
               >
                 <Repeat />
               </Button>
+            </div>
+            <div className="flex flex-col max-h-48 overflow-y-auto">
+              {videoList.map((video, index) => (
+                <button
+                  type="button"
+                  key={video.url}
+                  onClick={() => {
+                    if (index !== state.currentIndex) {
+                      setState((prev) => ({ ...prev, currentIndex: index }));
+                    }
+                  }}
+                  disabled={index === state.currentIndex}
+                  className={`w-full text-left px-3 py-2 rounded-sm text-sm transition-colors
+                    ${
+                      index === state.currentIndex
+                        ? "bg-green-500/10 text-green-500"
+                        : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
+                >
+                  {video.title}
+                </button>
+              ))}
             </div>
           </CardContent>
         </Card>
