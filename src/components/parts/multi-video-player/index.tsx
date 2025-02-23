@@ -113,12 +113,14 @@ export const MultiVideoPlayer = () => {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Avatar>
                 <AvatarImage src={playlist.author.iconUrl} />
                 <AvatarFallback>{playlist.author.name.slice(0, 2)}</AvatarFallback>
               </Avatar>
-              <p>{playlist.author.name}</p>
+              <Link href={`/users/${playlist.author.id}`} className="text-sm hover:opacity-70 transition-opacity">
+                {playlist.author.name}
+              </Link>
             </div>
           </CardContent>
         </Card>
