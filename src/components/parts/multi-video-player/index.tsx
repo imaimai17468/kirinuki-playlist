@@ -1,6 +1,6 @@
 "use client";
 
-import { ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from "lucide-react";
+import { ListMusic, PanelBottomClose, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from "lucide-react";
 import Link from "next/link";
 import YouTube from "react-youtube";
 import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
@@ -39,7 +39,7 @@ export const MultiVideoPlayer = () => {
       ) : (
         <Card className="pt-6 w-96 fixed bottom-4 right-4">
           <CardContent className="flex flex-col gap-4">
-            <div className="flex">
+            <div className="flex justify-between">
               <Link
                 href={`/playlists/${playlist.id}`}
                 className="flex items-center gap-1 text-gray-500 hover:underline"
@@ -47,6 +47,9 @@ export const MultiVideoPlayer = () => {
                 <ListMusic className="w-4 h-4" />
                 <p className="text-xs">{playlist.title}</p>
               </Link>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <PanelBottomClose />
+              </Button>
             </div>
             <YouTube videoId={videoId} opts={opts} onReady={onReady} onEnd={onEnd} />
             <div className="flex flex-col gap-2">
