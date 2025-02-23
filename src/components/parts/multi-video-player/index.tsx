@@ -1,10 +1,12 @@
 "use client";
 
-import { Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from "lucide-react";
+import { ListMusic, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from "lucide-react";
+import Link from "next/link";
 import YouTube from "react-youtube";
+import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
 import { Button } from "../../ui/button";
 import { Card, CardContent } from "../../ui/card";
-import { videoList } from "./consts";
+import { playlist } from "./consts";
 import { useMultiVideoPlayer } from "./hooks";
 import { extractVideoId, getPlayerOpts } from "./utils";
 
@@ -22,9 +24,9 @@ export const MultiVideoPlayer = () => {
       toggleLoop,
       setState,
     },
-  } = useMultiVideoPlayer({ videoList });
+  } = useMultiVideoPlayer({ videoList: playlist.videos });
 
-  const currentVideo = videoList[state.currentIndex];
+  const currentVideo = playlist.videos[state.currentIndex];
   const videoId = extractVideoId(currentVideo.url);
   const opts = getPlayerOpts(currentVideo.start, currentVideo.end);
 
@@ -37,9 +39,25 @@ export const MultiVideoPlayer = () => {
       ) : (
         <Card className="pt-6 w-96 fixed bottom-4 right-4">
           <CardContent className="flex flex-col gap-4">
+            <div className="flex">
+              <Link
+                href={`/playlists/${playlist.id}`}
+                className="flex items-center gap-1 text-gray-500 hover:underline"
+              >
+                <ListMusic className="w-4 h-4" />
+                <p className="text-xs">{playlist.title}</p>
+              </Link>
+            </div>
             <YouTube videoId={videoId} opts={opts} onReady={onReady} onEnd={onEnd} />
-            <div className="flex justify-center">
-              <p className="text-sm font-bold">{currentVideo.title}</p>
+            <div className="flex flex-col gap-2">
+              <p className="self-center text-sm font-bold">{currentVideo.title}</p>
+              <div className="overflow-hidden relative">
+                <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-card to-transparent z-10" />
+                <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card to-transparent z-10" />
+                <p className="text-sm text-gray-500 whitespace-nowrap animate-marquee">
+                  {`${currentVideo.movieTitle} - ${currentVideo.channelName}`}
+                </p>
+              </div>
             </div>
             <div className="flex justify-between items-center">
               <Button
@@ -71,7 +89,7 @@ export const MultiVideoPlayer = () => {
               </Button>
             </div>
             <div className="flex flex-col max-h-48 overflow-y-auto">
-              {videoList.map((video, index) => (
+              {playlist.videos.map((video, index) => (
                 <button
                   type="button"
                   key={video.url}
@@ -91,6 +109,13 @@ export const MultiVideoPlayer = () => {
                   {video.title}
                 </button>
               ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Avatar>
+                <AvatarImage src={playlist.author.iconUrl} />
+                <AvatarFallback>{playlist.author.name.slice(0, 2)}</AvatarFallback>
+              </Avatar>
+              <p>{playlist.author.name}</p>
             </div>
           </CardContent>
         </Card>
