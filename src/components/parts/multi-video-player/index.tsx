@@ -10,7 +10,7 @@ import { playlist } from "./consts";
 import { useMultiVideoPlayer } from "./hooks";
 import { extractVideoId, getPlayerOpts } from "./utils";
 
-export const MultiVideoPlayer = () => {
+export const MultiVideoPlayer: React.FC = () => {
   const {
     state,
     handlers: {
