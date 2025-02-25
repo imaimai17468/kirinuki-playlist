@@ -1,26 +1,26 @@
 import { useRef, useState } from "react";
 import type { YouTubePlayer } from "react-youtube";
 import type { VideoItem } from "./types";
+import type { PlayerHandlers, PlayerState } from "./types";
 
-interface PlayerState {
-  currentIndex: number;
-  isStarted: boolean;
-  isPlaying: boolean;
-  isShuffleMode: boolean;
-  isLoopMode: boolean;
-}
-
-interface UseMultiVideoPlayerProps {
+type UseVideoPlayerProps = {
   videoList: VideoItem[];
-}
+};
 
-export const useMultiVideoPlayer = ({ videoList }: UseMultiVideoPlayerProps) => {
+type UseVideoPlayerReturn = {
+  state: PlayerState;
+  playerRef: React.RefObject<YouTubePlayer | null>;
+  handlers: PlayerHandlers;
+};
+
+export const useVideoPlayer = ({ videoList }: UseVideoPlayerProps): UseVideoPlayerReturn => {
   const [state, setState] = useState<PlayerState>({
     currentIndex: 0,
     isStarted: false,
     isPlaying: true,
     isShuffleMode: false,
     isLoopMode: false,
+    isPlayerBarMode: false,
   });
   const playerRef = useRef<YouTubePlayer | null>(null);
 
@@ -107,6 +107,10 @@ export const useMultiVideoPlayer = ({ videoList }: UseMultiVideoPlayerProps) => 
     }
   };
 
+  const togglePlayerMode = () => {
+    setState((prev) => ({ ...prev, isPlayerBarMode: !prev.isPlayerBarMode }));
+  };
+
   return {
     state,
     playerRef,
@@ -119,6 +123,7 @@ export const useMultiVideoPlayer = ({ videoList }: UseMultiVideoPlayerProps) => 
       handleNextTrack,
       toggleShuffle,
       toggleLoop,
+      togglePlayerMode,
       setState,
     },
   };
