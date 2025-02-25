@@ -3,29 +3,21 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { ListMusic, PanelBottomClose, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from "lucide-react";
 import Link from "next/link";
 import YouTube from "react-youtube";
-import { playlist } from "./consts";
-import { useMultiVideoPlayer } from "./hooks";
+import type { PlayerHandlers, PlayerState } from "../types";
+import type { Playlist } from "../types";
 import { extractVideoId, getPlayerOpts } from "./utils";
 
-export const MultiVideoPlayer: React.FC = () => {
-  const {
-    state,
-    handlers: {
-      onReady,
-      onEnd,
-      handleStart,
-      handlePlayPause,
-      handlePreviousTrack,
-      handleNextTrack,
-      toggleShuffle,
-      toggleLoop,
-      setState,
-    },
-  } = useMultiVideoPlayer({ videoList: playlist.videos });
+type MultiVideoPlayerProps = {
+  state: PlayerState;
+  handlers: PlayerHandlers;
+  playlist: Playlist;
+};
 
+export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({ state, handlers, playlist }) => {
   const currentVideo = playlist.videos[state.currentIndex];
   const videoId = extractVideoId(currentVideo.url);
   const opts = getPlayerOpts(currentVideo.start, currentVideo.end);
@@ -33,11 +25,16 @@ export const MultiVideoPlayer: React.FC = () => {
   return (
     <div>
       {!state.isStarted ? (
-        <Button type="button" onClick={handleStart}>
+        <Button type="button" onClick={handlers.handleStart}>
           再生開始
         </Button>
       ) : (
-        <Card className="pt-6 w-96 fixed bottom-4 right-4">
+        <Card
+          className={cn(
+            "pt-6 w-96 fixed bottom-4 right-4 transition-transform duration-200 ease-in-out",
+            state.isPlayerBarMode && "translate-y-full",
+          )}
+        >
           <CardContent className="flex flex-col gap-4">
             <div className="flex justify-between">
               <Link
@@ -47,11 +44,17 @@ export const MultiVideoPlayer: React.FC = () => {
                 <ListMusic className="w-4 h-4" />
                 <p className="text-xs">{playlist.title}</p>
               </Link>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                aria-label="video-player-close (player-bar-open)"
+                onClick={handlers.togglePlayerMode}
+              >
                 <PanelBottomClose />
               </Button>
             </div>
-            <YouTube videoId={videoId} opts={opts} onReady={onReady} onEnd={onEnd} />
+            <YouTube videoId={videoId} opts={opts} onReady={handlers.onReady} onEnd={handlers.onEnd} />
             <div className="flex flex-col gap-2">
               <p className="self-center text-sm font-bold">{currentVideo.title}</p>
               <div className="overflow-hidden relative">
@@ -66,25 +69,25 @@ export const MultiVideoPlayer: React.FC = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={toggleShuffle}
+                onClick={handlers.toggleShuffle}
                 className={state.isShuffleMode ? "text-green-500 hover:text-green-500" : ""}
                 aria-label="シャッフル"
               >
                 <Shuffle />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handlePreviousTrack} aria-label="前の動画">
+              <Button variant="ghost" size="icon" onClick={handlers.handlePreviousTrack} aria-label="前の動画">
                 <SkipBack />
               </Button>
-              <Button size="icon" onClick={handlePlayPause} className="rounded-full" aria-label="再生/停止">
+              <Button size="icon" onClick={handlers.handlePlayPause} className="rounded-full" aria-label="再生/停止">
                 {state.isPlaying ? <Pause /> : <Play />}
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleNextTrack} aria-label="次の動画">
+              <Button variant="ghost" size="icon" onClick={handlers.handleNextTrack} aria-label="次の動画">
                 <SkipForward />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={toggleLoop}
+                onClick={handlers.toggleLoop}
                 className={state.isLoopMode ? "text-green-500 hover:text-green-500" : ""}
                 aria-label="ループ"
               >
@@ -98,7 +101,10 @@ export const MultiVideoPlayer: React.FC = () => {
                   key={video.url}
                   onClick={() => {
                     if (index !== state.currentIndex) {
-                      setState((prev) => ({ ...prev, currentIndex: index }));
+                      handlers.setState((prev) => ({
+                        ...prev,
+                        currentIndex: index,
+                      }));
                     }
                   }}
                   disabled={index === state.currentIndex}
