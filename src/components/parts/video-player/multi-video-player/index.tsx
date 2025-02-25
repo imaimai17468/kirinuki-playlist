@@ -1,11 +1,11 @@
 "use client";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { ListMusic, PanelBottomClose, Pause, Play, Repeat, Shuffle, SkipBack, SkipForward } from "lucide-react";
 import Link from "next/link";
 import YouTube from "react-youtube";
-import { Avatar, AvatarFallback, AvatarImage } from "../../ui/avatar";
-import { Button } from "../../ui/button";
-import { Card, CardContent } from "../../ui/card";
 import { playlist } from "./consts";
 import { useMultiVideoPlayer } from "./hooks";
 import { extractVideoId, getPlayerOpts } from "./utils";
