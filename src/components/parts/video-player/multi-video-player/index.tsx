@@ -1,6 +1,5 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -133,15 +132,6 @@ export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({ state, handl
               {video.title}
             </button>
           ))}
-        </div>
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src={playlist.author.iconUrl} />
-            <AvatarFallback>{playlist.author.name.slice(0, 2)}</AvatarFallback>
-          </Avatar>
-          <Link href={`/users/${playlist.author.id}`} className="text-sm hover:opacity-70 transition-opacity">
-            {playlist.author.name}
-          </Link>
         </div>
       </CardContent>
     </Card>
