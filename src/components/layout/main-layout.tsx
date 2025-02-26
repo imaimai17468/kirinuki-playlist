@@ -1,7 +1,6 @@
 import { Header } from "@/components/parts/header";
 import { AppSidebar } from "@/components/parts/sidebar/app-sidebar";
 import { AppBreadcrumb } from "@/components/parts/sidebar/breadcrumb";
-import { VideoPlayer } from "@/components/parts/video-player";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
@@ -23,7 +22,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </header>
         <main className="px-4">
           <Header />
-          <VideoPlayer />
           {children}
         </main>
       </SidebarInset>
