@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, ListMusic, Settings2, Star, Tag, Tv } from "lucide-react";
+import { ListMusic, Scissors, Settings2, Star, Tag, Tv } from "lucide-react";
 import type * as React from "react";
 
 import { NavMain } from "@/components/parts/sidebar/nav-main";
@@ -16,19 +16,19 @@ const data = {
   navMain: {
     navItems: [
       {
-        title: "Library",
-        url: "/library",
-        icon: BookOpen,
-      },
-      {
-        title: "Favorites",
-        url: "/favorites",
-        icon: Star,
+        title: "Clips",
+        url: "/clips",
+        icon: Scissors,
       },
       {
         title: "Playlists",
         url: "/playlists",
         icon: ListMusic,
+      },
+      {
+        title: "Favorites",
+        url: "/favorites",
+        icon: Star,
       },
       {
         title: "Tags",
