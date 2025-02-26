@@ -4,16 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { PanelBottomClose, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { PanelBottomClose, Pause, Play, SkipBack, SkipForward, SquareX } from "lucide-react";
 import type { PlayerHandlers, PlayerState, Playlist } from "../types";
 
 type VideoPlayerBarProps = {
   state: PlayerState;
   handlers: PlayerHandlers;
   playlist: Playlist;
+  handlePlayerClose: () => void;
 };
 
-export const VideoPlayerBar: React.FC<VideoPlayerBarProps> = ({ state, handlers, playlist }) => {
+export const VideoPlayerBar: React.FC<VideoPlayerBarProps> = ({ state, handlers, playlist, handlePlayerClose }) => {
   const { state: sidebarState } = useSidebar();
   const currentVideo = playlist.videos[state.currentIndex];
 
@@ -28,9 +29,21 @@ export const VideoPlayerBar: React.FC<VideoPlayerBarProps> = ({ state, handlers,
       )}
     >
       <div className="flex justify-between items-center">
-        <div className="flex flex-col">
-          <p className="font-bold text-sm">{currentVideo.title}</p>
-          <p className="text-xs text-gray-500">{currentVideo.movieTitle}</p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={handlers.togglePlayerMode}
+            aria-label="player-bar-close (video-player-open)"
+          >
+            <PanelBottomClose />
+          </Button>
+          <Separator orientation="vertical" className="h-6 mr-2" />
+          <div className="flex flex-col">
+            <p className="font-bold text-sm">{currentVideo.title}</p>
+            <p className="text-xs text-gray-500">{currentVideo.movieTitle}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={handlers.handlePreviousTrack} aria-label="前の動画">
@@ -42,15 +55,15 @@ export const VideoPlayerBar: React.FC<VideoPlayerBarProps> = ({ state, handlers,
           <Button variant="ghost" size="icon" onClick={handlers.handleNextTrack} aria-label="次の動画">
             <SkipForward className="h-5 w-5" />
           </Button>
-          <Separator orientation="vertical" className="h-7" />
+          <Separator orientation="vertical" className="h-6" />
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
-            onClick={handlers.togglePlayerMode}
-            aria-label="player-bar-close (video-player-open)"
+            className="h-7 w-7 text-red-500 hover:text-red-500 hover:bg-red-500/10"
+            onClick={handlePlayerClose}
+            aria-label="player-close"
           >
-            <PanelBottomClose />
+            <SquareX />
           </Button>
         </div>
       </div>
