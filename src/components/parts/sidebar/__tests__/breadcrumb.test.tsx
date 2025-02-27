@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import { cleanup, render, screen } from "@testing-library/react";
 import * as navigation from "next/navigation";
-import { AppBreadcrumb } from "../breadcrumb";
+import { AppBreadcrumb } from "../navigation/breadcrumb";
 
 // next/navigationのモックを作成
 const mockedUsePathname = mock(() => "/");

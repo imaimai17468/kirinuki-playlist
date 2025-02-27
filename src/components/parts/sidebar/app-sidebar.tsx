@@ -2,8 +2,8 @@
 
 import type * as React from "react";
 
-import { NavMain } from "@/components/parts/sidebar/nav-main";
-import { NavUser } from "@/components/parts/sidebar/nav-user";
+import { NavMain } from "@/components/parts/sidebar/navigation/nav-main";
+import { NavUser } from "@/components/parts/sidebar/navigation/nav-user";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
 import { SIDEBAR_ITEMS } from "./consts";
 

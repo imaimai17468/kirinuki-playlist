@@ -1,6 +1,6 @@
 import { Header } from "@/components/parts/header";
 import { AppSidebar } from "@/components/parts/sidebar/app-sidebar";
-import { AppBreadcrumb } from "@/components/parts/sidebar/breadcrumb";
+import { AppBreadcrumb } from "@/components/parts/sidebar/navigation/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
