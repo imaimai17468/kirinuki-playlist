@@ -1,74 +1,11 @@
 "use client";
 
-import { ListMusic, Scissors, Settings2, Star, Tag, Tv } from "lucide-react";
 import type * as React from "react";
 
 import { NavMain } from "@/components/parts/sidebar/nav-main";
 import { NavUser } from "@/components/parts/sidebar/nav-user";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from "@/components/ui/sidebar";
-
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  navMain: {
-    navItems: [
-      {
-        title: "Clips",
-        url: "/clips",
-        icon: Scissors,
-      },
-      {
-        title: "Playlists",
-        url: "/playlists",
-        icon: ListMusic,
-      },
-      {
-        title: "Favorites",
-        url: "/favorites",
-        icon: Star,
-      },
-      {
-        title: "Tags",
-        url: "/tags",
-        icon: Tag,
-      },
-      {
-        title: "Channels",
-        url: "/channels",
-        icon: Tv,
-      },
-    ],
-    collapsibleItems: [
-      {
-        title: "Settings",
-        url: "/settings",
-        icon: Settings2,
-        isActive: false,
-        items: [
-          {
-            title: "General",
-            url: "/settings/general",
-          },
-          {
-            title: "Account",
-            url: "/settings/account",
-          },
-          {
-            title: "Billing",
-            url: "/settings/billing",
-          },
-          {
-            title: "Notifications",
-            url: "/settings/notifications",
-          },
-        ],
-      },
-    ],
-  },
-};
+import { SIDEBAR_ITEMS } from "./consts";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -79,10 +16,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </p>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain navItems={data.navMain.navItems} collapsibleItems={data.navMain.collapsibleItems} />
+        <NavMain navItems={SIDEBAR_ITEMS.navMain.navItems} collapsibleItems={SIDEBAR_ITEMS.navMain.collapsibleItems} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={SIDEBAR_ITEMS.user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
