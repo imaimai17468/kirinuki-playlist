@@ -24,20 +24,16 @@ export function AppBreadcrumb() {
     <Breadcrumb>
       <BreadcrumbList>
         {breadcrumbItems.map((item, index) => (
-          <>
+          <BreadcrumbItem key={item.url}>
             {index < breadcrumbItems.length - 1 ? (
               <>
-                <BreadcrumbItem key={item.url}>
-                  <BreadcrumbLink href={item.url}>{item.title}</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator key={`${item.url}-separator`} />
+                <BreadcrumbLink href={item.url}>{item.title}</BreadcrumbLink>
+                <BreadcrumbSeparator />
               </>
             ) : (
-              <BreadcrumbItem key={item.url}>
-                <BreadcrumbPage>{item.title}</BreadcrumbPage>
-              </BreadcrumbItem>
+              <BreadcrumbPage>{item.title}</BreadcrumbPage>
             )}
-          </>
+          </BreadcrumbItem>
         ))}
       </BreadcrumbList>
     </Breadcrumb>
