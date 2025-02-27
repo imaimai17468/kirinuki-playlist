@@ -15,3 +15,6 @@ pre-push:
     check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
       run: bun biome check --no-errors-on-unmatched {staged_files}
+    test:
+      glob: "src/components/**/__tests__/**/*.{ts,tsx}"
+      run: bun test {staged_files}
