@@ -74,9 +74,14 @@ export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({ state, handl
           <div className="overflow-hidden relative">
             <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-card to-transparent z-10" />
             <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card to-transparent z-10" />
-            <p className="text-sm text-gray-500 whitespace-nowrap animate-marquee">
-              {`${currentVideo.movieTitle} - ${currentVideo.channelName}`}
-            </p>
+            <div className="flex whitespace-nowrap">
+              <p className="text-sm text-gray-500 animate-marquee pr-4">
+                {`${currentVideo.movieTitle} - ${currentVideo.channelName}`}
+              </p>
+              <p className="text-sm text-gray-500 animate-marquee pr-4">
+                {`${currentVideo.movieTitle} - ${currentVideo.channelName}`}
+              </p>
+            </div>
           </div>
         </div>
         <div className="flex justify-between items-center">
