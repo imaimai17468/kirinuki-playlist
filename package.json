@@ -8,6 +8,7 @@
     "start": "next start",
     "check": "biome check --write src",
     "format": "biome format --write src",
+    "type": "tsc --noEmit",
     "init:lefthook": "lefthook install",
     "test": "bun test",
     "test:watch": "bun test --watch"
