@@ -1,3 +1,7 @@
+---
+description: TypeScriptコーディングにおけるベストプラクティスとガイドライン
+globs: **/*.ts,**/*.tsx
+---
 ## TypeScript
 
 TypeScriptでのコーディングにおける一般的なベストプラクティスをまとめます。

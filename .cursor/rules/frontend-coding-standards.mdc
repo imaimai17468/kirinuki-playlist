@@ -1,3 +1,7 @@
+---
+description: Kirinuki-Playlistプロジェクトのフロントエンド開発コーディング規約
+globs: src/**/*.ts,src/**/*.tsx,app/**/*.ts,app/**/*.tsx,components/**/*.ts,components/**/*.tsx
+---
 # Kirinuki-Playlist プロジェクトルール
 
 ## コードスタイル
