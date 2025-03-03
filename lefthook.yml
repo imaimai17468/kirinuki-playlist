@@ -7,6 +7,12 @@ pre-commit:
     check(web):
       glob: "apps/web/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
       run: cd apps/web && bun biome check --write --no-errors-on-unmatched $(echo {staged_files} | sed 's|apps/web/||g') && git update-index --again
+    fix(backend):
+      glob: "apps/backend/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
+      run: cd apps/backend && bun biome format --write --no-errors-on-unmatched $(echo {staged_files} | sed 's|apps/backend/||g') && git update-index --again
+    check(backend):
+      glob: "apps/backend/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
+      run: cd apps/backend && bun biome check --no-errors-on-unmatched $(echo {push_files} | sed 's|apps/backend/||g')
 
 pre-push:
   parallel: true
@@ -20,3 +26,12 @@ pre-push:
     type(web):
       glob: "apps/web/**/*.{ts,tsx}"
       run: cd apps/web && bun tsc --noEmit
+    check(backend):
+      glob: "apps/backend/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
+      run: cd apps/backend && bun biome check --no-errors-on-unmatched $(echo {push_files} | sed 's|apps/backend/||g')
+    test(backend):
+      glob: "apps/backend/**/*.test.{ts,tsx}"
+      run: cd apps/backend && bun test
+    type(backend):
+      glob: "apps/backend/**/*.{ts,tsx}"
+      run: cd apps/backend && bun tsc --noEmit

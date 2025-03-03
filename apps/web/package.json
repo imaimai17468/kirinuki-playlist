@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "@kirinuki-playlist/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,6 +13,7 @@
     "test:watch": "bun test --watch"
   },
   "dependencies": {
+    "@kirinuki-playlist/backend": "workspace:*",
     "@biomejs/biome": "^1.8.3",
     "@radix-ui/react-avatar": "^1.1.3",
     "@radix-ui/react-collapsible": "^1.1.3",
