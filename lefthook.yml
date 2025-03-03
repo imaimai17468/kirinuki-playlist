@@ -6,15 +6,15 @@ pre-commit:
     check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
       run: bun biome check --write --no-errors-on-unmatched {staged_files} && git update-index --again
-    type:
-      glob: "*.{ts,tsx}"
-      run: bun tsc --noEmit
 
 pre-push:
   commands:
     check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: bun biome check --no-errors-on-unmatched {staged_files}
+      run: bun biome check --no-errors-on-unmatched {push_files}
     test:
-      glob: "src/components/**/__tests__/**/*.{ts,tsx}"
-      run: bun test {staged_files}
+      glob: "apps/**/src/components/**/__tests__/**/*.{ts,tsx}"
+      run: bun test {push_files}
+    type:
+      glob: "*.{ts,tsx}"
+      run: bun tsc --noEmit
