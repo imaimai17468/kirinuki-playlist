@@ -5,9 +5,6 @@
   "scripts": {
     "init:lefthook": "lefthook install"
   },
-  "devDependencies": {
-    "@biomejs/biome": "^1.8.3"
-  },
   "dependencies": {
     "lefthook": "^1.11.2"
   }
