@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "backend",
   "main": "src/index.ts",
-  "compatibility_date": "2025-03-06"
+  "compatibility_date": "2025-03-06",
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
@@ -21,13 +21,13 @@
   //     "bucket_name": "my-bucket"
   //   }
   // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kirinuki-playlist",
+      "database_id": "691c0f66-b010-43fb-bd92-e6b99d2eed29"
+    }
+  ]
   // "ai": {
   //   "binding": "AI"
   // },
