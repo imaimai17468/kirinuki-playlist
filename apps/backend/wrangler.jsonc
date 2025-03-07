@@ -3,9 +3,7 @@
   "name": "backend",
   "main": "src/index.ts",
   "compatibility_date": "2025-03-06",
-  // "compatibility_flags": [
-  //   "nodejs_compat"
-  // ],
+  "compatibility_flags": ["nodejs_compat"],
   // "vars": {
   //   "MY_VAR": "my-variable"
   // },
@@ -25,7 +23,8 @@
     {
       "binding": "DB",
       "database_name": "kirinuki-playlist",
-      "database_id": "691c0f66-b010-43fb-bd92-e6b99d2eed29"
+      "database_id": "691c0f66-b010-43fb-bd92-e6b99d2eed29",
+      "migrations_dir": "drizzle"
     }
   ]
   // "ai": {
