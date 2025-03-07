@@ -6,6 +6,7 @@
     "init:lefthook": "lefthook install"
   },
   "dependencies": {
+    "@biomejs/biome": "^1.9.4",
     "lefthook": "^1.11.2"
   },
   "workspaces": [
