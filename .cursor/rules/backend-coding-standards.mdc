@@ -1,0 +1,212 @@
+---
+description: Kirinuki-Playlistプロジェクトのバックエンド開発コーディング規約
+globs: apps/backend/**/*.ts
+---
+# バックエンド開発コーディング規約
+
+## プロジェクト構造
+
+バックエンドコードは以下の構造に従って整理します：
+
+```
+src/
+├── controllers/        # ルートハンドラー
+│   └── [resource].ts   # リソース別のコントローラー
+├── models/             # データモデル
+│   └── [resource].ts   # リソース別のスキーマ定義
+├── services/           # ビジネスロジック
+│   └── [resource].ts   # リソース別のサービス
+├── middlewares/        # ミドルウェア
+│   └── [name].ts       # 機能別のミドルウェア
+├── utils/              # ユーティリティ関数
+│   └── [name].ts       # 機能別のユーティリティ
+├── types/              # 型定義
+│   └── index.ts        # 共通の型定義
+├── config/             # 設定
+│   └── [name].ts       # 機能別の設定
+└── index.ts            # エントリーポイント
+```
+
+## 責任の分離
+
+### コントローラー
+- リクエストの検証
+- レスポンスの整形
+- サービスの呼び出し
+- ルーティングの定義
+
+```typescript
+// controllers/videos.ts
+videosRouter.get("/:id", async (c) => {
+  const id = c.req.param("id");
+  const video = await videoService.getVideoById(c.env.DB, id);
+  return c.json({ success: true, video });
+});
+```
+
+### サービス
+- ビジネスロジックの実装
+- データベース操作
+- エラーハンドリング
+- トランザクション管理
+
+```typescript
+// services/videos.ts
+async getVideoById(db: D1Database, id: string): Promise<Video> {
+  const client = createDbClient(db);
+  try {
+    const video = await client
+      .select()
+      .from(videos)
+      .where(eq(videos.id, id))
+      .get();
+
+    if (!video) {
+      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+    }
+
+    return video;
+  } catch (error) {
+    // エラーハンドリング
+  }
+}
+```
+
+### モデル
+- データスキーマの定義
+- バリデーションルールの定義
+- 型定義のエクスポート
+
+```typescript
+// models/videos.ts
+export const videos = sqliteTable(
+  "videos",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    // ...
+  }
+);
+
+export const videoInsertSchema = createInsertSchema(videos, {
+  id: z.undefined(),
+  title: z.string().min(1, "タイトルは必須です"),
+  // ...
+});
+```
+
+## エラーハンドリング
+
+- カスタムエラークラスを使用
+- 集中的なエラーハンドリングミドルウェア
+- 適切なHTTPステータスコードの返却
+- 一貫したエラーレスポンス形式
+
+```typescript
+// middlewares/error-handler.ts
+export const errorHandler: MiddlewareHandler = async (c, next) => {
+  try {
+    await next();
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      return c.json({ success: false, error: "リソースが見つかりません", message: err.message }, 404);
+    }
+    // その他のエラーハンドリング
+  }
+};
+```
+
+## 型安全性
+
+- 明示的な型定義
+- `any`型の使用を避ける
+- インターフェースと型エイリアスの適切な使用
+- Drizzle ORMの型推論を活用
+
+```typescript
+// types/index.ts
+export type Video = InferSelectModel<typeof videos>;
+export type VideoInsert = Omit<InferInsertModel<typeof videos>, "id" | "createdAt" | "updatedAt">;
+```
+
+## API設計
+
+- RESTful原則に従う
+- 一貫したエンドポイント命名
+- 適切なHTTPメソッドの使用
+- 明確なレスポンス形式
+
+```
+GET /api/videos          # 一覧取得
+GET /api/videos/:id      # 詳細取得
+POST /api/videos         # 新規作成
+PATCH /api/videos/:id    # 部分更新
+DELETE /api/videos/:id   # 削除
+```
+
+## データベース操作
+
+- Drizzle ORMを使用
+- トランザクションの適切な使用
+- クエリの最適化
+- マイグレーション管理
+
+```typescript
+// config/database.ts
+export const createDbClient = (db: D1Database) => {
+  return drizzle(db);
+};
+```
+
+## 環境変数
+
+- `.env`ファイルでの管理
+- 型安全な環境変数アクセス
+- デフォルト値の提供
+- 必須環境変数の検証
+
+```typescript
+// wrangler.jsonc
+{
+  "vars": {
+    "API_KEY": "xxx"
+  }
+}
+```
+
+## テスト
+
+- ユニットテスト
+- 統合テスト
+- モックの適切な使用
+- テストカバレッジの確保
+
+```typescript
+// services/__tests__/videos.test.ts
+describe('videoService', () => {
+  it('should get video by id', async () => {
+    // テストコード
+  });
+});
+```
+
+## ドキュメント
+
+- コードコメント
+- API仕様書
+- README
+- 変更履歴
+
+## セキュリティ
+
+- 入力バリデーション
+- 認証と認可
+- レート制限
+- CORS設定
+
+## パフォーマンス
+
+- キャッシュの活用
+- クエリの最適化
+- 非同期処理の適切な使用
+- リソースの効率的な利用
