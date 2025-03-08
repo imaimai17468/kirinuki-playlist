@@ -1,5 +1,5 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { createSelectSchema, createInsertSchema } from "drizzle-zod";
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const videos = sqliteTable(
@@ -26,3 +26,4 @@ export const videoInsertSchema = createInsertSchema(videos, {
   createdAt: z.undefined(),
   updatedAt: z.undefined(),
 });
+export const videoUpdateSchema = createUpdateSchema(videos);

@@ -1,9 +1,10 @@
-import { Hono } from "hono";
-import { drizzle } from "drizzle-orm/d1";
-import { videos, videoInsertSchema } from "./scheme";
 import { zValidator } from "@hono/zod-validator";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
+import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { nanoid } from "nanoid";
+import { videoInsertSchema, videoUpdateSchema, videos } from "./scheme";
 
 // カスタムエラークラス
 class UniqueConstraintError extends Error {
@@ -17,6 +18,13 @@ class DatabaseError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "DatabaseError";
+  }
+}
+
+class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotFoundError";
   }
 }
 
@@ -50,6 +58,17 @@ app.onError((err: Error, c) => {
         message: err.message,
       },
       500,
+    );
+  }
+
+  if (err instanceof NotFoundError) {
+    return c.json(
+      {
+        success: false,
+        error: "リソースが見つかりません",
+        message: err.message,
+      },
+      404,
     );
   }
 
@@ -121,6 +140,95 @@ app.post("/videos", zValidator("json", videoInsertSchema), async (c) => {
       }
 
       throw new DatabaseError("動画の保存中にエラーが発生しました");
+    }
+
+    throw error;
+  }
+});
+
+// 動画の更新
+app.patch("/videos/:id", zValidator("json", videoUpdateSchema), async (c) => {
+  const id = c.req.param("id");
+  const input = c.req.valid("json");
+  const db = drizzle(c.env.DB);
+
+  try {
+    // 更新データの準備（updatedAtは自動的に現在時刻に設定）
+    const updateData = {
+      ...input,
+      updatedAt: new Date(),
+    };
+
+    // データベースを更新
+    const result = await db.update(videos).set(updateData).where(eq(videos.id, id)).run();
+
+    // 影響を受けた行数が0の場合、リソースが存在しない
+    if (result.meta.changes === 0) {
+      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+    }
+
+    return c.json({ success: true, id });
+  } catch (error: unknown) {
+    if (error instanceof NotFoundError) {
+      throw error;
+    }
+
+    if (error instanceof Error) {
+      throw new DatabaseError(`動画の更新中にエラーが発生しました: ${error.message}`);
+    }
+
+    throw error;
+  }
+});
+
+// 動画の削除
+app.delete("/videos/:id", async (c) => {
+  const id = c.req.param("id");
+  const db = drizzle(c.env.DB);
+
+  try {
+    // データベースから削除
+    const result = await db.delete(videos).where(eq(videos.id, id)).run();
+
+    // 影響を受けた行数が0の場合、リソースが存在しない
+    if (result.meta.changes === 0) {
+      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+    }
+
+    return c.json({ success: true });
+  } catch (error: unknown) {
+    if (error instanceof NotFoundError) {
+      throw error;
+    }
+
+    if (error instanceof Error) {
+      throw new DatabaseError(`動画の削除中にエラーが発生しました: ${error.message}`);
+    }
+
+    throw error;
+  }
+});
+
+// 動画の詳細取得
+app.get("/videos/:id", async (c) => {
+  const id = c.req.param("id");
+  const db = drizzle(c.env.DB);
+
+  try {
+    const video = await db.select().from(videos).where(eq(videos.id, id)).get();
+
+    if (!video) {
+      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+    }
+
+    return c.json({ success: true, video });
+  } catch (error: unknown) {
+    if (error instanceof NotFoundError) {
+      throw error;
+    }
+
+    if (error instanceof Error) {
+      throw new DatabaseError(`動画の取得中にエラーが発生しました: ${error.message}`);
     }
 
     throw error;
