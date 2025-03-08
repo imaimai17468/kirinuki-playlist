@@ -1,3 +1,4 @@
+import type { D1Database } from "@cloudflare/workers-types";
 import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
@@ -32,7 +33,7 @@ type Bindings = {
   DB: D1Database;
 };
 
-const app = new Hono<{ Bindings: Bindings }>().basePath("api");
+const app = new Hono<{ Bindings: Bindings }>();
 
 // グローバルエラーハンドラー
 app.onError((err: Error, c) => {
