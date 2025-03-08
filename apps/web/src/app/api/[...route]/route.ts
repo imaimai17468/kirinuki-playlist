@@ -1,11 +1,11 @@
-import { app as backend } from "@kirinuki-playlist/backend";
+import app from "@kirinuki-playlist/backend";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 
 const handleDevOnly = (...args: Parameters<ReturnType<typeof handle>>) => {
   if (process.env.NODE_ENV === "development") {
-    const app = new Hono().basePath("/api").route("/", backend);
-    return handle(app)(...args);
+    const hono = new Hono().basePath("/api").route("/", app);
+    return handle(hono)(...args);
   }
   return new Response(null, { status: 404 });
 };
