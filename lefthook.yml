@@ -12,7 +12,7 @@ pre-commit:
       run: cd apps/backend && bun biome format --write --no-errors-on-unmatched $(echo {staged_files} | sed 's|apps/backend/||g') && git update-index --again
     check(backend):
       glob: "apps/backend/**/*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
-      run: cd apps/backend && bun biome check --no-errors-on-unmatched $(echo {push_files} | sed 's|apps/backend/||g')
+      run: cd apps/backend && bun biome check --write --no-errors-on-unmatched $(echo {push_files} | sed 's|apps/backend/||g') && git update-index --again
 
 pre-push:
   parallel: true
