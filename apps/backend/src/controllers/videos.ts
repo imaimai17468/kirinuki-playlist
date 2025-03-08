@@ -1,9 +1,9 @@
-import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { videoService } from "../services/videos";
+import { Hono } from "hono";
 import { videoInsertSchema, videoUpdateSchema } from "../models/videos";
-import type { Bindings } from "../types";
+import { videoService } from "../services/videos";
 import type { VideoInsert, VideoUpdate } from "../services/videos";
+import type { Bindings } from "../types";
 
 export const videosRouter = new Hono<{ Bindings: Bindings }>();
 

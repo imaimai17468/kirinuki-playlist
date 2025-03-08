@@ -1,10 +1,10 @@
+import type { D1Database } from "@cloudflare/workers-types";
 import { eq } from "drizzle-orm";
+import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { createDbClient } from "../config/database";
 import { videos } from "../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
-import type { D1Database } from "@cloudflare/workers-types";
-import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export type Video = InferSelectModel<typeof videos>;
 export type VideoInsert = Omit<InferInsertModel<typeof videos>, "id" | "createdAt" | "updatedAt">;

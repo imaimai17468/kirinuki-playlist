@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { errorHandler } from "./middlewares/error-handler";
 import { videosRouter } from "./controllers/videos";
+import { errorHandler } from "./middlewares/error-handler";
 import type { Bindings } from "./types";
 
 // アプリケーションの作成
