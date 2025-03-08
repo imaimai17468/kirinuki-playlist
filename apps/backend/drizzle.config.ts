@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 export default {
-  schema: "./src/scheme.ts",
+  schema: "./src/models/index.ts",
   out: "./drizzle",
   dialect: "sqlite",
   driver: "d1-http",

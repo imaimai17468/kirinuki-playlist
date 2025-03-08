@@ -1,5 +1,5 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
+import { createSelectSchema, createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const videos = sqliteTable(
