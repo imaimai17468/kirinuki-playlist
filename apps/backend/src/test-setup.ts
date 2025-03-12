@@ -1,3 +1,4 @@
+import { afterAll } from "@jest/globals";
 import { Miniflare } from "miniflare";
 import type { Bindings } from "./types";
 
@@ -14,3 +15,8 @@ global.getMiniflareBindings = async (): Promise<Bindings> => {
   const env = await mf.getBindings();
   return env as Bindings;
 };
+
+// テスト終了時にMiniflareをクローズ
+afterAll(async () => {
+  await mf.dispose();
+});
