@@ -31,7 +31,7 @@ pre-push:
       run: cd apps/backend && bun biome check --no-errors-on-unmatched $(echo {push_files} | sed 's|apps/backend/||g')
     test(backend):
       glob: "apps/backend/**/*.test.{ts,tsx}"
-      run: cd apps/backend && bun test
+      run: cd apps/backend && bun run test
     type(backend):
       glob: "apps/backend/**/*.{ts,tsx}"
       run: cd apps/backend && bun tsc --noEmit
