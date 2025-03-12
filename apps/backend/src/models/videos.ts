@@ -15,6 +15,7 @@ export const videos = sqliteTable(
   },
   () => [],
 );
+export type Video = typeof videos.$inferSelect;
 
 export const videoSelectSchema = createSelectSchema(videos);
 export const videoInsertSchema = createInsertSchema(videos, {
