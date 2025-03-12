@@ -95,10 +95,16 @@ describe("Videos API", () => {
     const res = await app.fetch(new Request("http://localhost/api/videos"), env);
     expect(res.status).toBe(200);
 
-    const responseData = await res.json();
+    // レスポンスデータの型を定義
+    type ApiResponse = {
+      success: boolean;
+      videos: Video[];
+    };
+
+    const responseData = (await res.json()) as ApiResponse;
     expect(responseData.success).toBe(true);
 
-    const videos = responseData.videos as Video[];
+    const videos = responseData.videos;
     // 日付の形式が変わるため、IDとタイトルだけを比較
     expect(videos.length).toBe(videoList.length);
     videos.forEach((item, index) => {
