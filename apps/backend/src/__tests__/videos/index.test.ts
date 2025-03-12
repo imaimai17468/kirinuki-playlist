@@ -1,10 +1,10 @@
-import type { Video } from "../../models";
-import type { Bindings } from "../../types";
 // nanoidのCommonJS版をインポート
 import { nanoid } from "nanoid/non-secure";
 import { createDbClient } from "../../config/database";
-import { videos } from "../../models/videos";
 import app from "../../index";
+import type { Video } from "../../models";
+import { videos } from "../../models/videos";
+import type { Bindings } from "../../types";
 
 // テスト用のデータ
 const videoList: Video[] = [
