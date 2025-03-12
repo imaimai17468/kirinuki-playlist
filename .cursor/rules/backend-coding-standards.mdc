@@ -190,6 +190,136 @@ describe('videoService', () => {
 });
 ```
 
+### Miniflare/D1テスト環境のセットアップ
+
+- テスト用のセットアップファイルを作成
+- 非同期のMiniflareバインディングを適切に処理
+- テーブル定義とカラム名の一致を確認
+
+```typescript
+// test-setup.ts
+import { Miniflare } from "miniflare";
+import type { Bindings } from "./types";
+
+// Miniflareインスタンスを作成
+const mf = new Miniflare({
+  modules: true,
+  script: "",
+  d1Databases: ["DB"],
+  d1Persist: false, // インメモリデータベースを使用
+});
+
+// グローバル関数として定義
+global.getMiniflareBindings = async (): Promise<Bindings> => {
+  const env = await mf.getBindings();
+  return env as Bindings;
+};
+```
+
+```typescript
+// test-types.d.ts
+import type { Bindings } from "./types";
+
+declare global {
+  function getMiniflareBindings(): Promise<Bindings>;
+}
+```
+
+### テストデータの準備
+
+- テスト前にテーブルを作成
+- テストデータをシードする関数を実装
+- SQLiteの列名に合わせてデータを挿入
+
+```typescript
+// __tests__/videos/index.test.ts
+beforeAll(async () => {
+  env = await getMiniflareBindings();
+
+  // テーブルの作成を確認
+  const client = createDbClient(env.DB);
+  try {
+    await client.run(`
+      CREATE TABLE IF NOT EXISTS videos (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        start INTEGER NOT NULL,
+        end INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+  } catch (error) {
+    console.error("テーブル作成エラー:", error);
+  }
+});
+
+// テスト用のデータをシードする関数
+const seed = async () => {
+  const client = createDbClient(env.DB);
+
+  try {
+    // テスト前にテーブルをクリア
+    await client.delete(videos);
+    // D1データベースに挿入
+    for (const video of videoList) {
+      await client.run(`
+        INSERT INTO videos (id, title, url, start, end, created_at, updated_at)
+        VALUES ('${video.id}', '${video.title}', '${video.url}', ${video.start}, ${video.end},
+        '${video.createdAt.toISOString()}', '${video.updatedAt.toISOString()}')
+      `);
+    }
+  } catch (error) {
+    console.error("シードエラー:", error);
+  }
+};
+```
+
+### APIテスト
+
+- 完全なURLを使用してリクエスト
+- レスポンス形式を確認
+- 適切なアサーションを実装
+
+```typescript
+// __tests__/videos/index.test.ts
+test("動画一覧を取得する", async () => {
+  // 完全なURLを使用
+  const res = await app.fetch(new Request("http://localhost/api/videos"), env);
+  expect(res.status).toBe(200);
+
+  const responseData = await res.json();
+  expect(responseData.success).toBe(true);
+
+  const videos = responseData.videos as Video[];
+  expect(videos.length).toBe(videoList.length);
+  videos.forEach((item, index) => {
+    expect(item.id).toBe(videoList[index].id);
+    expect(item.title).toBe(videoList[index].title);
+  });
+});
+```
+
+### Jest設定
+
+- テスト環境の適切な設定
+- ESモジュールの処理
+- セットアップファイルの指定
+
+```javascript
+// jest.config.js
+module.exports = {
+  testEnvironment: "node",
+  testMatch: ["**/*.test.ts"],
+  transform: {
+    "^.+\\.(j|t)sx?$": "esbuild-jest",
+  },
+  transformIgnorePatterns: ["node_modules/(?!nanoid/)"],
+  setupFilesAfterEnv: ["<rootDir>/src/test-setup.ts"],
+};
+```
+
 ## ドキュメント
 
 - コードコメント
