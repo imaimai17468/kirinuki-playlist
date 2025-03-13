@@ -58,3 +58,20 @@ export type VideoListResponse = {
   success: boolean;
   videos: Video[];
 };
+
+// 単一ビデオのレスポンス型
+export type VideoDetailResponse = {
+  success: boolean;
+  video: Video;
+};
+
+// ID返却のレスポンス型
+export type IdResponse = {
+  success: boolean;
+  id: string;
+};
+
+// 成功レスポンス型
+export type SuccessResponse = {
+  success: boolean;
+};
