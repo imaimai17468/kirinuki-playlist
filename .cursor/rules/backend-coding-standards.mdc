@@ -195,9 +195,11 @@ describe('videoService', () => {
 - テスト用のセットアップファイルを作成
 - 非同期のMiniflareバインディングを適切に処理
 - テーブル定義とカラム名の一致を確認
+- テスト終了時にリソースを適切に解放する
 
 ```typescript
 // test-setup.ts
+import { afterAll } from "@jest/globals";
 import { Miniflare } from "miniflare";
 import type { Bindings } from "./types";
 
@@ -214,6 +216,11 @@ global.getMiniflareBindings = async (): Promise<Bindings> => {
   const env = await mf.getBindings();
   return env as Bindings;
 };
+
+// テスト終了時にMiniflareをクローズ（重要）
+afterAll(async () => {
+  await mf.dispose();
+});
 ```
 
 ```typescript
@@ -281,6 +288,7 @@ const seed = async () => {
 - 完全なURLを使用してリクエスト
 - レスポンス形式を確認
 - 適切なアサーションを実装
+- レスポンスデータに明示的な型定義を行う
 
 ```typescript
 // __tests__/videos/index.test.ts
@@ -289,10 +297,16 @@ test("動画一覧を取得する", async () => {
   const res = await app.fetch(new Request("http://localhost/api/videos"), env);
   expect(res.status).toBe(200);
 
-  const responseData = await res.json();
+  // レスポンスデータの型を定義
+  type ApiResponse = {
+    success: boolean;
+    videos: Video[];
+  };
+
+  const responseData = (await res.json()) as ApiResponse;
   expect(responseData.success).toBe(true);
 
-  const videos = responseData.videos as Video[];
+  const videos = responseData.videos;
   expect(videos.length).toBe(videoList.length);
   videos.forEach((item, index) => {
     expect(item.id).toBe(videoList[index].id);
@@ -306,6 +320,7 @@ test("動画一覧を取得する", async () => {
 - テスト環境の適切な設定
 - ESモジュールの処理
 - セットアップファイルの指定
+- テスト実行モードの使い分け
 
 ```javascript
 // jest.config.js
@@ -319,6 +334,23 @@ module.exports = {
   setupFilesAfterEnv: ["<rootDir>/src/test-setup.ts"],
 };
 ```
+
+```json
+// package.json
+{
+  "scripts": {
+    "test": "jest --verbose",       // 通常実行（CI/CD用）
+    "test:watch": "jest --verbose --watch"  // 開発用ウォッチモード
+  }
+}
+```
+
+### テスト実行時の注意点
+
+- Miniflareなどのリソースは必ず解放する
+- 非同期処理が残っている場合は`--detectOpenHandles`フラグで検出
+- テストが自動終了しない場合は原因を特定して修正
+- ウォッチモードは開発時のみ使用し、CI/CDでは通常実行を使用
 
 ## ドキュメント
 
