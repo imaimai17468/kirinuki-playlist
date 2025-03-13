@@ -52,3 +52,9 @@ export type ApiResponse<T> = {
   [key: string]: unknown;
   data?: T;
 };
+
+// ビデオ一覧のレスポンス型
+export type VideoListResponse = {
+  success: boolean;
+  videos: Video[];
+};

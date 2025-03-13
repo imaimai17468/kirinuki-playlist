@@ -1,7 +1,7 @@
 import app from "../../index";
 import type { Video } from "../../models";
 import type { Bindings } from "../../types";
-import { type ApiResponse, seedVideos, setupDatabase } from "../helpers/db-setup";
+import { type VideoListResponse, seedVideos, setupDatabase } from "../helpers/db-setup";
 import { videoList } from "../helpers/test-data";
 
 describe("Videos API", () => {
@@ -23,13 +23,13 @@ describe("Videos API", () => {
       const res = await app.fetch(new Request("http://localhost/api/videos"), env);
       expect(res.status).toBe(200);
 
-      const responseData = (await res.json()) as ApiResponse<Video[]>;
+      const responseData = (await res.json()) as VideoListResponse;
       expect(responseData.success).toBe(true);
 
       const videos = responseData.videos;
       // 日付の形式が変わるため、IDとタイトルだけを比較
       expect(videos.length).toBe(videoList.length);
-      videos.forEach((item, index) => {
+      videos.forEach((item: Video, index: number) => {
         expect(item.id).toBe(videoList[index].id);
         expect(item.title).toBe(videoList[index].title);
       });
