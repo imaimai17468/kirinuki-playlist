@@ -1,0 +1,209 @@
+---
+description: Kirinuki-Playlistプロジェクトのバックエンドエラーハンドリング規約
+globs: apps/backend/**/*.ts
+---
+# バックエンドエラーハンドリング規約
+
+## エラーハンドリングの基本方針
+
+- カスタムエラークラスを使用
+- 集中的なエラーハンドリングミドルウェア
+- 適切なHTTPステータスコードの返却
+- 一貫したエラーレスポンス形式
+
+## カスタムエラークラス
+
+エラーの種類ごとに専用のクラスを定義し、エラー処理を一元化します。
+
+```typescript
+// utils/errors.ts
+export class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
+export class DatabaseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DatabaseError";
+  }
+}
+
+export class UniqueConstraintError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UniqueConstraintError";
+  }
+}
+```
+
+## エラーハンドリングミドルウェア
+
+エラーを集中的に処理するミドルウェアを実装し、アプリケーション全体に適用します。
+
+```typescript
+// middlewares/error-handler.ts
+export const errorHandler: MiddlewareHandler<{ Bindings: Bindings }> = async (c, next) => {
+  try {
+    await next();
+  } catch (err: unknown) {
+    if (!(err instanceof Error)) {
+      return c.json(
+        {
+          success: false,
+          error: "不明なエラー",
+          message: "予期しないエラーが発生しました",
+        },
+        500,
+      );
+    }
+
+    console.error(`[Error] ${err.message}`, err.stack);
+
+    // カスタムエラーの処理
+    if (err instanceof UniqueConstraintError) {
+      return c.json(
+        {
+          success: false,
+          error: "重複エラー",
+          message: err.message,
+        },
+        409,
+      );
+    }
+
+    if (err instanceof DatabaseError) {
+      return c.json(
+        {
+          success: false,
+          error: "データベースエラー",
+          message: err.message,
+        },
+        500,
+      );
+    }
+
+    if (err instanceof NotFoundError) {
+      return c.json(
+        {
+          success: false,
+          error: "リソースが見つかりません",
+          message: err.message,
+        },
+        404,
+      );
+    }
+
+    // Zodバリデーションエラーの処理
+    if (err instanceof HTTPException && err.status === 400) {
+      return c.json(
+        {
+          success: false,
+          error: "バリデーションエラー",
+          details: err.message,
+        },
+        400,
+      );
+    }
+
+    // その他のエラー
+    return c.json(
+      {
+        success: false,
+        error: err.name === "ZodError" ? err : "サーバーエラー",
+        message: "予期しないエラーが発生しました",
+      },
+      500,
+    );
+  }
+};
+```
+
+## サービス層でのエラーハンドリング
+
+サービス層では、適切なカスタムエラーをスローし、エラーの種類を明確にします。
+
+```typescript
+// services/videos.ts
+async getVideoById(db: D1Database, id: string): Promise<Video> {
+  const client = createDbClient(db);
+  try {
+    const video = await client.select().from(videos).where(eq(videos.id, id)).get();
+
+    if (!video) {
+      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+    }
+
+    return video;
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      throw error;
+    }
+    throw new DatabaseError(
+      `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
+    );
+  }
+}
+```
+
+## エラーレスポンスの形式
+
+一貫したエラーレスポンス形式を使用し、クライアントが適切に処理できるようにします。
+
+```typescript
+// エラーレスポンスの基本形式
+{
+  success: false,
+  error: "エラーの種類",
+  message: "エラーの詳細メッセージ"
+}
+```
+
+## バリデーションエラーの処理
+
+Zodを使用したバリデーションエラーを適切に処理します。
+
+```typescript
+// controllers/videos.ts
+videosRouter.post("/", zValidator("json", videoInsertSchema), async (c) => {
+  // zValidatorミドルウェアがバリデーションエラーを処理
+  const input = c.req.valid("json") as VideoInsert;
+  const id = await videoService.createVideo(c.env.DB, input);
+  return c.json({ success: true, id }, 201);
+});
+```
+
+## テスト環境でのエラーハンドリング
+
+テスト環境では、エラーハンドラーの挙動が本番環境と異なる場合があります。テスト時には以下の点に注意してください。
+
+- 500エラーの場合、JSONではなくHTMLやプレーンテキストが返される可能性がある
+- レスポンスの内容を検証する前に、テキストとして取得して内容を確認する
+- JSONパースエラーが発生した場合は、レスポンスの形式を確認する
+
+```typescript
+// テスト中のエラーレスポンスの処理
+const res = await app.fetch(
+  new Request(`http://localhost/api/videos/${nonExistentId}`),
+  env
+);
+
+// レスポンスをテキストとして取得
+const responseText = await res.text();
+console.log("Response text:", responseText);
+
+// JSONとして解析できる場合のみ検証
+if (responseText.startsWith("{")) {
+  const responseData = JSON.parse(responseText);
+  expect(responseData.success).toBe(false);
+}
+```
