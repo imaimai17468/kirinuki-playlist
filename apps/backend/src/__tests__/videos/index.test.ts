@@ -127,7 +127,11 @@ describe("Videos API", () => {
       );
       expect(res.status).toBe(400);
 
-      const responseData = await res.json();
+      // 型アサーションを追加
+      const responseData = (await res.json()) as {
+        success: boolean;
+        error?: string;
+      };
       expect(responseData.success).toBe(false);
     });
   });
