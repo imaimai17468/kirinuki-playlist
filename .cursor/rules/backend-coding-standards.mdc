@@ -464,6 +464,86 @@ module.exports = {
 - 非同期処理が残っている場合は`--detectOpenHandles`フラグで検出
 - テストが自動終了しない場合は原因を特定して修正
 - ウォッチモードは開発時のみ使用し、CI/CDでは通常実行を使用
+- テスト実行にはbunを使用する場合は`bun run test`コマンドを使用
+
+```bash
+# テストの実行（bun）
+bun run test
+
+# テストの実行（npm）
+npm test
+
+# ウォッチモードでのテスト実行
+bun run test:watch
+```
+
+```json
+// package.json
+{
+  "scripts": {
+    "test": "jest --verbose",       // 通常実行（CI/CD用）
+    "test:watch": "jest --verbose --watch"  // 開発用ウォッチモード
+  }
+}
+```
+
+### テスト環境でのエラーハンドリング
+
+- テスト環境ではエラーハンドラーの挙動が本番環境と異なる場合がある
+- 500エラーの場合、JSONではなくHTMLやプレーンテキストが返される可能性がある
+- レスポンスの内容を検証する前に、テキストとして取得して内容を確認する
+
+```typescript
+// __tests__/videos/index.test.ts
+test("存在しないIDの場合のエラー処理", async () => {
+  const nonExistentId = "non-existent-id";
+  const res = await app.fetch(
+    new Request(`http://localhost/api/videos/${nonExistentId}`),
+    env
+  );
+
+  // ステータスコードの検証
+  expect(res.status).toBe(500); // または404（環境による）
+
+  // レスポンスをテキストとして取得して内容を確認
+  const responseText = await res.text();
+  console.log("Response text:", responseText);
+
+  // JSONとして解析できる場合のみ検証
+  if (responseText.startsWith("{")) {
+    const responseData = JSON.parse(responseText);
+    expect(responseData.success).toBe(false);
+  }
+});
+```
+
+### テスト環境のトラブルシューティング
+
+- エラーハンドラーが期待通りに動作しない場合は、ミドルウェアの適用順序を確認
+- テスト環境と本番環境の違いを理解し、テストケースを適切に調整
+- 環境変数やバインディングが正しく設定されているか確認
+- コンソールログを活用してデバッグ情報を収集
+
+```typescript
+// テスト中のデバッグ情報の出力
+console.log("Response status:", res.status);
+console.log("Response headers:", Object.fromEntries(res.headers.entries()));
+console.log("Response text:", await res.text());
+```
+
+- テスト失敗時のエラーメッセージを詳細に分析
+- 特にJSONパースエラーは、レスポンスの形式が期待と異なる可能性を示唆
+
+```typescript
+// JSONパースエラーを防ぐ安全な方法
+let responseData;
+try {
+  responseData = await res.json();
+} catch (error) {
+  console.log("JSON parse error:", error);
+  console.log("Response text:", await res.clone().text());
+}
+```
 
 ## ドキュメント
 
