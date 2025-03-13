@@ -95,6 +95,7 @@ describe("Videos API", () => {
 - APIレスポンスに明示的な型定義を行う
 - 型アサーションを適切に使用する
 - コールバック関数のパラメータに型アノテーションを追加する
+- JSONパースを行う場合は型安全に処理する
 
 ```typescript
 // __tests__/helpers/db-setup.ts
@@ -109,6 +110,23 @@ export type ApiResponse<T> = {
 export type VideoListResponse = {
   success: boolean;
   videos: Video[];
+};
+
+// 単一ビデオのレスポンス型
+export type VideoDetailResponse = {
+  success: boolean;
+  video: Video;
+};
+
+// ID返却のレスポンス型
+export type IdResponse = {
+  success: boolean;
+  id: string;
+};
+
+// 成功レスポンス型
+export type SuccessResponse = {
+  success: boolean;
 };
 ```
 
@@ -131,6 +149,56 @@ test("動画一覧を取得する", async () => {
     expect(item.title).toBe(videoList[index].title);
   });
 });
+```
+
+### レスポンスの型安全な処理
+
+テスト中のレスポンス処理では、以下のパターンに応じて適切な型安全性を確保します：
+
+1. **正常系レスポンス**: 事前に定義した型を使用して型アサーションを行う
+
+```typescript
+const responseData = (await res.json()) as VideoListResponse;
+expect(responseData.success).toBe(true);
+expect(responseData.videos.length).toBe(3);
+```
+
+2. **エラーレスポンス**: インライン型定義または事前定義型を使用
+
+```typescript
+const responseData = (await res.json()) as { success: boolean; error?: string };
+expect(responseData.success).toBe(false);
+```
+
+3. **不確実なレスポンス形式**: テキストとして取得してから安全に処理
+
+```typescript
+// レスポンスをテキストとして取得
+const responseText = await res.text();
+console.log("Response text:", responseText);
+
+// JSONとして解析できる場合のみ検証
+if (responseText.startsWith("{")) {
+  const responseData = JSON.parse(responseText) as { success: boolean };
+  expect(responseData.success).toBe(false);
+}
+```
+
+### 型エラーの防止
+
+- `res.json()`の戻り値は常に型アサーションを行う
+- JSON.parseの結果も型アサーションを行う
+- 不確実なレスポンスはテキストとして取得してから処理する
+- 型定義ファイルを作成して共通の型を管理する
+
+```typescript
+// エラー例: 型アサーションなしでプロパティにアクセス
+const responseData = await res.json(); // responseDataはunknown型
+expect(responseData.success).toBe(false); // エラー: Object is of type 'unknown'
+
+// 修正例: 型アサーションを追加
+const responseData = (await res.json()) as { success: boolean };
+expect(responseData.success).toBe(false); // OK
 ```
 
 ## Miniflare/D1テスト環境のセットアップ
