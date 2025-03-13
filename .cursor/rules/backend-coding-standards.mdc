@@ -190,6 +190,119 @@ describe('videoService', () => {
 });
 ```
 
+### テストコードの構造化
+
+- テストコードを適切に分割して保守性を向上させる
+- 共通のセットアップ処理やテストデータを再利用可能な形で分離する
+- エンドポイント別にテストをグループ化する
+
+```
+src/
+├── __tests__/
+│   ├── helpers/
+│   │   ├── test-data.ts        # テストデータの定義
+│   │   └── db-setup.ts         # DB初期化とシード処理
+│   └── videos/
+│       ├── index.test.ts       # 基本的なテスト
+│       └── advanced.test.ts    # 高度なテストケース
+```
+
+```typescript
+// __tests__/helpers/test-data.ts
+import { nanoid } from "nanoid/non-secure";
+import type { Video } from "../../models";
+
+// テスト用のビデオデータ
+export const videoList: Video[] = [
+  {
+    id: nanoid(),
+    title: "Learning Hono",
+    url: "https://www.youtube.com/watch?v=1234567890",
+    start: 0,
+    end: 100,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  // ...
+];
+
+// 新しいビデオデータを作成するヘルパー関数
+export const createVideoData = (overrides: Partial<Video> = {}): Video => {
+  return {
+    id: nanoid(),
+    title: "Test Video",
+    url: "https://www.youtube.com/watch?v=test12345",
+    start: 0,
+    end: 60,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+};
+```
+
+```typescript
+// __tests__/videos/index.test.ts
+describe("Videos API", () => {
+  // 共通のセットアップ
+
+  describe("GET /api/videos", () => {
+    test("動画一覧を取得する", async () => {
+      // テストコード
+    });
+  });
+
+  describe("GET /api/videos/:id", () => {
+    test("特定の動画を取得する", async () => {
+      // テストコード
+    });
+  });
+});
+```
+
+### テストの型安全性
+
+- APIレスポンスに明示的な型定義を行う
+- 型アサーションを適切に使用する
+- コールバック関数のパラメータに型アノテーションを追加する
+
+```typescript
+// __tests__/helpers/db-setup.ts
+// レスポンスデータの型定義
+export type ApiResponse<T> = {
+  success: boolean;
+  [key: string]: unknown;
+  data?: T;
+};
+
+// ビデオ一覧のレスポンス型
+export type VideoListResponse = {
+  success: boolean;
+  videos: Video[];
+};
+```
+
+```typescript
+// __tests__/videos/index.test.ts
+test("動画一覧を取得する", async () => {
+  const res = await app.fetch(new Request("http://localhost/api/videos"), env);
+  expect(res.status).toBe(200);
+
+  // 明示的な型アサーション
+  const responseData = (await res.json()) as VideoListResponse;
+  expect(responseData.success).toBe(true);
+
+  const videos = responseData.videos;
+  expect(videos.length).toBe(videoList.length);
+
+  // コールバック関数のパラメータに型アノテーション
+  videos.forEach((item: Video, index: number) => {
+    expect(item.id).toBe(videoList[index].id);
+    expect(item.title).toBe(videoList[index].title);
+  });
+});
+```
+
 ### Miniflare/D1テスト環境のセットアップ
 
 - テスト用のセットアップファイルを作成
