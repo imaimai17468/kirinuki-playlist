@@ -5,8 +5,8 @@ globs: apps/backend/**/*.ts
 # バックエンド開発コーディング規約
 
 > **注意**: このファイルは基本的なコーディング規約のみを含みます。詳細な規約は以下の専用ファイルを参照してください：
-> - [バックエンドテスト規約](mdc:backend-testing-standards.mdc)
-> - [バックエンドエラーハンドリング規約](mdc:backend-error-handling.mdc)
+> - [backend-testing-standards.mdc](mdc:.cursor/rules/backend-testing-standards.mdc)
+> - [backend-coding-standards.mdc](mdc:.cursor/rules/backend-coding-standards.mdc)
 
 ## プロジェクト構造
 
