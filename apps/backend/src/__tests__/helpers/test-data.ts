@@ -1,6 +1,6 @@
 // nanoidのCommonJS版をインポート
 import { nanoid } from "nanoid/non-secure";
-import type { Video } from "../../models";
+import type { Video } from "../../models/videos";
 
 // テスト用のビデオデータ
 export const videoList: Video[] = [

@@ -1,5 +1,5 @@
 import app from "../../index";
-import type { Video } from "../../models";
+import type { Video } from "../../models/videos";
 import type { Bindings } from "../../types";
 import {
   type IdResponse,

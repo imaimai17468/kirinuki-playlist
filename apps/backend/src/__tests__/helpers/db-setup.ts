@@ -1,5 +1,5 @@
 import { createDbClient } from "../../config/database";
-import type { Video } from "../../models";
+import type { Video } from "../../models/videos";
 import { videos } from "../../models/videos";
 import type { Bindings } from "../../types";
 
