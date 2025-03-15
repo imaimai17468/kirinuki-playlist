@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { createDbClient } from "../config/database";
-import { videos } from "../models/videos";
 import { authors } from "../models/authors";
+import { videos } from "../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
 
 // 基本的なビデオの型（内部使用のみ）
