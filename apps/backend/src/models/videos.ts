@@ -10,11 +10,13 @@ export const videos = sqliteTable(
     url: text("url").notNull(),
     start: integer("start", { mode: "number" }).notNull(),
     end: integer("end", { mode: "number" }).notNull(),
+    authorId: text("author_id").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   () => [],
 );
+
 export type Video = typeof videos.$inferSelect;
 
 export const videoSelectSchema = createSelectSchema(videos);
@@ -24,6 +26,7 @@ export const videoInsertSchema = createInsertSchema(videos, {
   url: z.string().url("有効なURLを入力してください"),
   start: z.number().int().nonnegative("開始時間は0以上の整数である必要があります"),
   end: z.number().int().positive("終了時間は正の整数である必要があります"),
+  authorId: z.string().min(1, "作成者IDは必須です"),
   createdAt: z.undefined(),
   updatedAt: z.undefined(),
 });
