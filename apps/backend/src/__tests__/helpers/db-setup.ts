@@ -1,9 +1,9 @@
 import { createDbClient } from "../../config/database";
 import type { Author } from "../../models/authors";
 import { authors } from "../../models/authors";
-import type { Video } from "../../models/videos";
 import { videos } from "../../models/videos";
 import type { Bindings } from "../../types";
+import type { Video as TestVideo } from "./test-data";
 
 // テーブルの作成
 export const setupDatabase = async (env: Bindings): Promise<void> => {
@@ -17,8 +17,10 @@ export const setupDatabase = async (env: Bindings): Promise<void> => {
         url TEXT NOT NULL,
         start INTEGER NOT NULL,
         end INTEGER NOT NULL,
+        author_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (author_id) REFERENCES authors (id)
       )
     `);
 
@@ -38,7 +40,7 @@ export const setupDatabase = async (env: Bindings): Promise<void> => {
 };
 
 // テストデータのシード
-export const seedVideos = async (env: Bindings, videoList: Video[]): Promise<void> => {
+export const seedVideos = async (env: Bindings, videoList: TestVideo[]): Promise<void> => {
   const client = createDbClient(env.DB);
 
   try {
@@ -48,10 +50,10 @@ export const seedVideos = async (env: Bindings, videoList: Video[]): Promise<voi
     for (const video of videoList) {
       // SQLiteの列名に合わせてデータを挿入
       await client.run(`
-        INSERT INTO videos (id, title, url, start, end, created_at, updated_at)
-        VALUES ('${video.id}', '${video.title}', '${video.url}', ${video.start}, ${
-          video.end
-        }, '${video.createdAt.toISOString()}', '${video.updatedAt.toISOString()}')
+        INSERT INTO videos (id, title, url, start, end, author_id, created_at, updated_at)
+        VALUES ('${video.id}', '${video.title}', '${video.url}', ${video.start}, ${video.end}, '${
+          video.authorId
+        }', '${video.createdAt.toISOString()}', '${video.updatedAt.toISOString()}')
       `);
     }
   } catch (error) {
@@ -91,13 +93,13 @@ export type ApiResponse<T> = {
 // ビデオ一覧のレスポンス型
 export type VideoListResponse = {
   success: boolean;
-  videos: Video[];
+  videos: TestVideo[];
 };
 
 // 単一ビデオのレスポンス型
 export type VideoDetailResponse = {
   success: boolean;
-  video: Video;
+  video: TestVideo;
 };
 
 // 著者一覧のレスポンス型
@@ -116,6 +118,7 @@ export type AuthorDetailResponse = {
 export type IdResponse = {
   success: boolean;
   id: string;
+  video?: TestVideo;
 };
 
 // 成功レスポンス型

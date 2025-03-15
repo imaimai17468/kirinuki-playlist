@@ -4,14 +4,29 @@ import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { createDbClient } from "../config/database";
 import { videos } from "../models/videos";
+import { authors } from "../models/authors";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
 
-export type Video = InferSelectModel<typeof videos>;
+// 基本的なビデオの型（内部使用のみ）
+type VideoBase = InferSelectModel<typeof videos>;
+
+// 著者情報を含むビデオの型（公開用）
+export type Video = VideoBase & {
+  author: {
+    id: string;
+    name: string;
+    iconUrl: string;
+    bio: string | null;
+  };
+};
+
 export type VideoInsert = Omit<InferInsertModel<typeof videos>, "id" | "createdAt" | "updatedAt">;
+
 export type VideoUpdate = Partial<Omit<InferInsertModel<typeof videos>, "id" | "createdAt" | "updatedAt">>;
 
 export const videoService = {
-  async getAllVideos(db: D1Database): Promise<Video[]> {
+  // 内部使用のメソッド（著者情報なし）
+  async _getVideosWithoutAuthors(db: D1Database): Promise<VideoBase[]> {
     const client = createDbClient(db);
     try {
       return await client.select().from(videos).all();
@@ -20,7 +35,8 @@ export const videoService = {
     }
   },
 
-  async getVideoById(db: D1Database, id: string): Promise<Video> {
+  // 内部使用のメソッド（著者情報なし）
+  async _getVideoByIdWithoutAuthor(db: D1Database, id: string): Promise<VideoBase> {
     const client = createDbClient(db);
     try {
       const video = await client.select().from(videos).where(eq(videos.id, id)).get();
@@ -30,6 +46,89 @@ export const videoService = {
       }
 
       return video;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
+      );
+    }
+  },
+
+  // 公開APIメソッド（著者情報あり）
+  async getAllVideos(db: D1Database): Promise<Video[]> {
+    const client = createDbClient(db);
+    try {
+      // Drizzle ORMのクエリビルダーを使用
+      const results = await client
+        .select({
+          video: videos,
+          author: authors,
+        })
+        .from(videos)
+        .innerJoin(authors, eq(videos.authorId, authors.id))
+        .all();
+
+      // 結果を適切な形式に変換
+      return results.map((row) => ({
+        id: row.video.id,
+        title: row.video.title,
+        url: row.video.url,
+        start: row.video.start,
+        end: row.video.end,
+        authorId: row.video.authorId,
+        createdAt: row.video.createdAt,
+        updatedAt: row.video.updatedAt,
+        author: {
+          id: row.author.id,
+          name: row.author.name,
+          iconUrl: row.author.iconUrl,
+          bio: row.author.bio,
+        },
+      }));
+    } catch (error) {
+      throw new DatabaseError(
+        `動画一覧の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
+      );
+    }
+  },
+
+  // 公開APIメソッド（著者情報あり）
+  async getVideoById(db: D1Database, id: string): Promise<Video> {
+    const client = createDbClient(db);
+    try {
+      // Drizzle ORMのクエリビルダーを使用
+      const result = await client
+        .select({
+          video: videos,
+          author: authors,
+        })
+        .from(videos)
+        .innerJoin(authors, eq(videos.authorId, authors.id))
+        .where(eq(videos.id, id))
+        .get();
+
+      if (!result) {
+        throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+      }
+
+      return {
+        id: result.video.id,
+        title: result.video.title,
+        url: result.video.url,
+        start: result.video.start,
+        end: result.video.end,
+        authorId: result.video.authorId,
+        createdAt: result.video.createdAt,
+        updatedAt: result.video.updatedAt,
+        author: {
+          id: result.author.id,
+          name: result.author.name,
+          iconUrl: result.author.iconUrl,
+          bio: result.author.bio,
+        },
+      };
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
@@ -50,6 +149,12 @@ export const videoService = {
     const id = nanoid();
 
     try {
+      // 著者が存在するか確認
+      const author = await client.select().from(authors).where(eq(authors.id, data.authorId)).get();
+      if (!author) {
+        throw new NotFoundError(`ID: ${data.authorId} の著者が見つかりません`);
+      }
+
       // データベースに挿入
       await client.insert(videos).values({
         id,
@@ -60,6 +165,10 @@ export const videoService = {
 
       return id;
     } catch (error: unknown) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
       if (error instanceof Error) {
         if (error.message.includes("UNIQUE constraint failed")) {
           throw new UniqueConstraintError("この動画IDはすでに使用されています");
@@ -76,6 +185,14 @@ export const videoService = {
     const client = createDbClient(db);
 
     try {
+      // authorIdが含まれている場合、著者が存在するか確認
+      if (data.authorId) {
+        const author = await client.select().from(authors).where(eq(authors.id, data.authorId)).get();
+        if (!author) {
+          throw new NotFoundError(`ID: ${data.authorId} の著者が見つかりません`);
+        }
+      }
+
       // 更新データの準備（updatedAtは自動的に現在時刻に設定）
       const updateData = {
         ...data,

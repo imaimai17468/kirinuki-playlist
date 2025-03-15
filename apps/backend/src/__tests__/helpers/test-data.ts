@@ -1,7 +1,17 @@
 // nanoidのCommonJS版をインポート
 import { nanoid } from "nanoid/non-secure";
 import type { Author } from "../../models/authors";
-import type { Video } from "../../models/videos";
+import type { Video as VideoModel } from "../../models/videos";
+
+// テスト用のVideo型を定義（著者情報を含む）
+export type Video = VideoModel & {
+  author: {
+    id: string;
+    name: string;
+    iconUrl: string;
+    bio: string | null;
+  };
+};
 
 // テスト用の著者データ
 export const authorList: Author[] = [
@@ -55,6 +65,12 @@ export const videoList: Video[] = [
     authorId: authorList[0].id, // 山田太郎の動画
     createdAt: new Date(),
     updatedAt: new Date(),
+    author: {
+      id: authorList[0].id,
+      name: authorList[0].name,
+      iconUrl: authorList[0].iconUrl,
+      bio: authorList[0].bio,
+    },
   },
   {
     id: nanoid(),
@@ -65,6 +81,12 @@ export const videoList: Video[] = [
     authorId: authorList[1].id, // 佐藤花子の動画
     createdAt: new Date(),
     updatedAt: new Date(),
+    author: {
+      id: authorList[1].id,
+      name: authorList[1].name,
+      iconUrl: authorList[1].iconUrl,
+      bio: authorList[1].bio,
+    },
   },
   {
     id: nanoid(),
@@ -75,20 +97,35 @@ export const videoList: Video[] = [
     authorId: authorList[2].id, // 鈴木一郎の動画
     createdAt: new Date(),
     updatedAt: new Date(),
+    author: {
+      id: authorList[2].id,
+      name: authorList[2].name,
+      iconUrl: authorList[2].iconUrl,
+      bio: authorList[2].bio,
+    },
   },
 ];
 
 // 新しいビデオデータを作成するヘルパー関数
 export const createVideoData = (overrides: Partial<Video> = {}): Video => {
+  const authorId = overrides.authorId || authorList[0].id;
+  const author = authorList.find((a) => a.id === authorId) || authorList[0];
+
   return {
     id: nanoid(),
     title: "Test Video",
     url: "https://www.youtube.com/watch?v=test12345",
     start: 0,
     end: 60,
-    authorId: authorList[0].id, // デフォルトでは山田太郎の動画
+    authorId: author.id, // デフォルトでは山田太郎の動画
     createdAt: new Date(),
     updatedAt: new Date(),
+    author: {
+      id: author.id,
+      name: author.name,
+      iconUrl: author.iconUrl,
+      bio: author.bio,
+    },
     ...overrides,
   };
 };
