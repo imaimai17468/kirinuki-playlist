@@ -294,6 +294,152 @@ const seed = async () => {
 };
 ```
 
+## リレーションシップを持つデータのテスト
+
+### テストデータの設計
+
+- リレーションシップを持つデータ（例：ビデオと著者）をテストする場合は、以下の点に注意する：
+  - テスト用の型定義は実際のモデルを拡張し、関連エンティティの情報を含める
+  ```typescript
+  // テスト用のVideo型を定義（著者情報を含む）
+  export type Video = VideoModel & {
+    author: {
+      id: string;
+      name: string;
+      iconUrl: string;
+      bio: string | null;
+    };
+  };
+  ```
+  - シードデータは関連エンティティの順序を考慮して挿入する（親エンティティを先に挿入）
+  ```typescript
+  beforeEach(async () => {
+    // 著者データを先にシードする
+    await seedAuthors(env, authorList);
+    // 次にビデオデータをシードする
+    await seedVideos(env, videoList);
+  });
+  ```
+  - 外部キー制約を持つテーブルの作成順序に注意する
+
+### テストヘルパー関数
+
+- テストデータ生成用のヘルパー関数を実装し、再利用性を高める
+```typescript
+export const createVideoData = (overrides: Partial<Video> = {}): Video => {
+  const authorId = overrides.authorId || authorList[0].id;
+  const author = authorList.find((a) => a.id === authorId) || authorList[0];
+
+  return {
+    id: nanoid(),
+    title: "Test Video",
+    // ...他のデフォルト値
+    authorId: author.id,
+    author: {
+      id: author.id,
+      name: author.name,
+      iconUrl: author.iconUrl,
+      bio: author.bio,
+    },
+    ...overrides,
+  };
+};
+```
+
+### リレーションシップのテストケース
+
+- 関連エンティティの存在確認テストを実装する
+  - 存在しない関連エンティティIDを指定した場合のエラー処理をテスト
+  - 関連エンティティの更新が正しく反映されることをテスト
+  - レスポンスに関連エンティティの情報が含まれていることを確認
+
+```typescript
+test("存在しない著者IDの場合エラーを返す", async () => {
+  const invalidVideo = {
+    title: "Invalid Author Video",
+    url: "https://www.youtube.com/watch?v=invalid-author",
+    start: 10,
+    end: 120,
+    authorId: "non-existent-author-id",
+  };
+
+  const res = await app.fetch(
+    new Request("http://localhost/api/videos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(invalidVideo),
+    }),
+    env,
+  );
+  expect(res.status).toBe(500);
+
+  // レスポンスをテキストとして取得
+  const responseText = await res.text();
+
+  // JSONとして解析できる場合のみ検証
+  if (responseText.startsWith("{")) {
+    const responseData = JSON.parse(responseText);
+    expect(responseData.success).toBe(false);
+    // エラーメッセージに著者IDが含まれているか確認
+    if (responseData.message) {
+      expect(responseData.message.includes("著者")).toBeTruthy();
+    }
+  }
+});
+```
+
+### レスポンス検証の強化
+
+- レスポンスに含まれるネストされたオブジェクトの検証を行う
+```typescript
+// 著者情報も確認
+expect(responseData.video.author).toBeDefined();
+expect(responseData.video.author.id).toBe(targetVideo.author.id);
+expect(responseData.video.author.name).toBe(targetVideo.author.name);
+expect(responseData.video.author.iconUrl).toBe(targetVideo.author.iconUrl);
+```
+
+### 外部キー制約のテスト
+
+- 外部キー制約が正しく機能していることを確認するテストを実装する
+- 関連エンティティの削除時の挙動をテストする（カスケード削除または制約エラー）
+- 関連エンティティの更新時の整合性をテストする
+
+```typescript
+test("著者IDを更新する", async () => {
+  const targetVideo = videoList[0]; // 山田太郎の動画
+  const newAuthor = authorList[1]; // 佐藤花子に変更
+  const updateData = {
+    authorId: newAuthor.id,
+  };
+
+  const res = await app.fetch(
+    new Request(`http://localhost/api/videos/${targetVideo.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updateData),
+    }),
+    env,
+  );
+  expect(res.status).toBe(200);
+
+  // 更新されたビデオを取得して確認
+  const getRes = await app.fetch(new Request(`http://localhost/api/videos/${targetVideo.id}`), env);
+  const getResponseData = await getRes.json();
+  expect(getResponseData.success).toBe(true);
+
+  // 著者情報が更新されているか確認
+  expect(getResponseData.video.authorId).toBe(newAuthor.id);
+  expect(getResponseData.video.author).toBeDefined();
+  expect(getResponseData.video.author.id).toBe(newAuthor.id);
+  expect(getResponseData.video.author.name).toBe(newAuthor.name);
+});
+```
+
 ## APIテスト
 
 - 完全なURLを使用してリクエスト
