@@ -1,4 +1,6 @@
 import { createDbClient } from "../../config/database";
+import type { Author } from "../../models/authors";
+import { authors } from "../../models/authors";
 import type { Video } from "../../models/videos";
 import { videos } from "../../models/videos";
 import type { Bindings } from "../../types";
@@ -15,6 +17,17 @@ export const setupDatabase = async (env: Bindings): Promise<void> => {
         url TEXT NOT NULL,
         start INTEGER NOT NULL,
         end INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+
+    await client.run(`
+      CREATE TABLE IF NOT EXISTS authors (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        icon_url TEXT NOT NULL,
+        bio TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -46,6 +59,28 @@ export const seedVideos = async (env: Bindings, videoList: Video[]): Promise<voi
   }
 };
 
+// 著者テストデータのシード
+export const seedAuthors = async (env: Bindings, authorList: Author[]): Promise<void> => {
+  const client = createDbClient(env.DB);
+
+  try {
+    // テスト前にテーブルをクリア
+    await client.delete(authors);
+    // D1データベースに挿入
+    for (const author of authorList) {
+      // SQLiteの列名に合わせてデータを挿入
+      await client.run(`
+        INSERT INTO authors (id, name, icon_url, bio, created_at, updated_at)
+        VALUES ('${author.id}', '${author.name}', '${author.iconUrl}', ${
+          author.bio ? `'${author.bio}'` : "NULL"
+        }, '${author.createdAt.toISOString()}', '${author.updatedAt.toISOString()}')
+      `);
+    }
+  } catch (error) {
+    console.error("著者シードエラー:", error);
+  }
+};
+
 // レスポンスデータの型定義
 export type ApiResponse<T> = {
   success: boolean;
@@ -63,6 +98,18 @@ export type VideoListResponse = {
 export type VideoDetailResponse = {
   success: boolean;
   video: Video;
+};
+
+// 著者一覧のレスポンス型
+export type AuthorListResponse = {
+  success: boolean;
+  authors: Author[];
+};
+
+// 単一著者のレスポンス型
+export type AuthorDetailResponse = {
+  success: boolean;
+  author: Author;
 };
 
 // ID返却のレスポンス型
