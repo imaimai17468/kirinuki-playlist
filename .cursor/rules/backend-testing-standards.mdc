@@ -442,3 +442,223 @@ try {
   console.log("Response text:", await res.clone().text());
 }
 ```
+
+## 新しいリソースのテスト実装パターン
+
+新しいリソース（テーブル）のテストを実装する際は、以下のパターンに従います：
+
+### 1. テストデータの準備
+
+```typescript
+// __tests__/helpers/test-data.ts
+// テスト用の著者データ
+export const authorList: Author[] = [
+  {
+    id: nanoid(),
+    name: "山田太郎",
+    iconUrl: "https://example.com/icons/yamada.png",
+    bio: "音楽プロデューサー。様々なアーティストと仕事をしています。",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  // 他のテストデータ
+];
+
+// 新しい著者データを作成するヘルパー関数
+export const createAuthorData = (overrides: Partial<Author> = {}): Author => {
+  return {
+    id: nanoid(),
+    name: "テスト著者",
+    iconUrl: "https://example.com/icons/test.png",
+    bio: "テスト用の著者プロフィール",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+};
+```
+
+### 2. データベースセットアップとシード処理
+
+```typescript
+// __tests__/helpers/db-setup.ts
+// テーブル作成
+export const setupDatabase = async (env: Bindings): Promise<void> => {
+  const client = createDbClient(env.DB);
+  try {
+    // 既存のテーブル作成コード...
+
+    // 新しいテーブルの作成
+    await client.run(`
+      CREATE TABLE IF NOT EXISTS authors (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        icon_url TEXT NOT NULL,
+        bio TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+  } catch (error) {
+    console.error("テーブル作成エラー:", error);
+  }
+};
+
+// 著者テストデータのシード
+export const seedAuthors = async (env: Bindings, authorList: Author[]): Promise<void> => {
+  const client = createDbClient(env.DB);
+
+  try {
+    // テスト前にテーブルをクリア
+    await client.delete(authors);
+    // D1データベースに挿入
+    for (const author of authorList) {
+      // SQLiteの列名に合わせてデータを挿入
+      await client.run(`
+        INSERT INTO authors (id, name, icon_url, bio, created_at, updated_at)
+        VALUES ('${author.id}', '${author.name}', '${author.iconUrl}', ${
+          author.bio ? `'${author.bio}'` : "NULL"
+        }, '${author.createdAt.toISOString()}', '${author.updatedAt.toISOString()}')
+      `);
+    }
+  } catch (error) {
+    console.error("著者シードエラー:", error);
+  }
+};
+
+// レスポンス型の追加
+export type AuthorListResponse = {
+  success: boolean;
+  authors: Author[];
+};
+
+export type AuthorDetailResponse = {
+  success: boolean;
+  author: Author;
+};
+```
+
+### 3. テストケースの実装
+
+```typescript
+// __tests__/authors/index.test.ts
+import app from "../../index";
+import type { Author } from "../../models/authors";
+import type { Bindings } from "../../types";
+import {
+  type AuthorDetailResponse,
+  type AuthorListResponse,
+  type IdResponse,
+  type SuccessResponse,
+  seedAuthors,
+  setupDatabase,
+} from "../helpers/db-setup";
+import { authorList } from "../helpers/test-data";
+
+describe("Authors API", () => {
+  let env: Bindings;
+
+  // テスト前に環境を初期化
+  beforeAll(async () => {
+    env = await getMiniflareBindings();
+    await setupDatabase(env);
+  });
+
+  beforeEach(async () => {
+    await seedAuthors(env, authorList);
+  });
+
+  describe("GET /api/authors", () => {
+    test("著者一覧を取得する", async () => {
+      const res = await app.fetch(new Request("http://localhost/api/authors"), env);
+      expect(res.status).toBe(200);
+
+      const responseData = (await res.json()) as AuthorListResponse;
+      expect(responseData.success).toBe(true);
+
+      const authors = responseData.authors;
+      expect(authors.length).toBe(authorList.length);
+      authors.forEach((item: Author, index: number) => {
+        expect(item.id).toBe(authorList[index].id);
+        expect(item.name).toBe(authorList[index].name);
+      });
+    });
+  });
+
+  // 他のテストケース（GET /:id, POST, PATCH, DELETE）
+});
+```
+
+### 4. 各エンドポイントのテスト
+
+各エンドポイントに対して、以下のテストケースを実装します：
+
+1. **GET /api/[resource]**
+   - 正常系: リソース一覧の取得
+   - エラー系: 必要に応じて
+
+2. **GET /api/[resource]/:id**
+   - 正常系: 特定のリソースの取得
+   - エラー系: 存在しないIDの場合
+
+3. **POST /api/[resource]**
+   - 正常系: 新しいリソースの作成
+   - エラー系: バリデーションエラーの場合
+
+4. **PATCH /api/[resource]/:id**
+   - 正常系: リソースの更新
+   - エラー系: 存在しないIDの場合、バリデーションエラーの場合
+
+5. **DELETE /api/[resource]/:id**
+   - 正常系: リソースの削除
+   - エラー系: 存在しないIDの場合
+
+```typescript
+// POST /api/authors のテスト例
+test("新しい著者を作成する", async () => {
+  const newAuthor = {
+    name: "新しいテスト著者",
+    iconUrl: "https://example.com/icons/new-test.png",
+    bio: "新しいテスト用の著者プロフィール",
+  };
+
+  const res = await app.fetch(
+    new Request("http://localhost/api/authors", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newAuthor),
+    }),
+    env,
+  );
+  expect(res.status).toBe(201);
+
+  const responseData = (await res.json()) as IdResponse;
+  expect(responseData.success).toBe(true);
+  expect(responseData.id).toBeDefined();
+
+  // 作成された著者を取得して確認
+  const getRes = await app.fetch(
+    new Request(`http://localhost/api/authors/${responseData.id}`),
+    env,
+  );
+  const getResponseData = (await getRes.json()) as AuthorDetailResponse;
+  expect(getResponseData.success).toBe(true);
+  expect(getResponseData.author.name).toBe(newAuthor.name);
+  expect(getResponseData.author.iconUrl).toBe(newAuthor.iconUrl);
+  expect(getResponseData.author.bio).toBe(newAuthor.bio);
+});
+```
+
+### 5. テスト実行
+
+テストは`bun run test`コマンドで実行します。特定のテストファイルのみを実行する場合は、ファイル名を指定します。
+
+```bash
+# すべてのテストを実行
+bun run test
+
+# 特定のテストファイルのみを実行
+bun run test -- authors
+```
