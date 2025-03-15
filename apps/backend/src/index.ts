@@ -18,4 +18,4 @@ app.route("/api/authors", authorsRouter);
 app.get("/api/hello", (c) => c.text("Hello Hono!"));
 
 export default app;
-export { app };
+export type AppType = typeof app;
