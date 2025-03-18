@@ -7,6 +7,8 @@
     "deploy": "wrangler deploy --minify",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
+    "migrate:local": "wrangler d1 migrations apply kirinuki-playlist --local",
+    "migrate:remote": "wrangler d1 migrations apply kirinuki-playlist --remote",
     "test": "jest --verbose",
     "test:watch": "jest --verbose --watch",
     "check:biome": "biome check --write src",
