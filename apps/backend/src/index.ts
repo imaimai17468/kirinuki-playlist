@@ -11,11 +11,11 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use("*", errorHandler);
 
 // ルーターのマウント
-app.route("/api/videos", videosRouter);
-app.route("/api/authors", authorsRouter);
+app.route("/videos", videosRouter);
+app.route("/authors", authorsRouter);
 
 // 簡易ヘルスチェック
-app.get("/api/hello", (c) => c.text("Hello Hono!"));
+app.get("/hello", (c) => c.text("Hello Hono!"));
 
 export default app;
 export type AppType = typeof app;
