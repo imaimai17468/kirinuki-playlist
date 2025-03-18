@@ -6,7 +6,8 @@ globs: apps/backend/**/*.ts
 
 > **注意**: このファイルは基本的なコーディング規約のみを含みます。詳細な規約は以下の専用ファイルを参照してください：
 > - [backend-testing-standards.mdc](mdc:.cursor/rules/backend-testing-standards.mdc)
-> - [backend-coding-standards.mdc](mdc:.cursor/rules/backend-coding-standards.mdc)
+> - [backend-error-handling.mdc](mdc:.cursor/rules/backend-error-handling.mdc)
+> - [backend-database.mdc](mdc:.cursor/rules/backend/backend-database.mdc)
 
 ## プロジェクト構造
 
@@ -143,110 +144,9 @@ app.route("/videos", videosRouter);
 // fetch("/api/api/videos") // 冗長・不適切
 ```
 
-## データベース操作
+## データベースとモデル
 
-- Drizzle ORMを使用
-- トランザクションの適切な使用
-- クエリの最適化
-- マイグレーション管理
-
-```typescript
-// config/database.ts
-export const createDbClient = (db: D1Database) => {
-  return drizzle(db);
-};
-```
-
-## リレーションシップの処理
-
-### モデル定義
-
-- リレーションシップを持つテーブルは外部キー制約を明示的に定義する
-- 関連するモデル間の型定義は一貫性を保つ
-- 親子関係のあるモデルは適切な命名規則に従う
-
-```typescript
-// models/videos.ts
-export const videos = sqliteTable(
-  "videos",
-  {
-    id: text("id").primaryKey(),
-    title: text("title").notNull(),
-    // ...
-    authorId: text("author_id").notNull().references(() => authors.id),
-  }
-);
-```
-
-### サービス層での実装
-
-- 関連エンティティの存在確認を必ず行う
-- 外部キー制約違反を防ぐためのバリデーションを実装する
-- JOIN操作を使用して関連データを効率的に取得する
-- 関連エンティティの情報を含むレスポンス型を定義する
-
-```typescript
-// services/videos.ts
-async getVideoById(db: D1Database, id: string): Promise<Video> {
-  const client = createDbClient(db);
-  try {
-    // JOIN操作を使用して著者情報も取得
-    const result = await client
-      .select({
-        video: videos,
-        author: authors,
-      })
-      .from(videos)
-      .innerJoin(authors, eq(videos.authorId, authors.id))
-      .where(eq(videos.id, id))
-      .get();
-
-    if (!result) {
-      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
-    }
-
-    // 結果を適切な形式に変換
-    return {
-      id: result.video.id,
-      title: result.video.title,
-      // ...他のビデオフィールド
-      authorId: result.video.authorId,
-      author: {
-        id: result.author.id,
-        name: result.author.name,
-        // ...他の著者フィールド
-      },
-    };
-  } catch (error) {
-    // エラーハンドリング
-  }
-}
-```
-
-### データ作成・更新時の検証
-
-- 関連エンティティの存在確認を行ってから操作を実行する
-- 外部キー制約違反を適切にハンドリングする
-- 関連エンティティの更新時は整合性を保つ
-
-```typescript
-async createVideo(db: D1Database, data: VideoInsert): Promise<string> {
-  const client = createDbClient(db);
-
-  try {
-    // 著者が存在するか確認
-    const author = await client.select().from(authors).where(eq(authors.id, data.authorId)).get();
-    if (!author) {
-      throw new NotFoundError(`ID: ${data.authorId} の著者が見つかりません`);
-    }
-
-    // データベースに挿入
-    // ...
-  } catch (error) {
-    // エラーハンドリング
-  }
-}
-```
+データベース操作、マイグレーション、リレーションシップの処理に関するガイドラインは [backend-database.mdc](mdc:.cursor/rules/backend/backend-database.mdc) を参照してください。
 
 ## 環境変数
 
