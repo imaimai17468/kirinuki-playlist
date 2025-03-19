@@ -1,0 +1,297 @@
+---
+description: Kirinuki-PlaylistプロジェクトのHono APIテスト規約
+globs: src/app/api/**/__tests__/**/*.ts
+---
+# Hono APIテスト規約
+
+## テスト基本方針
+
+- 単体テスト：個別のリポジトリやユーティリティ関数のテスト
+- 統合テスト：APIエンドポイント全体の動作確認
+- テストカバレッジの確保
+- Miniflareを使用したCloudflare環境のエミュレーション
+
+## テストディレクトリ構造
+
+テストは以下のディレクトリ構造に従って整理します：
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   └── [...route]/
+│   │       ├── __tests__/
+│   │       │   ├── videos.test.ts     # 動画APIのテスト
+│   │       │   └── authors.test.ts    # 著者APIのテスト
+├── repositories/
+│   └── __tests__/
+│       ├── video-repository.test.ts   # 動画リポジトリのテスト
+│       └── author-repository.test.ts  # 著者リポジトリのテスト
+└── db/
+    └── __tests__/
+        └── helpers/
+            ├── test-utils.ts          # テスト用ユーティリティ
+            └── seed-data.ts           # テストデータ
+```
+
+## Miniflare/D1テスト環境のセットアップ
+
+テスト環境は、Miniflareを使用してCloudflare Workers環境をエミュレートします：
+
+```typescript
+// src/db/__tests__/helpers/test-utils.ts
+import { Miniflare, type Bindings } from 'miniflare';
+import { drizzle } from 'drizzle-orm/d1';
+import { migrate } from 'drizzle-orm/d1/migrator';
+import { videos, authors } from '@/db/schema';
+import { videoList, authorList } from './seed-data';
+
+let mf: Miniflare;
+
+beforeAll(() => {
+  // Miniflareインスタンスの初期化
+  mf = new Miniflare({
+    modules: true,
+    script: '',
+    d1Databases: ['DB'],
+    d1Persist: false, // インメモリデータベースを使用
+  });
+});
+
+afterAll(async () => {
+  // リソースのクリーンアップ
+  await mf.dispose();
+});
+
+// テスト用のバインディングを取得
+export const getMiniflareBindings = async (): Promise<Bindings> => {
+  const env = await mf.getBindings();
+  return env as unknown as Bindings;
+};
+
+// テストデータベースのセットアップ
+export const setupTestDatabase = async (db: D1Database): Promise<void> => {
+  const client = drizzle(db);
+
+  // マイグレーションの実行
+  await migrate(client, { migrationsFolder: './drizzle' });
+
+  // テストデータの挿入
+  await client.insert(authors).values(authorList);
+  await client.insert(videos).values(videoList);
+};
+```
+
+## テストデータの準備
+
+テスト用のシードデータを定義して再利用します：
+
+```typescript
+// src/db/__tests__/helpers/seed-data.ts
+import { nanoid } from 'nanoid/non-secure';
+import type { Video, Author } from '@/db/schema/types';
+
+// 著者のテストデータ
+export const authorList: Author[] = [
+  {
+    id: 'author-1',
+    name: 'テスト著者1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  // ...
+];
+
+// 動画のテストデータ
+export const videoList: Video[] = [
+  {
+    id: 'video-1',
+    title: 'テスト動画1',
+    url: 'https://www.youtube.com/watch?v=test1',
+    start: 0,
+    end: 60,
+    authorId: 'author-1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  // ...
+];
+
+// 新しいテストデータを生成するヘルパー関数
+export const createVideoData = (overrides: Partial<Video> = {}): Video => {
+  return {
+    id: nanoid(),
+    title: 'テスト動画',
+    url: 'https://www.youtube.com/watch?v=test',
+    start: 0,
+    end: 60,
+    authorId: 'author-1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+};
+```
+
+## APIテストの実装
+
+APIエンドポイントのテストでは、Honoアプリケーションをセットアップして各エンドポイントをテストします：
+
+```typescript
+// src/app/api/[...route]/__tests__/videos.test.ts
+import { describe, it, expect, beforeEach } from 'bun:test';
+import { Hono } from 'hono';
+import { videosRouter } from '../videos';
+import { errorHandler } from '@/db/middlewares/error-handler';
+import { getMiniflareBindings, setupTestDatabase } from '@/db/__tests__/helpers/test-utils';
+import { videoList } from '@/db/__tests__/helpers/seed-data';
+
+describe('Videos API', () => {
+  let app: Hono;
+  let env: Bindings;
+
+  beforeEach(async () => {
+    // テスト用アプリケーションのセットアップ
+    app = new Hono();
+    app.use('*', errorHandler);
+    app.route('/videos', videosRouter);
+
+    // テスト環境とデータの準備
+    env = await getMiniflareBindings();
+    await setupTestDatabase(env.DB);
+  });
+
+  describe('GET /videos', () => {
+    it('すべての動画を取得できること', async () => {
+      const res = await app.fetch(
+        new Request('http://localhost/videos'),
+        env
+      );
+
+      expect(res.status).toBe(200);
+
+      const data = await res.json() as { success: boolean; videos: any[] };
+      expect(data.success).toBe(true);
+      expect(Array.isArray(data.videos)).toBe(true);
+      expect(data.videos.length).toBe(videoList.length);
+    });
+  });
+
+  describe('GET /videos/:id', () => {
+    it('存在する動画IDで詳細を取得できること', async () => {
+      const videoId = videoList[0].id;
+      const res = await app.fetch(
+        new Request(`http://localhost/videos/${videoId}`),
+        env
+      );
+
+      expect(res.status).toBe(200);
+
+      const data = await res.json() as { success: boolean; video: any };
+      expect(data.success).toBe(true);
+      expect(data.video).toBeDefined();
+      expect(data.video.id).toBe(videoId);
+    });
+
+    it('存在しない動画IDで404エラーを返すこと', async () => {
+      const nonExistentId = 'non-existent-id';
+      const res = await app.fetch(
+        new Request(`http://localhost/videos/${nonExistentId}`),
+        env
+      );
+
+      expect(res.status).toBe(404);
+
+      const data = await res.json() as { success: boolean; error: string };
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('リソースが見つかりません');
+    });
+  });
+});
+```
+
+## リポジトリのテスト
+
+リポジトリ層のテストでは、データベース操作が正しく動作することを検証します：
+
+```typescript
+// src/repositories/__tests__/video-repository.test.ts
+import { describe, it, expect, beforeEach } from 'bun:test';
+import { videoRepository } from '../video-repository';
+import { getMiniflareBindings, setupTestDatabase } from '@/db/__tests__/helpers/test-utils';
+import { videoList, createVideoData } from '@/db/__tests__/helpers/seed-data';
+import { NotFoundError } from '@/db/utils/errors';
+
+describe('VideoRepository', () => {
+  let env: Bindings;
+
+  beforeEach(async () => {
+    // テスト環境とデータの準備
+    env = await getMiniflareBindings();
+    await setupTestDatabase(env.DB);
+  });
+
+  describe('getVideoById', () => {
+    it('存在する動画IDで正しく動画を取得できること', async () => {
+      const videoId = videoList[0].id;
+      const video = await videoRepository.getVideoById(env.DB, videoId);
+
+      expect(video).toBeDefined();
+      expect(video.id).toBe(videoId);
+      expect(video.title).toBe(videoList[0].title);
+    });
+
+    it('存在しない動画IDでNotFoundErrorをスローすること', async () => {
+      const nonExistentId = 'non-existent-id';
+
+      await expect(async () => {
+        await videoRepository.getVideoById(env.DB, nonExistentId);
+      }).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('createVideo', () => {
+    it('新しい動画を正しく作成できること', async () => {
+      const newVideo = createVideoData({
+        title: '新しいテスト動画',
+      });
+
+      const id = await videoRepository.createVideo(env.DB, {
+        title: newVideo.title,
+        url: newVideo.url,
+        start: newVideo.start,
+        end: newVideo.end,
+        authorId: newVideo.authorId,
+      });
+
+      expect(id).toBeDefined();
+
+      // 作成した動画を取得して検証
+      const createdVideo = await videoRepository.getVideoById(env.DB, id);
+      expect(createdVideo).toBeDefined();
+      expect(createdVideo.title).toBe(newVideo.title);
+    });
+  });
+});
+```
+
+## コードカバレッジ
+
+テストカバレッジを定期的に測定して、適切なカバレッジを維持します：
+
+```bash
+# テストの実行とカバレッジレポートの生成
+bun test --coverage
+```
+
+## トラブルシューティング
+
+テスト実行時の一般的な問題と解決策：
+
+1. **`Cannot find bindings: DB`**: Miniflareの設定が正しくないか、バインディングの取得に失敗しています。`getMiniflareBindings`関数が正しく呼び出されているか確認してください。
+
+2. **`no such table`**: テーブルが作成されていません。`setupTestDatabase`関数が正しく呼び出されているか確認してください。
+
+3. **`SQLite error`**: SQLクエリに問題があります。スキーマ定義とクエリの互換性を確認してください。
+
+4. **テストの実行が遅い**: テストファイルごとにMiniflareインスタンスを作成していないか確認してください。グローバルなセットアップを使用すると実行時間を短縮できます。

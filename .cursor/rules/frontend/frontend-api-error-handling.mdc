@@ -1,8 +1,8 @@
 ---
-description: Kirinuki-Playlistプロジェクトのバックエンドエラーハンドリング規約
-globs: apps/backend/**/*.ts
+description: Kirinuki-PlaylistプロジェクトのHono APIエラーハンドリング規約
+globs: src/app/api/**/*.ts,src/db/middlewares/**/*.ts
 ---
-# バックエンドエラーハンドリング規約
+# Hono APIエラーハンドリング規約
 
 ## エラーハンドリングの基本方針
 
@@ -16,7 +16,7 @@ globs: apps/backend/**/*.ts
 エラーの種類ごとに専用のクラスを定義し、エラー処理を一元化します。
 
 ```typescript
-// utils/errors.ts
+// src/db/utils/errors.ts
 export class NotFoundError extends Error {
   constructor(message: string) {
     super(message);
@@ -51,8 +51,8 @@ export class UniqueConstraintError extends Error {
 エラーを集中的に処理するミドルウェアを実装し、アプリケーション全体に適用します。
 
 ```typescript
-// middlewares/error-handler.ts
-export const errorHandler: MiddlewareHandler<{ Bindings: Bindings }> = async (c, next) => {
+// src/db/middlewares/error-handler.ts
+export const errorHandler: MiddlewareHandler = async (c, next) => {
   try {
     await next();
   } catch (err: unknown) {
@@ -128,12 +128,12 @@ export const errorHandler: MiddlewareHandler<{ Bindings: Bindings }> = async (c,
 };
 ```
 
-## サービス層でのエラーハンドリング
+## リポジトリ層でのエラーハンドリング
 
-サービス層では、適切なカスタムエラーをスローし、エラーの種類を明確にします。
+リポジトリ層では、適切なカスタムエラーをスローし、エラーの種類を明確にします。
 
 ```typescript
-// services/videos.ts
+// src/repositories/video-repository.ts
 async getVideoById(db: D1Database, id: string): Promise<Video> {
   const client = createDbClient(db);
   try {
@@ -173,23 +173,18 @@ async getVideoById(db: D1Database, id: string): Promise<Video> {
 Zodを使用したバリデーションエラーを適切に処理します。
 
 ```typescript
-// controllers/videos.ts
+// src/app/api/[...route]/videos.ts
 videosRouter.post("/", zValidator("json", videoInsertSchema), async (c) => {
   // zValidatorミドルウェアがバリデーションエラーを処理
   const input = c.req.valid("json") as VideoInsert;
-  const id = await videoService.createVideo(c.env.DB, input);
+  const id = await videoRepository.createVideo(c.env.DB, input);
   return c.json({ success: true, id }, 201);
 });
 ```
 
 ## テスト環境でのエラーハンドリング
 
-テスト環境では、エラーハンドラーの挙動が本番環境と異なる場合があります。テスト時には以下の点に注意してください。
-
-- 500エラーの場合、JSONではなくHTMLやプレーンテキストが返される可能性がある
-- レスポンスの内容を検証する前に、テキストとして取得して内容を確認する
-- JSONパースエラーが発生した場合は、レスポンスの形式を確認する
-- 型安全性を確保するために適切な型アサーションを行う
+テスト環境では、エラーの検証を適切に行うための手法を確立します。
 
 ```typescript
 // テスト中のエラーレスポンスの処理
@@ -199,77 +194,18 @@ const res = await app.fetch(
 );
 
 // ステータスコードの検証
-expect(res.status).toBe(500); // または404（環境による）
+expect(res.status).toBe(404);
 
-// レスポンスをテキストとして取得
-const responseText = await res.text();
-console.log("Response text:", responseText);
-
-// JSONとして解析できる場合のみ検証
-if (responseText.startsWith("{")) {
-  const responseData = JSON.parse(responseText) as { success: boolean };
-  expect(responseData.success).toBe(false);
-}
+// レスポンス内容の検証
+const responseData = await res.json() as { success: boolean; error: string };
+expect(responseData.success).toBe(false);
+expect(responseData.error).toBe("リソースが見つかりません");
 ```
 
-### エラーレスポンスの型安全な処理
+### テスト実装時のポイント
 
-テスト中のエラーレスポンス処理では、以下のパターンを使用して型安全性を確保します：
-
-1. **テキストとして取得してから処理**
-
-```typescript
-// レスポンスをテキストとして取得
-const responseText = await res.text();
-
-// JSONとして解析できる場合のみ検証
-if (responseText.startsWith("{")) {
-  const responseData = JSON.parse(responseText) as { success: boolean };
-  expect(responseData.success).toBe(false);
-}
-```
-
-2. **try-catchを使用したJSON解析**
-
-```typescript
-let responseData;
-try {
-  responseData = await res.json();
-  expect(responseData.success).toBe(false);
-} catch (error) {
-  console.log("JSON parse error:", error);
-  console.log("Response text:", await res.clone().text());
-}
-```
-
-3. **レスポンスのクローンを使用した安全な処理**
-
-```typescript
-// レスポンスをクローンしてテキストとして取得（デバッグ用）
-const responseTextForDebug = await res.clone().text();
-console.log("Response text:", responseTextForDebug);
-
-// JSONとして処理を試みる
-try {
-  const responseData = await res.json();
-  expect(responseData.success).toBe(false);
-} catch (error) {
-  console.log("JSON parse error:", error);
-  // テキストベースの検証を行う
-  expect(responseTextForDebug).toContain("error");
-}
-```
-
-### テスト環境と本番環境の違いを理解する
-
-- テスト環境ではエラーハンドラーが完全に機能しない場合がある
-- 本番環境では常にJSONが返されるが、テスト環境ではHTMLやプレーンテキストが返される可能性がある
-- テスト環境特有の問題を回避するためにレスポンスの形式を柔軟に処理する
-- デバッグ情報を積極的に出力して問題の原因を特定する
-
-```typescript
-// デバッグ情報の出力
-console.log("Response status:", res.status);
-console.log("Response headers:", Object.fromEntries(res.headers.entries()));
-console.log("Response body:", await res.clone().text());
-```
+1. **正確なエラー状態の再現**: テストではエラーが発生する状況を正確に再現する
+2. **エラーレスポンスの検証**: ステータスコードと応答内容の両方を検証する
+3. **型安全な検証**: レスポンスデータの型を明示して安全に検証する
+4. **エラーメッセージの検証**: エラーメッセージが期待通りであることを確認する
+5. **境界値テスト**: エラーの境界条件を適切にテストする

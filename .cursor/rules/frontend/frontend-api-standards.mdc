@@ -1,0 +1,230 @@
+---
+description: Kirinuki-PlaylistプロジェクトのNext.js内Hono API実装規約
+globs: src/app/api/**/*.ts
+---
+# Next.js内Hono API実装規約
+
+> **注意**: このファイルはNext.jsアプリケーション内でのHono API実装に関する規約を含みます。詳細な規約は以下のトピックを参照してください：
+> - エラーハンドリング
+> - データベース操作
+> - テスト手法
+
+## プロジェクト構造
+
+APIコードは以下の構造に従って整理します：
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   └── [...route]/
+│   │       ├── route.ts        # Honoエントリーポイント
+│   │       ├── videos.ts       # 動画リソースルーター
+│   │       └── author.ts       # 著者リソースルーター
+├── db/
+│   ├── middlewares/            # DB関連ミドルウェア
+│   │   └── error-handler.ts    # エラーハンドリング
+│   ├── schema/                 # Drizzle スキーマ定義
+│   └── migrations/             # マイグレーションファイル
+└── repositories/               # データアクセス層
+    ├── video-repository.ts
+    └── author-repository.ts
+```
+
+## 責任の分離
+
+### API ルーター
+- リクエストの検証
+- レスポンスの整形
+- リポジトリの呼び出し
+- ルーティングの定義
+
+```typescript
+// src/app/api/[...route]/videos.ts
+videosRouter.get("/:id", async (c) => {
+  const id = c.req.param("id");
+  const video = await videoRepository.getVideoById(c.env.DB, id);
+  return c.json({ success: true, video });
+});
+```
+
+### リポジトリ
+- データベースアクセスロジックの実装
+- データベース操作
+- エラーハンドリング
+- トランザクション管理
+
+```typescript
+// src/repositories/video-repository.ts
+async getVideoById(db: D1Database, id: string): Promise<Video> {
+  const client = createDbClient(db);
+  try {
+    const video = await client
+      .select()
+      .from(videos)
+      .where(eq(videos.id, id))
+      .get();
+
+    if (!video) {
+      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+    }
+
+    return video;
+  } catch (error) {
+    // エラーハンドリング
+  }
+}
+```
+
+### データモデル
+- `src/db/schema/`ディレクトリにDrizzleスキーマを定義
+- バリデーションルールはZodスキーマで定義
+- 型定義のエクスポート
+
+```typescript
+// src/db/schema/videos.ts
+export const videos = sqliteTable(
+  "videos",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    // ...
+  }
+);
+
+export const videoInsertSchema = createInsertSchema(videos, {
+  id: z.undefined(),
+  title: z.string().min(1, "タイトルは必須です"),
+  // ...
+});
+```
+
+## 型安全性
+
+- 明示的な型定義
+- `any`型の使用を避ける
+- インターフェースと型エイリアスの適切な使用
+- Drizzle ORMの型推論を活用
+
+```typescript
+// src/db/schema/types.ts
+export type Video = InferSelectModel<typeof videos>;
+export type VideoInsert = Omit<InferInsertModel<typeof videos>, "id" | "createdAt" | "updatedAt">;
+```
+
+## API設計
+
+- RESTful原則に従う
+- 一貫したエンドポイント命名
+- 適切なHTTPメソッドの使用
+- 明確なレスポンス形式
+
+```
+GET /api/videos          # 一覧取得
+GET /api/videos/:id      # 詳細取得
+POST /api/videos         # 新規作成
+PATCH /api/videos/:id    # 部分更新
+DELETE /api/videos/:id   # 削除
+```
+
+## エラーハンドリング
+
+Honoのミドルウェアを活用して集中的なエラーハンドリングを実装：
+
+```typescript
+// src/db/middlewares/error-handler.ts
+export const errorHandler: MiddlewareHandler = async (c, next) => {
+  try {
+    await next();
+  } catch (err: unknown) {
+    if (!(err instanceof Error)) {
+      return c.json(
+        {
+          success: false,
+          error: "不明なエラー",
+          message: "予期しないエラーが発生しました",
+        },
+        500,
+      );
+    }
+
+    console.error(`[Error] ${err.message}`, err.stack);
+
+    // カスタムエラーの処理
+    if (err instanceof NotFoundError) {
+      return c.json(
+        {
+          success: false,
+          error: "リソースが見つかりません",
+          message: err.message,
+        },
+        404,
+      );
+    }
+
+    // その他のエラー処理
+    // ...
+  }
+};
+```
+
+## データベース操作
+
+Cloudflare D1とDrizzle ORMを使用したデータベース操作：
+
+```typescript
+// src/repositories/base-repository.ts
+export const createDbClient = (db: D1Database) => {
+  return drizzle(db);
+};
+```
+
+## テスト
+
+API実装のテストは、次のパターンで実施します：
+
+```typescript
+// src/app/api/__tests__/videos.test.ts
+describe('Videos API', () => {
+  let app: Hono;
+  let env: Bindings;
+
+  beforeEach(async () => {
+    // テスト用アプリケーションとバインディングの設定
+    app = new Hono();
+    app.route('/videos', videosRouter);
+    env = await getMiniflareBindings();
+
+    // テストデータの準備
+    await setupTestDatabase(env.DB);
+  });
+
+  it('should get all videos', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost/videos'),
+      env
+    );
+
+    expect(res.status).toBe(200);
+
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(Array.isArray(data.videos)).toBe(true);
+  });
+});
+```
+
+## Drizzleマイグレーション
+
+Drizzle ORMとCloudflare D1を使用したマイグレーション管理：
+
+```bash
+# マイグレーションファイル生成
+bun run generate
+
+# ローカル環境へマイグレーション適用
+bun run migrate:local
+
+# リモート環境へマイグレーション適用
+bun run migrate:remote
+```

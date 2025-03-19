@@ -1,0 +1,192 @@
+---
+description: Next.js x Hono アプリケーションにおけるCloudflare D1データベース管理ガイド
+globs: src/db/**/*.ts,src/repositories/**/*.ts
+---
+
+# Cloudflare D1データベース管理ガイド
+
+## データベース構成
+
+Kirinuki-Playlistプロジェクトでは、Cloudflare D1をデータベースとして使用し、Drizzle ORMを通じてアクセスします。
+
+### ディレクトリ構造
+
+```
+src/
+├── db/
+│   ├── schema/              # Drizzleテーブルスキーマ定義
+│   │   ├── videos.ts
+│   │   ├── authors.ts
+│   │   └── index.ts         # スキーマのエクスポート
+│   ├── middlewares/         # DB関連ミドルウェア
+│   │   └── error-handler.ts # エラーハンドリング
+│   └── utils/
+│       └── client.ts        # DBクライアント生成
+├── repositories/           # データアクセス層
+│   ├── video-repository.ts
+│   └── author-repository.ts
+└── app/
+    └── api/                # API実装
+```
+
+## マイグレーション管理
+
+Cloudflare D1とDrizzle ORMを使用したマイグレーションの正しいワークフローは以下の通りです：
+
+1. **スキーマ定義**：`src/db/schema`ディレクトリ内のテーブル定義を編集します
+
+2. **マイグレーションファイル生成**：
+   ```bash
+   bun run generate
+   ```
+   このコマンドは`drizzle-kit generate`を実行し、`drizzle`ディレクトリにマイグレーションファイルを生成します
+
+3. **ローカル環境へのマイグレーション適用**：
+   ```bash
+   bun run migrate:local
+   ```
+   このコマンドは`wrangler d1 migrations apply kirinuki-playlist --local`を実行し、マイグレーションをローカル開発環境のD1データベースに適用します
+
+4. **リモート環境へのマイグレーション適用**（必要な場合）：
+   ```bash
+   bun run migrate:remote
+   ```
+   このコマンドは`wrangler d1 migrations apply kirinuki-playlist --remote`を実行し、マイグレーションをリモート（本番/ステージング）環境のD1データベースに適用します
+
+## スキーマ定義
+
+Drizzle ORMを使用したスキーマ定義の例：
+
+```typescript
+// src/db/schema/videos.ts
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+import { authors } from "./authors";
+
+export const videos = sqliteTable(
+  "videos",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    url: text("url").notNull(),
+    start: integer("start").default(0),
+    end: integer("end").default(0),
+    authorId: text("author_id").notNull().references(() => authors.id),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(sql`CURRENT_TIMESTAMP`),
+  }
+);
+
+// Zodバリデーションスキーマ
+export const videoInsertSchema = createInsertSchema(videos, {
+  id: z.undefined(),
+  title: z.string().min(1, "タイトルは必須です"),
+  url: z.string().url("URLの形式が正しくありません"),
+  start: z.number().min(0, "開始時間は0以上である必要があります").optional(),
+  end: z.number().min(0, "終了時間は0以上である必要があります").optional(),
+  authorId: z.string().min(1, "著者IDは必須です"),
+  createdAt: z.undefined(),
+  updatedAt: z.undefined(),
+});
+```
+
+## リポジトリパターン
+
+データアクセスロジックはリポジトリパターンに従って実装します：
+
+```typescript
+// src/repositories/video-repository.ts
+import { eq } from "drizzle-orm";
+import type { D1Database } from "@cloudflare/workers-types";
+import { createDbClient } from "@/db/utils/client";
+import { videos } from "@/db/schema";
+import type { Video, VideoInsert } from "@/db/schema/types";
+import { NotFoundError, DatabaseError } from "@/db/utils/errors";
+
+export class VideoRepository {
+  async getVideoById(db: D1Database, id: string): Promise<Video> {
+    const client = createDbClient(db);
+    try {
+      const video = await client
+        .select()
+        .from(videos)
+        .where(eq(videos.id, id))
+        .get();
+
+      if (!video) {
+        throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+      }
+
+      return video;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
+      );
+    }
+  }
+
+  async createVideo(db: D1Database, data: VideoInsert): Promise<string> {
+    // 実装...
+  }
+}
+
+export const videoRepository = new VideoRepository();
+```
+
+## リレーションシップの処理
+
+関連テーブル間のリレーションシップを適切に処理します：
+
+```typescript
+// 関連データの取得例
+async getVideoWithAuthor(db: D1Database, id: string) {
+  const client = createDbClient(db);
+  try {
+    const result = await client
+      .select({
+        video: videos,
+        author: authors,
+      })
+      .from(videos)
+      .innerJoin(authors, eq(videos.authorId, authors.id))
+      .where(eq(videos.id, id))
+      .get();
+
+    if (!result) {
+      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+    }
+
+    // 結果を適切な形式に変換して返却
+    return {
+      id: result.video.id,
+      title: result.video.title,
+      // ...他のビデオフィールド
+      author: {
+        id: result.author.id,
+        name: result.author.name,
+        // ...他の著者フィールド
+      },
+    };
+  } catch (error) {
+    // エラーハンドリング
+  }
+}
+```
+
+## トラブルシューティング
+
+- **テーブルが存在しないエラー**：「no such table: XXX」というエラーが発生した場合、マイグレーションが適用されていません。`bun run migrate:local`を実行してください。
+
+- **マイグレーション適用エラー**：「table already exists」というエラーが発生した場合、マイグレーションの一部だけが適用されている可能性があります。特定のマイグレーションファイルを直接実行することで解決できます：
+  ```bash
+  bunx wrangler d1 execute kirinuki-playlist --local --file=drizzle/XXXX_migration_name.sql
+  ```
+
+- **既存テーブルの確認**：現在のデータベースの状態を確認するには以下のコマンドを使用します：
+  ```bash
+  bunx wrangler d1 execute kirinuki-playlist --local --command="SELECT name FROM sqlite_master WHERE type='table'"
+  ```
