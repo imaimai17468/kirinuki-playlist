@@ -5,27 +5,9 @@ globs: src/app/api/**/*.ts
 # Next.js内Hono API実装規約
 
 > **注意**: このファイルはNext.jsアプリケーション内でのHono API実装に関する規約を含みます。詳細な規約は以下のトピックを参照してください：
-> - エラーハンドリング
-> - データベース操作
-> - テスト手法
-
-## Cloudflare環境の取得
-
-Cloudflare Pagesの環境変数・バインディングは`getRequestContext()`を使用して取得します：
-
-```typescript
-import { getRequestContext } from "@cloudflare/next-on-pages";
-
-// 正しい環境変数取得方法
-videosRouter.get("/", async (c) => {
-  const { DB } = getRequestContext().env;
-  const videos = await videoService.getAllVideos(DB);
-  return c.json({ success: true, videos });
-});
-
-// 誤った方法（使わないでください）
-// ❌ c.env.DB は使用しない
-```
+> - [frontend-api-error-handling.mdc](mdc:.cursor/rules/frontend/frontend-api-error-handling.mdc)
+> - [frontend-api-testing.mdc](mdc:.cursor/rules/frontend/frontend-api-testing.mdc)
+> - [frontend-database.mdc](mdc:.cursor/rules/frontend/frontend-database.mdc)
 
 ## プロジェクト構造
 
@@ -232,19 +214,4 @@ describe('Videos API', () => {
     expect(Array.isArray(data.videos)).toBe(true);
   });
 });
-```
-
-## Drizzleマイグレーション
-
-Drizzle ORMとCloudflare D1を使用したマイグレーション管理：
-
-```bash
-# マイグレーションファイル生成
-bun run generate
-
-# ローカル環境へマイグレーション適用
-bun run migrate:local
-
-# リモート環境へマイグレーション適用
-bun run migrate:remote
 ```
