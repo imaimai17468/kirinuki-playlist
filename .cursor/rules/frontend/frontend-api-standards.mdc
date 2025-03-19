@@ -9,6 +9,24 @@ globs: src/app/api/**/*.ts
 > - データベース操作
 > - テスト手法
 
+## Cloudflare環境の取得
+
+Cloudflare Pagesの環境変数・バインディングは`getRequestContext()`を使用して取得します：
+
+```typescript
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
+// 正しい環境変数取得方法
+videosRouter.get("/", async (c) => {
+  const { DB } = getRequestContext().env;
+  const videos = await videoService.getAllVideos(DB);
+  return c.json({ success: true, videos });
+});
+
+// 誤った方法（使わないでください）
+// ❌ c.env.DB は使用しない
+```
+
 ## プロジェクト構造
 
 APIコードは以下の構造に従って整理します：
@@ -43,7 +61,8 @@ src/
 // src/app/api/[...route]/videos.ts
 videosRouter.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const video = await videoRepository.getVideoById(c.env.DB, id);
+  const { DB } = getRequestContext().env;
+  const video = await videoRepository.getVideoById(DB, id);
   return c.json({ success: true, video });
 });
 ```
@@ -200,6 +219,7 @@ describe('Videos API', () => {
   });
 
   it('should get all videos', async () => {
+    // テスト環境では直接環境変数を渡す
     const res = await app.fetch(
       new Request('http://localhost/videos'),
       env
