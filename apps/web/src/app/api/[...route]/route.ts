@@ -1,18 +1,22 @@
-import app from "@kirinuki-playlist/backend";
+import { errorHandler } from "@/db/middlewares/error-handler";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
+import { authorsRouter } from "./author";
+import { videosRouter } from "./videos";
 
-const handleDevOnly = (...args: Parameters<ReturnType<typeof handle>>) => {
-  if (process.env.NODE_ENV === "development") {
-    const hono = new Hono().basePath("/api").route("/", app);
-    return handle(hono)(...args);
-  }
-  return new Response(null, { status: 404 });
-};
+export const runtime = "edge";
 
-export const runtime = "nodejs";
-export const GET = handleDevOnly;
-export const POST = handleDevOnly;
-export const PUT = handleDevOnly;
-export const PATCH = handleDevOnly;
-export const DELETE = handleDevOnly;
+const app = new Hono().basePath("/api");
+
+app.use("*", errorHandler);
+
+app.route("/authors", authorsRouter);
+app.route("/videos", videosRouter);
+
+// health check
+app.get("/hello", (c) => c.json({ status: "ok" }));
+
+export type AppType = typeof app;
+
+export const GET = handle(app);
+export const POST = handle(app);
