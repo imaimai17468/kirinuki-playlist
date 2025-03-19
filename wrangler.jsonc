@@ -1,9 +1,8 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "backend",
-  "main": "src/index.ts",
+  "name": "kirinuki-playlist",
   "compatibility_date": "2025-02-24",
   "compatibility_flags": ["nodejs_compat"],
+  "pages_build_output_dir": ".vercel/output/static",
   // "vars": {
   //   "MY_VAR": "my-variable"
   // },
@@ -24,7 +23,8 @@
       "binding": "DB",
       "database_name": "kirinuki-playlist",
       "database_id": "691c0f66-b010-43fb-bd92-e6b99d2eed29",
-      "migrations_dir": "drizzle"
+      "migrations_dir": "drizzle",
+      "preview_database_id": "DB"
     }
   ]
   // "ai": {
