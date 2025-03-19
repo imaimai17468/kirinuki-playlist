@@ -15,7 +15,7 @@ pre-push:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}"
       run: bun biome check --no-errors-on-unmatched $(echo {push_files})
     test:
-      glob: "*.test.{ts,tsx}"
+      glob: "*.{ts,tsx}"
       run: bun test
     type:
       glob: "*.{ts,tsx}"
