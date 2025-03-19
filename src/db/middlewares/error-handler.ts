@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import type { Bindings } from "../types";
+import type { Bindings } from "../types/bindings";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
 
 export const errorHandler: MiddlewareHandler<{ Bindings: Bindings }> = async (c, next) => {
