@@ -1,4 +1,5 @@
 import { errorHandler } from "@/db/middlewares/error-handler";
+import type { Bindings } from "@/db/types/bindings";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import { authorsRouter } from "./author";
@@ -6,7 +7,7 @@ import { videosRouter } from "./videos";
 
 export const runtime = "edge";
 
-const app = new Hono().basePath("/api");
+const app = new Hono<{ Bindings: Bindings }>().basePath("/api");
 
 app.use("*", errorHandler);
 
