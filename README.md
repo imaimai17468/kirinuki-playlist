@@ -1,29 +1,31 @@
 # Kirinuki Playlist
 
-モノレポ構成のTypeScriptプロジェクト
+Next.js アプリケーション内に Hono を統合した TypeScript プロジェクト
 
 ## プロジェクト構造
 
 ```
 kirinuki-playlist/
-├── apps/
-│   ├── backend/         # Honoベースのバックエンドアプリ
-│   │   ├── src/
-│   │   │   └── index.ts # バックエンドのエントリーポイント
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   │
-│   └── web/             # Nextベースのフロントエンドアプリ
-│       ├── src/
-│       │   └── app/
-│       │       └── api/
-│       │           └── [...route]/
-│       │               └── route.ts # バックエンドAPIのプロキシ
-│       ├── package.json
-│       └── tsconfig.json
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── [...route]/
+│   │   │       ├── route.ts      # HonoベースのバックエンドAPI
+│   │   │       ├── videos.ts     # 動画関連のルーター
+│   │   │       └── author.ts     # 著者関連のルーター
+│   │   └── ...                   # その他のNext.jsページ
+│   ├── components/               # UIコンポーネント
+│   ├── db/                       # データベース関連
+│   ├── lib/                      # ユーティリティ
+│   ├── hooks/                    # Reactフック
+│   └── repositories/             # データアクセス層
 │
-├── package.json         # ワークスペース設定
-└── README.md            # このファイル
+├── drizzle/                      # Drizzle ORM関連ファイル
+├── public/                       # 静的ファイル
+├── package.json                  # 依存関係
+├── next.config.mjs               # Next.js設定
+├── drizzle.config.ts             # Drizzle設定
+└── README.md                     # このファイル
 ```
 
 ## セットアップ
@@ -32,94 +34,82 @@ kirinuki-playlist/
 # 依存関係のインストール
 bun install
 
-# バックエンドの開発サーバー起動
-cd apps/backend
-bun run dev
-
-# フロントエンドの開発サーバー起動
-cd apps/web
+# 開発サーバー起動
 bun run dev
 ```
 
 ## 主要な設定
 
-### モノレポ設定
+### TypeScript 設定
 
-ルートの`package.json`でワークスペースを設定しています：
-
-```json
-{
-  "workspaces": [
-    "apps/*"
-  ]
-}
-```
-
-### パッケージ参照
-
-フロントエンドからバックエンドを参照する設定：
-
-```json
-// apps/web/package.json
-{
-  "dependencies": {
-    "@kirinuki-playlist/backend": "workspace:*"
-  }
-}
-```
-
-バックエンドパッケージの設定：
-
-```json
-// apps/backend/package.json
-{
-  "name": "@kirinuki-playlist/backend",
-  "main": "src/index.ts",
-  "types": "src/index.ts"
-}
-```
-
-### TypeScript設定
-
-バックエンドの`tsconfig.json`：
+プロジェクトの`tsconfig.json`：
 
 ```json
 {
   "compilerOptions": {
     "strict": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx",
+    "jsx": "preserve",
     "skipLibCheck": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules"]
 }
 ```
 
-## API連携
+## API 実装
 
-フロントエンドからバックエンドAPIを呼び出す設定：
+Next.js の App Router と Hono を統合して API を実装：
 
 ```typescript
-// apps/web/src/app/api/[...route]/route.ts
-import { app as backend } from "@kirinuki-playlist/backend";
+// src/app/api/[...route]/route.ts
+import { errorHandler } from "@/db/middlewares/error-handler";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
+import { authorsRouter } from "./author";
+import { videosRouter } from "./videos";
 
-const handleDevOnly = (...args: Parameters<ReturnType<typeof handle>>) => {
-  if (process.env.NODE_ENV === "development") {
-    const app = new Hono().basePath("/api").route("/", backend);
-    return handle(app)(...args);
-  }
-  return new Response(null, { status: 404 });
-};
+export const runtime = "edge";
 
-export const runtime = "nodejs";
-export const GET = handleDevOnly;
-export const POST = handleDevOnly;
-// ...
+const app = new Hono().basePath("/api");
+
+app.use("*", errorHandler);
+
+app.route("/authors", authorsRouter);
+app.route("/videos", videosRouter);
+
+// health check
+app.get("/hello", (c) => c.json({ status: "ok" }));
+
+export type AppType = typeof app;
+
+export const GET = handle(app);
+export const POST = handle(app);
+```
+
+個別のルーターを使って機能ごとに API を分割しています：
+
+```typescript
+// src/app/api/[...route]/videos.ts
+import { Hono } from "hono";
+import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
+
+const videosRouter = new Hono();
+
+// APIエンドポイントの実装
+videosRouter.get("/", async (c) => {
+  // 動画一覧の取得処理
+  return c.json({
+    /* ... */
+  });
+});
+
+export { videosRouter };
 ```
