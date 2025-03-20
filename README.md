@@ -75,3 +75,60 @@ Kirinuki Playlist は、YouTube 動画から必要な部分だけを切り取り
 
 - **[Vercel](https://vercel.com/)** - グローバルエッジネットワークでのシームレスなデプロイ
 - **[Cloudflare D1](https://developers.cloudflare.com/d1/)** - 分散 SQL データベース
+
+## 🧪 テスト
+
+このプロジェクトは Bun を使用してテストを実行します。リポジトリ層のテストはデータベース操作をモックせず、インメモリ SQLite データベースを使用して実際のデータベース操作をテストします。
+
+```bash
+# すべてのテストを実行
+bun test
+
+# テストを監視モードで実行（変更を検知して再実行）
+bun test --watch
+
+# 特定のファイルまたはディレクトリのテストのみ実行
+bun test src/repositories
+```
+
+### リポジトリテストについて
+
+リポジトリ層のテストでは、依存性注入（DI）パターンを使用して、テスト環境ではインメモリデータベースを使用します。これにより、実際のデータベース操作をテストできます。
+
+テスト用のユーティリティ関数は `src/repositories/testUtils.ts` に定義されています。これらの関数を使用して、テスト用のデータベースクライアントを作成し、テストデータをシードします。
+
+```typescript
+// テスト例
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { setupTestRepository, cleanupTestRepository } from "../../testUtils";
+import { authorRepository } from "../authorRepository";
+
+describe("authorRepository", () => {
+  let db;
+
+  beforeEach(async () => {
+    // テスト用DBをセットアップ
+    const setup = await setupTestRepository();
+    db = setup.db;
+  });
+
+  afterEach(async () => {
+    // テスト後のクリーンアップ
+    await cleanupTestRepository(db);
+  });
+
+  it("テストケース", async () => {
+    // テストコード
+  });
+});
+```
+
+## 🔄 開発ワークフロー
+
+```bash
+# 依存関係のインストール
+bun install
+
+# 開発サーバー起動
+bun run dev
+```
