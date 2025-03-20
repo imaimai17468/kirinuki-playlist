@@ -616,7 +616,7 @@ router.get("/", async (c) => {
 
 ## API ドキュメント
 
-APIドキュメントは[Swagger](https://swagger.io/)または[OpenAPI](https://www.openapis.org/)形式で作成し、エンドポイントの詳細な情報を提供します。
+APIドキュメントは[Swagger](mdc:https:/swagger.io)または[OpenAPI](mdc:https:/www.openapis.org)形式で作成し、エンドポイントの詳細な情報を提供します。
 
 ```typescript
 /**
@@ -649,3 +649,175 @@ APIドキュメントは[Swagger](https://swagger.io/)または[OpenAPI](https:/
  *                     $ref: '#/components/schemas/Video'
  */
 ```
+
+## クライアントサイドからのAPIアクセス
+
+Honoクライアントとリポジトリパターンを組み合わせて、型安全なAPIアクセスを実現します。
+
+### Honoクライアントの実装
+
+`hc` 関数を使用して、APIのクライアントを作成します。このクライアントは型情報を保持し、APIエンドポイントへのアクセスを型安全に行うことができます。
+
+```typescript
+// src/libs/client.ts
+import type { AppType } from "@/app/api/[...route]/route";
+import { getBaseURL } from "@/libs/baseUrl";
+import { hc } from "hono/client";
+
+// クライアントの型を明示的に定義
+export type HonoClient = ReturnType<typeof hc<AppType>>;
+
+// クライアントインスタンスの作成と型付け
+export const client: HonoClient = hc<AppType>(`${getBaseURL()}/api`);
+```
+
+> **重要**: Honoクライアントを使用する際は、APIルートの構造を変更する場合にクライアント側のコードも更新する必要があります。特にクライアントから正しいパスでアクセスすることが重要です（例: `client.api.authors.$get()`）。
+
+### リポジトリレイヤーの実装
+
+リポジトリパターンを使用して、API呼び出しを抽象化します。これにより、ビジネスロジックからAPIアクセスの詳細を分離し、テストやメンテナンスが容易になります。
+
+```typescript
+// src/repositories/author/index.ts
+import { client } from "@/libs/client";
+import type { ApiError } from "@/repositories/types";
+import { authorResponseSchema, authorsResponseSchema } from "@/repositories/types";
+import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
+import type { z } from "zod";
+
+// 作者一覧を取得
+export async function getAllAuthors(): Promise<Result<z.infer<typeof authorsResponseSchema>["authors"], ApiError>> {
+  try {
+    // client.api を使用して正しいパスでAPIにアクセス
+    const response = await client.api.authors.$get();
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = authorsResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.authors);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+```
+
+### ディレクトリ構造
+
+リポジトリレイヤーは、以下のようなディレクトリ構造で整理します：
+
+```
+src/
+├── repositories/
+│   ├── author/         # 著者関連のリポジトリ
+│   │   └── index.ts    # 著者APIへのアクセス関数
+│   ├── video/          # 動画関連のリポジトリ
+│   │   └── index.ts    # 動画APIへのアクセス関数
+│   ├── playlist/       # プレイリスト関連のリポジトリ
+│   │   └── index.ts    # プレイリストAPIへのアクセス関数
+│   ├── types.ts        # 共通の型定義とZodスキーマ
+│   └── utils.ts        # エラーハンドリングなどの共通ユーティリティ
+```
+
+### エラーハンドリング
+
+エラーハンドリングは `neverthrow` パッケージの `Result` 型を使用して行います。これにより、エラーハンドリングを型安全に実装できます。
+
+```typescript
+// src/repositories/utils.ts
+import { err } from "neverthrow";
+import type { Result } from "neverthrow";
+import type { ApiError } from "./types";
+
+// HTTPエラーを適切なApiErrorに変換する関数
+export function handleHttpError(response: Response): Result<never, ApiError> {
+  switch (response.status) {
+    case 404:
+      return err({
+        type: "notFound",
+        message: "リソースが見つかりませんでした",
+      });
+    case 400:
+      return err({
+        type: "badRequest",
+        message: "リクエストが不正です",
+      });
+    default:
+      return err({
+        type: "serverError",
+        message: `サーバーエラー: ${response.status}`,
+      });
+  }
+}
+```
+
+### データバリデーション
+
+APIレスポンスのバリデーションには `zod` を使用します。これにより、ランタイムでの型チェックを実現できます。
+
+```typescript
+// src/repositories/types.ts（一部抜粋）
+import { z } from "zod";
+
+// APIレスポンスのZodスキーマ
+export const authorsResponseSchema = baseResponseSchema.extend({
+  authors: z.array(authorSchema),
+});
+
+export const authorResponseSchema = baseResponseSchema.extend({
+  author: authorSchema,
+});
+```
+
+### React Query との統合
+
+リポジトリレイヤーは `@tanstack/react-query` と組み合わせることで、キャッシュやリフェッチなどの機能を簡単に実装できます。
+
+```typescript
+// src/hooks/query/useAuthor.ts
+import { authorRepository } from '@/repositories/author';
+import { useQuery } from '@tanstack/react-query';
+
+// 著者一覧を取得するフック
+export function useAuthors() {
+  return useQuery({
+    queryKey: ['authors'],
+    queryFn: async () => {
+      const result = await authorRepository.getAllAuthors();
+      if (result.isErr()) {
+        throw new Error(result.error.message);
+      }
+      return result.value;
+    },
+  });
+}
+```
+
+### 重要な教訓
+
+1. **Honoルーターの実装方法がクライアントの型に影響する**:
+   - メソッドチェーンスタイルでルーターを定義すると、クライアントの型情報が正確に伝播します。
+
+   ```typescript
+   // 推奨されるスタイル
+   export const playlistsRouter = new Hono<{ Bindings: Bindings }>()
+     .get("/", async (c) => { /* ... */ })
+     .get("/:id", async (c) => { /* ... */ });
+   ```
+
+2. **ベースパスの考慮**:
+   - `app.basePath("/api")` を使用している場合、クライアントからは `client.api.*` でアクセスする必要があります。
+   - この構造は型システムによって強制されるため、誤りを防ぐことができます。
+
+3. **型安全性の確保**:
+   - Honoクライアント、Zod、neverthrowの組み合わせにより、APIアクセスを完全に型安全に実装できます。
+   - これにより、リファクタリングの安全性とコードの品質が向上します。
