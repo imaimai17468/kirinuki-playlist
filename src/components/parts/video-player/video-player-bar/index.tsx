@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
+import { cn } from "@/libs/utils";
 import { PanelBottomClose, Pause, Play, SkipBack, SkipForward, SquareX } from "lucide-react";
 import type { PlayerHandlers, PlayerState, Playlist } from "../types";
 
