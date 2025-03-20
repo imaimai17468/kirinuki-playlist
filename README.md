@@ -12,11 +12,12 @@ kirinuki-playlist/
 │   │   │   └── [...route]/
 │   │   │       ├── route.ts      # HonoベースのバックエンドAPI
 │   │   │       ├── videos.ts     # 動画関連のルーター
+│   │   │       ├── playlists.ts  # プレイリスト関連のルーター
 │   │   │       └── author.ts     # 著者関連のルーター
 │   │   └── ...                   # その他のNext.jsページ
 │   ├── components/               # UIコンポーネント
 │   ├── db/                       # データベース関連
-│   ├── lib/                      # ユーティリティ
+│   ├── libs/                     # ユーティリティ
 │   ├── hooks/                    # Reactフック
 │   └── repositories/             # データアクセス層
 │
@@ -47,18 +48,29 @@ bun run dev
 ```json
 {
   "compilerOptions": {
-    "strict": true,
-    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "types": ["web", "bun-types"],
+    "allowJs": true,
     "skipLibCheck": true,
+    "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
 ```
@@ -70,22 +82,22 @@ Next.js の App Router と Hono を統合して API を実装：
 ```typescript
 // src/app/api/[...route]/route.ts
 import { errorHandler } from "@/db/middlewares/error-handler";
+import type { Bindings } from "@/db/types/bindings";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import { authorsRouter } from "./author";
+import { playlistsRouter } from "./playlists";
 import { videosRouter } from "./videos";
 
 export const runtime = "edge";
 
-const app = new Hono().basePath("/api");
-
-app.use("*", errorHandler);
-
-app.route("/authors", authorsRouter);
-app.route("/videos", videosRouter);
-
-// health check
-app.get("/hello", (c) => c.json({ status: "ok" }));
+const app = new Hono<{ Bindings: Bindings }>()
+  .basePath("/api")
+  .use("*", errorHandler)
+  .route("/authors", authorsRouter)
+  .route("/videos", videosRouter)
+  .route("/playlists", playlistsRouter)
+  .get("/hello", (c) => c.json({ status: "ok" }));
 
 export type AppType = typeof app;
 
