@@ -1,0 +1,436 @@
+---
+description: Kirinuki-PlaylistプロジェクトのAPI設計ガイドライン
+globs: src/app/api/**/*.ts
+---
+# API設計ガイド
+
+## API構造概要
+
+Kirinuki-PlaylistプロジェクトではNext.js + Honoを使用して、エッジランタイム対応のAPIを構築しています。
+
+### ディレクトリ構造
+
+```
+src/
+├── app/
+│   └── api/
+│       └── [...route]/
+│           ├── route.ts         # エントリーポイント
+│           ├── videos.ts        # ビデオ関連エンドポイント
+│           ├── playlists.ts     # プレイリスト関連エンドポイント
+│           └── author.ts        # 著者関連エンドポイント
+├── db/
+│   ├── models/                  # データモデル
+│   └── services/                # データアクセスサービス
+```
+
+## ルーティング
+
+APIルーティングは以下のパターンに従います：
+
+- **コレクション**: `/api/{リソース名}` - リソースのコレクションに対する操作
+- **リソース**: `/api/{リソース名}/{id}` - 特定のリソースに対する操作
+
+例：
+- `/api/videos` - ビデオコレクション
+- `/api/videos/123` - ID 123のビデオ
+- `/api/playlists` - プレイリストコレクション
+- `/api/playlists/456` - ID 456のプレイリスト
+
+## REST APIデザイン
+
+### メソッドとアクション
+
+| HTTPメソッド | コレクションエンドポイント | リソースエンドポイント |
+|------------|----------------------|-------------------|
+| GET        | リソース一覧の取得      | 特定リソースの取得   |
+| POST       | 新規リソースの作成      | 通常使用しない      |
+| PUT        | 通常使用しない         | リソース全体の置換   |
+| PATCH      | 通常使用しない         | リソースの一部更新   |
+| DELETE     | 通常使用しない         | リソースの削除      |
+
+例：
+
+```typescript
+// 一覧取得（GET /api/videos）
+router.get("/", async (c) => {
+  const videos = await videoService.getAllVideos();
+  return c.json({ success: true, videos });
+});
+
+// 詳細取得（GET /api/videos/:id）
+router.get("/:id", async (c) => {
+  const id = c.req.param("id");
+  const video = await videoService.getVideoById(id);
+  return c.json({ success: true, video });
+});
+
+// 作成（POST /api/videos）
+router.post("/", validator, async (c) => {
+  const input = c.req.valid("json");
+  const id = await videoService.createVideo(input);
+  return c.json({ success: true, id }, 201);
+});
+
+// 更新（PATCH /api/videos/:id）
+router.patch("/:id", validator, async (c) => {
+  const id = c.req.param("id");
+  const input = c.req.valid("json");
+  await videoService.updateVideo(id, input);
+  return c.json({ success: true });
+});
+
+// 削除（DELETE /api/videos/:id）
+router.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  await videoService.deleteVideo(id);
+  return c.json({ success: true });
+});
+```
+
+## レスポンス形式
+
+APIレスポンスは一貫した形式で返します：
+
+### 成功レスポンス
+
+```json
+{
+  "success": true,
+  "データキー": データ値
+}
+```
+
+例：
+
+```json
+// 一覧取得の成功レスポンス
+{
+  "success": true,
+  "videos": [
+    { "id": "1", "title": "サンプル動画" },
+    { "id": "2", "title": "サンプル動画2" }
+  ]
+}
+
+// 詳細取得の成功レスポンス
+{
+  "success": true,
+  "video": { "id": "1", "title": "サンプル動画" }
+}
+
+// 作成の成功レスポンス
+{
+  "success": true,
+  "id": "新しいID"
+}
+```
+
+### エラーレスポンス
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "エラーコード",
+    "message": "エラーメッセージ"
+  }
+}
+```
+
+例：
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "ID: 123 の動画が見つかりません"
+  }
+}
+```
+
+## 新しいAPIエンドポイントの追加手順
+
+新しいAPIエンドポイントを追加する際は、以下の手順に従います：
+
+1. **モデルの作成**
+   `src/db/models/` に新しいモデルを定義し、必要なスキーマとバリデーションを実装します。
+
+   ```typescript
+   // src/db/models/playlists.ts
+   import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+   import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
+   import { z } from "zod";
+
+   export const playlists = sqliteTable(
+     "playlists",
+     {
+       id: text("id").primaryKey(),
+       title: text("title").notNull(),
+       authorId: text("author_id").notNull(),
+       createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+       updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+     }
+   );
+
+   export const playlistInsertSchema = createInsertSchema(playlists, {
+     // バリデーションルール...
+   });
+   ```
+
+2. **中間テーブルと関係の定義** (多対多関係の場合)
+   `src/db/models/relations.ts` に中間テーブルと関係を定義します。
+
+   ```typescript
+   // src/db/models/relations.ts
+   export const playlistVideos = sqliteTable(
+     "playlist_videos",
+     {
+       id: text("id").primaryKey(),
+       playlistId: text("playlist_id").notNull(),
+       videoId: text("video_id").notNull(),
+       order: integer("order").notNull(),
+       // 他のフィールド...
+     }
+   );
+
+   // 関係の定義
+   export const playlistsRelations = relations(playlists, ({ one, many }) => ({
+     author: one(authors, {
+       fields: [playlists.authorId],
+       references: [authors.id],
+     }),
+     playlistVideos: many(playlistVideos),
+   }));
+   ```
+
+3. **サービスの実装**
+   `src/db/services/` に新しいサービスを作成し、データアクセスロジックを実装します。
+
+   ```typescript
+   // src/db/services/playlists.ts
+   export const playlistService = {
+     async getAllPlaylists(db: D1Database): Promise<Playlist[]> {
+       // プレイリスト一覧を取得するロジック
+     },
+
+     async getPlaylistById(db: D1Database, id: string): Promise<Playlist> {
+       // 特定のプレイリストを取得するロジック
+     },
+
+     async createPlaylist(db: D1Database, data: PlaylistInsert): Promise<string> {
+       // プレイリストを作成するロジック
+     },
+
+     // その他のメソッド...
+   };
+   ```
+
+4. **APIルーターの作成**
+   `src/app/api/[...route]/` に新しいルーターファイルを作成し、エンドポイントを定義します。
+
+   ```typescript
+   // src/app/api/[...route]/playlists.ts
+   import { playlistInsertSchema } from "@/db/models/playlists";
+   import { playlistService } from "@/db/services/playlists";
+   import { zValidator } from "@hono/zod-validator";
+
+   export const playlistsRouter = new Hono<{ Bindings: Bindings }>()
+     // 各エンドポイントの実装
+     .get("/", async (c) => {
+       const { DB } = getRequestContext().env;
+       const playlists = await playlistService.getAllPlaylists(DB);
+       return c.json({ success: true, playlists });
+     });
+
+   // その他のエンドポイント...
+   ```
+
+5. **メインルーターへの追加**
+   `src/app/api/[...route]/route.ts` にルーターを登録します。
+
+   ```typescript
+   // src/app/api/[...route]/route.ts
+   import { playlistsRouter } from "./playlists";
+
+   app.route("/playlists", playlistsRouter);
+   ```
+
+## 認証と認可
+
+APIエンドポイントの認証・認可は以下のように実装します：
+
+```typescript
+// ミドルウェアの例
+const requireAuth = async (c, next) => {
+  const token = c.req.header("Authorization")?.replace("Bearer ", "");
+
+  if (!token) {
+    return c.json(
+      {
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "認証が必要です" }
+      },
+      401
+    );
+  }
+
+  try {
+    const payload = await verifyToken(token);
+    c.set("user", payload);
+    return next();
+  } catch (e) {
+    return c.json(
+      {
+        success: false,
+        error: { code: "INVALID_TOKEN", message: "無効なトークンです" }
+      },
+      401
+    );
+  }
+};
+
+// 認証が必要なエンドポイント
+router.post("/protected", requireAuth, async (c) => {
+  const user = c.get("user");
+  return c.json({ success: true, message: `Hello, ${user.name}!` });
+});
+```
+
+## リソース間の関連データ処理
+
+リソース間の関連データを処理する際の実装パターン：
+
+### 1. 関連データの包含
+
+関連データを含めたレスポンスを返す場合：
+
+```typescript
+// ビデオと著者情報を含むレスポンス
+router.get("/:id", async (c) => {
+  const id = c.req.param("id");
+  const video = await videoService.getVideoWithAuthor(id);
+
+  return c.json({
+    success: true,
+    video: {
+      id: video.id,
+      title: video.title,
+      // 他のビデオフィールド...
+      author: {
+        id: video.author.id,
+        name: video.author.name,
+        // 他の著者フィールド...
+      }
+    }
+  });
+});
+```
+
+### 2. 多対多関係の処理
+
+中間テーブルを使用して多対多関係を処理する例：
+
+```typescript
+// プレイリストにビデオを追加
+router.post("/:playlistId/videos", async (c) => {
+  const playlistId = c.req.param("playlistId");
+  const { videoId, order } = await c.req.json();
+
+  await playlistService.addVideoToPlaylist(playlistId, videoId, order);
+
+  return c.json({ success: true });
+});
+
+// プレイリストからビデオを削除
+router.delete("/:playlistId/videos/:videoId", async (c) => {
+  const playlistId = c.req.param("playlistId");
+  const videoId = c.req.param("videoId");
+
+  await playlistService.removeVideoFromPlaylist(playlistId, videoId);
+
+  return c.json({ success: true });
+});
+```
+
+## パフォーマンス最適化
+
+大量のデータを扱う場合のパフォーマンス最適化テクニック：
+
+### ページネーション
+
+```typescript
+router.get("/", async (c) => {
+  const page = parseInt(c.req.query("page") || "1");
+  const limit = parseInt(c.req.query("limit") || "10");
+
+  const result = await videoService.getVideosPaginated(page, limit);
+
+  return c.json({
+    success: true,
+    videos: result.items,
+    pagination: {
+      total: result.total,
+      page,
+      limit,
+      pages: Math.ceil(result.total / limit)
+    }
+  });
+});
+```
+
+### フィルタリング
+
+```typescript
+router.get("/", async (c) => {
+  const filters = {
+    title: c.req.query("title"),
+    authorId: c.req.query("authorId"),
+    // 他のフィルター条件...
+  };
+
+  const videos = await videoService.getVideosFiltered(filters);
+
+  return c.json({
+    success: true,
+    videos
+  });
+});
+```
+
+## API ドキュメント
+
+APIドキュメントは[Swagger](mdc:https:/swagger.io)または[OpenAPI](mdc:https:/www.openapis.org)形式で作成し、エンドポイントの詳細な情報を提供します。
+
+```typescript
+/**
+ * @openapi
+ * /api/videos:
+ *   get:
+ *     summary: ビデオ一覧を取得
+ *     description: 利用可能なすべてのビデオのリストを返します
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: ページ番号
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *     responses:
+ *       200:
+ *         description: 成功レスポンス
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 videos:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Video'
+ */
+```
