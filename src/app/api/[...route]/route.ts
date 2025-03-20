@@ -8,16 +8,13 @@ import { videosRouter } from "./videos";
 
 export const runtime = "edge";
 
-const app = new Hono<{ Bindings: Bindings }>().basePath("/api");
-
-app.use("*", errorHandler);
-
-app.route("/authors", authorsRouter);
-app.route("/videos", videosRouter);
-app.route("/playlists", playlistsRouter);
-
-// health check
-app.get("/hello", (c) => c.json({ status: "ok" }));
+const app = new Hono<{ Bindings: Bindings }>()
+  .basePath("/api")
+  .use("*", errorHandler)
+  .route("/authors", authorsRouter)
+  .route("/videos", videosRouter)
+  .route("/playlists", playlistsRouter)
+  .get("/hello", (c) => c.json({ status: "ok" }));
 
 export type AppType = typeof app;
 
