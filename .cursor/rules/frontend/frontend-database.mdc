@@ -177,6 +177,148 @@ async getVideoWithAuthor(db: D1Database, id: string) {
 }
 ```
 
+## 多対多リレーションシップの実装
+
+多対多の関係（例：プレイリストとビデオ）は中間テーブルを使用して実装します：
+
+```typescript
+// 中間テーブル定義例
+export const playlistVideos = sqliteTable(
+  "playlist_videos",
+  {
+    id: text("id").primaryKey(),
+    playlistId: text("playlist_id").notNull().references(() => playlists.id),
+    videoId: text("video_id").notNull().references(() => videos.id),
+    order: integer("order").notNull(),  // 並び順を管理
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  }
+);
+
+// 関連付けの定義
+export const playlistsRelations = relations(playlists, ({ one, many }) => ({
+  author: one(authors, {
+    fields: [playlists.authorId],
+    references: [authors.id],
+  }),
+  playlistVideos: many(playlistVideos),
+}));
+
+export const videosRelations = relations(videos, ({ one, many }) => ({
+  author: one(authors, {
+    fields: [videos.authorId],
+    references: [authors.id],
+  }),
+  playlistVideos: many(playlistVideos),
+}));
+
+export const playlistVideosRelations = relations(playlistVideos, ({ one }) => ({
+  playlist: one(playlists, {
+    fields: [playlistVideos.playlistId],
+    references: [playlists.id],
+  }),
+  video: one(videos, {
+    fields: [playlistVideos.videoId],
+    references: [videos.id],
+  }),
+}));
+```
+
+### 多対多関係のデータ取得
+
+多対多関係のデータを取得する際は、複数のJOIN操作とデータ整形が必要です：
+
+```typescript
+// プレイリストとそれに含まれるビデオの取得例
+async getPlaylistWithVideos(db: D1Database, id: string) {
+  const client = createDbClient(db);
+
+  // プレイリストと作成者の情報を取得
+  const playlistResult = await client
+    .select({
+      playlist: playlists,
+      author: authors,
+    })
+    .from(playlists)
+    .innerJoin(authors, eq(playlists.authorId, authors.id))
+    .where(eq(playlists.id, id))
+    .get();
+
+  if (!playlistResult) {
+    throw new NotFoundError(`プレイリストが見つかりません`);
+  }
+
+  // プレイリストに含まれるビデオを順番に取得
+  const playlistVideosResult = await client
+    .select({
+      video: videos,
+      playlistVideo: playlistVideos,
+    })
+    .from(playlistVideos)
+    .innerJoin(videos, eq(playlistVideos.videoId, videos.id))
+    .where(eq(playlistVideos.playlistId, id))
+    .orderBy(playlistVideos.order)
+    .all();
+
+  // 結果を整形して返す
+  return {
+    id: playlistResult.playlist.id,
+    title: playlistResult.playlist.title,
+    author: {
+      id: playlistResult.author.id,
+      name: playlistResult.author.name,
+      // 他の著者情報
+    },
+    videos: playlistVideosResult.map(pv => ({
+      id: pv.video.id,
+      title: pv.video.title,
+      // 他のビデオ情報
+      order: pv.playlistVideo.order,
+    })),
+    createdAt: playlistResult.playlist.createdAt,
+    updatedAt: playlistResult.playlist.updatedAt,
+  };
+}
+```
+
+### 削除時の関連データ処理
+
+多対多関係を持つデータを削除する場合は、関連するレコードも適切に処理する必要があります：
+
+```typescript
+// プレイリスト削除の例
+async deletePlaylist(db: D1Database, id: string): Promise<void> {
+  const client = createDbClient(db);
+
+  try {
+    // トランザクションを使う場合（SQLiteでは制限あり）
+    // await client.transaction(async (tx) => {
+
+    // 1. まず中間テーブルのレコードを削除
+    await client
+      .delete(playlistVideos)
+      .where(eq(playlistVideos.playlistId, id))
+      .run();
+
+    // 2. 次にプレイリスト自体を削除
+    const result = await client
+      .delete(playlists)
+      .where(eq(playlists.id, id))
+      .run();
+
+    // 削除対象が存在しなかった場合
+    if (result.meta.changes === 0) {
+      throw new NotFoundError(`ID: ${id} のプレイリストが見つかりません`);
+    }
+
+    // トランザクション終了
+    // });
+  } catch (error) {
+    // エラー処理
+  }
+}
+```
+
 ## トラブルシューティング
 
 - **テーブルが存在しないエラー**：「no such table: XXX」というエラーが発生した場合、マイグレーションが適用されていません。`bun run migrate:local`を実行してください。
