@@ -39,89 +39,39 @@ bun install
 bun run dev
 ```
 
-## 主要な設定
+## ✨ プロジェクト概要
 
-### TypeScript 設定
+Kirinuki Playlist は、YouTube 動画から必要な部分だけを切り取り（切り抜き）、カスタムプレイリストを作成できるモダンな Web アプリケーションです。Next.js と Hono の組み合わせにより、高速なフロントエンドとバックエンドを実現しています。
 
-プロジェクトの`tsconfig.json`：
+- 💻 **SSR & CSR** - サーバーサイドレンダリングとクライアントサイドレンダリングを最適に組み合わせ
+- 🔄 **Edge API** - グローバルエッジネットワークで低レイテンシな API
+- 🛠️ **タイプセーフ** - コードベース全体でのエンドツーエンドの型安全性
+- 🎨 **モダン UI** - 美しく使いやすいインターフェース
 
-```json
-{
-  "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "types": ["web", "bun-types"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
-}
-```
+## 🚀 技術スタック
 
-## API 実装
+### ⚛️ フロントエンド
 
-Next.js の App Router と Hono を統合して API を実装：
+- **[Next.js 14](https://nextjs.org/)** - React ベースのフルスタックフレームワーク
+- **[React](https://react.dev/)** - 宣言的 UI ライブラリ
+- **[TypeScript](https://www.typescriptlang.org/)** - 型安全な JavaScript
+- **[Tailwind CSS](https://tailwindcss.com/)** - ユーティリティファースト CSS フレームワーク
+- **[Shadcn UI](https://ui.shadcn.com/)** - 美しく再利用可能な UI コンポーネント
 
-```typescript
-// src/app/api/[...route]/route.ts
-import { errorHandler } from "@/db/middlewares/error-handler";
-import type { Bindings } from "@/db/types/bindings";
-import { Hono } from "hono";
-import { handle } from "hono/vercel";
-import { authorsRouter } from "./author";
-import { playlistsRouter } from "./playlists";
-import { videosRouter } from "./videos";
+### 🔌 バックエンド
 
-export const runtime = "edge";
+- **[Hono](https://hono.dev/)** - 軽量で高速な Web フレームワーク
+- **[Edge Runtime](https://vercel.com/docs/functions/edge-functions)** - 高速かつスケーラブルなエッジコンピューティング
+- **[Drizzle ORM](https://orm.drizzle.team/)** - モダンな TypeScript ORM
+- **[Zod](https://zod.dev/)** - TypeScript ファーストのスキーマバリデーション
 
-const app = new Hono<{ Bindings: Bindings }>()
-  .basePath("/api")
-  .use("*", errorHandler)
-  .route("/authors", authorsRouter)
-  .route("/videos", videosRouter)
-  .route("/playlists", playlistsRouter)
-  .get("/hello", (c) => c.json({ status: "ok" }));
+### 🛠️ 開発ツール
 
-export type AppType = typeof app;
+- **[Bun](https://bun.sh/)** - 高速な JavaScript ランタイム＆パッケージマネージャー
+- **[Biome](https://biomejs.dev/)** - 高速な静的解析＆フォーマッター
+- **[Lefthook](https://github.com/evilmartians/lefthook)** - 効率的な Git フック管理
 
-export const GET = handle(app);
-export const POST = handle(app);
-```
+### 🚢 デプロイ
 
-個別のルーターを使って機能ごとに API を分割しています：
-
-```typescript
-// src/app/api/[...route]/videos.ts
-import { Hono } from "hono";
-import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
-
-const videosRouter = new Hono();
-
-// APIエンドポイントの実装
-videosRouter.get("/", async (c) => {
-  // 動画一覧の取得処理
-  return c.json({
-    /* ... */
-  });
-});
-
-export { videosRouter };
-```
+- **[Vercel](https://vercel.com/)** - グローバルエッジネットワークでのシームレスなデプロイ
+- **[Cloudflare D1](https://developers.cloudflare.com/d1/)** - 分散 SQL データベース
