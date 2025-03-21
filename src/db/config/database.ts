@@ -9,7 +9,6 @@ import { drizzle } from "drizzle-orm/d1";
  * Cloudflare WorkersのD1データベースを使用
  */
 export const createDbClient = (db: D1Database) => {
-  // @ts-ignore D1Database types mismatch between @cloudflare/workers-types and @miniflare/d1
   return drizzle(db);
 };
 
