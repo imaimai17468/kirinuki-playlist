@@ -2,7 +2,7 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { createDbClient } from "../config/database";
+import { createDbClient, type createTestDbClient } from "../config/database";
 import { authors } from "../models/authors";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
 
@@ -10,20 +10,23 @@ export type Author = InferSelectModel<typeof authors>;
 export type AuthorInsert = Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">;
 export type AuthorUpdate = Partial<Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">>;
 
-export const authorService = {
-  async getAllAuthors(db: D1Database): Promise<Author[]> {
-    const client = createDbClient(db);
+// データベースクライアントの型
+// プロダクション環境(D1)とテスト環境(SQLite)の両方をサポート
+export type DbClient = ReturnType<typeof createDbClient> | Awaited<ReturnType<typeof createTestDbClient>>;
+
+// 依存性注入パターンを使った著者サービスの作成関数
+export const createAuthorService = (dbClient: DbClient) => ({
+  async getAllAuthors(): Promise<Author[]> {
     try {
-      return await client.select().from(authors).all();
+      return await dbClient.select().from(authors).all();
     } catch (_) {
       throw new DatabaseError("著者一覧の取得に失敗しました");
     }
   },
 
-  async getAuthorById(db: D1Database, id: string): Promise<Author> {
-    const client = createDbClient(db);
+  async getAuthorById(id: string): Promise<Author> {
     try {
-      const author = await client.select().from(authors).where(eq(authors.id, id)).get();
+      const author = await dbClient.select().from(authors).where(eq(authors.id, id)).get();
 
       if (!author) {
         throw new NotFoundError(`ID: ${id} の著者が見つかりません`);
@@ -40,9 +43,7 @@ export const authorService = {
     }
   },
 
-  async createAuthor(db: D1Database, data: AuthorInsert): Promise<string> {
-    const client = createDbClient(db);
-
+  async createAuthor(data: AuthorInsert): Promise<string> {
     // 現在の日時
     const now = new Date();
 
@@ -51,7 +52,7 @@ export const authorService = {
 
     try {
       // データベースに挿入
-      await client.insert(authors).values({
+      await dbClient.insert(authors).values({
         id,
         ...data,
         createdAt: now,
@@ -72,9 +73,7 @@ export const authorService = {
     }
   },
 
-  async updateAuthor(db: D1Database, id: string, data: AuthorUpdate): Promise<void> {
-    const client = createDbClient(db);
-
+  async updateAuthor(id: string, data: AuthorUpdate): Promise<void> {
     try {
       // 更新データの準備（updatedAtは自動的に現在時刻に設定）
       const updateData = {
@@ -82,13 +81,15 @@ export const authorService = {
         updatedAt: new Date(),
       };
 
-      // データベースを更新
-      const result = await client.update(authors).set(updateData).where(eq(authors.id, id)).run();
+      // まず、著者が存在するか確認
+      const author = await dbClient.select().from(authors).where(eq(authors.id, id)).get();
 
-      // 影響を受けた行数が0の場合、リソースが存在しない
-      if (result.meta.changes === 0) {
+      if (!author) {
         throw new NotFoundError(`ID: ${id} の著者が見つかりません`);
       }
+
+      // データベースを更新
+      await dbClient.update(authors).set(updateData).where(eq(authors.id, id)).run();
     } catch (error: unknown) {
       if (error instanceof NotFoundError) {
         throw error;
@@ -102,17 +103,17 @@ export const authorService = {
     }
   },
 
-  async deleteAuthor(db: D1Database, id: string): Promise<void> {
-    const client = createDbClient(db);
-
+  async deleteAuthor(id: string): Promise<void> {
     try {
-      // データベースから削除
-      const result = await client.delete(authors).where(eq(authors.id, id)).run();
+      // まず、著者が存在するか確認
+      const author = await dbClient.select().from(authors).where(eq(authors.id, id)).get();
 
-      // 影響を受けた行数が0の場合、リソースが存在しない
-      if (result.meta.changes === 0) {
+      if (!author) {
         throw new NotFoundError(`ID: ${id} の著者が見つかりません`);
       }
+
+      // データベースから削除
+      await dbClient.delete(authors).where(eq(authors.id, id)).run();
     } catch (error: unknown) {
       if (error instanceof NotFoundError) {
         throw error;
@@ -124,5 +125,33 @@ export const authorService = {
 
       throw error;
     }
+  },
+});
+
+// デフォルトのauthorServiceインスタンス（下位互換性のため）
+export const authorService = {
+  getAllAuthors: (db: D1Database) => {
+    const client = createDbClient(db);
+    return createAuthorService(client).getAllAuthors();
+  },
+
+  getAuthorById: (db: D1Database, id: string) => {
+    const client = createDbClient(db);
+    return createAuthorService(client).getAuthorById(id);
+  },
+
+  createAuthor: (db: D1Database, data: AuthorInsert) => {
+    const client = createDbClient(db);
+    return createAuthorService(client).createAuthor(data);
+  },
+
+  updateAuthor: (db: D1Database, id: string, data: AuthorUpdate) => {
+    const client = createDbClient(db);
+    return createAuthorService(client).updateAuthor(id, data);
+  },
+
+  deleteAuthor: (db: D1Database, id: string) => {
+    const client = createDbClient(db);
+    return createAuthorService(client).deleteAuthor(id);
   },
 };
