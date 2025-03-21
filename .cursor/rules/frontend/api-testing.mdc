@@ -1,97 +1,36 @@
 ---
-description: Kirinuki-Playlistプロジェクトのリポジトリテスト規約
-globs: src/repositories/**/__tests__/**/*.ts
+description: Kirinuki-Playlistプロジェクトのサービス層テスト規約
+globs: src/db/services/__tests__/**/*.ts
 ---
-# リポジトリテスト規約
+# サービス層テスト規約
 
 ## テスト基本方針
 
 - **アダプタパターン**: DBクライアントの依存性注入によるテスト容易性の向上
 - **インメモリデータベース**: Bunの組み込みSQLiteを使用した高速テスト環境
-- **層分離**: リポジトリ層とUI連携層（hooks）の明確な責務分離
+- **テストの独立性**: 各テストケースは互いに影響を与えないよう設計
+- **明確なエラーハンドリング**: 具体的なエラー型を定義して例外処理を統一
 - **型安全**: TypeScriptの型システムを活用した堅牢なインターフェース設計
-
-## リポジトリとフックの使い分け
-
-### リポジトリ層
-- **役割**: データアクセスロジックの抽象化
-- **戻り値**: `Result<T, ApiError>` 型を使用した統一的なエラーハンドリング
-- **テスト時**: リポジトリを直接使用してデータ操作を検証
-- **実装例**:
-```typescript
-export const authorRepository = {
-  async findById(db: DB, id: string): Promise<Result<Author, ApiError>> {
-    try {
-      const result = await db.select().from(authors).where(eq(authors.id, id)).get();
-
-      if (!result) {
-        return err({
-          type: "notFound",
-          message: `ID: ${id} の著者が見つかりません`,
-        });
-      }
-
-      return ok(result);
-    } catch (error) {
-      return err({
-        type: "serverError",
-        message: `著者の取得中にエラーが発生しました: ${
-          error instanceof Error ? error.message : "不明なエラー"
-        }`,
-      });
-    }
-  },
-  // その他のCRUD操作
-};
-```
-
-### フック層（UI連携層）
-- **役割**: リポジトリとReactの連携、UIデータ状態管理
-- **戻り値**: React Queryの型（`data`, `isLoading`, `error`など）
-- **UI実装時**: フックを使用してデータ取得を簡素化
-- **実装例**:
-```typescript
-export function useAuthor(id: string) {
-  return useQuery({
-    queryKey: ["authors", id],
-    queryFn: async () => {
-      const result = await getAuthorById(id);
-      if (result.isErr()) {
-        throw new Error(result.error.message);
-      }
-      return result.value;
-    },
-    enabled: !!id,
-  });
-}
-```
 
 ## テストディレクトリ構造
 
 ```
 src/
-├── repositories/
-│   ├── testUtils.ts                    # テスト用ユーティリティ
-│   │   └── author/
-│   │       ├── __tests__/
-│   │       │   └── authorRepository.test.ts # 著者リポジトリのテスト
-│   │       ├── authorRepository.ts         # 著者リポジトリの実装
-│   │       └── hooks.ts                    # 著者関連のReactフック
-│   ├── video/
-│   │   ├── __tests__/
-│   │   │   └── videoRepository.test.ts  # 動画リポジトリのテスト
-│   │   └── videoRepository.ts          # 動画リポジトリの実装
-│   └── playlist/
-│       ├── __tests__/
-│       │   └── playlistRepository.test.ts # プレイリストリポジトリのテスト
-│       └── playlistRepository.ts        # プレイリストリポジトリの実装
-└── db/
-    ├── config/
-    │   └── database.ts                 # DBクライアント設定
-    └── models/
-        ├── authors.ts                  # 著者モデル定義
-        ├── videos.ts                   # 動画モデル定義
-        └── playlists.ts                # プレイリストモデル定義
+├── db/
+│   ├── config/
+│   │   └── database.ts                 # DBクライアント設定
+│   ├── models/
+│   │   ├── authors.ts                  # 著者モデル定義
+│   │   ├── videos.ts                   # 動画モデル定義
+│   │   └── playlists.ts                # プレイリストモデル定義
+│   ├── services/                       # サービス層の実装
+│   │   ├── __tests__/                  # サービス層のテスト
+│   │   │   └── authors.test.ts         # 著者サービスのテスト
+│   │   ├── authors.ts                  # 著者サービスの実装
+│   │   ├── videos.ts                   # 動画サービスの実装
+│   │   └── playlists.ts                # プレイリストサービスの実装
+│   └── utils/
+│       └── errors.ts                   # エラー定義
 ```
 
 ## Bun SQLiteを使用したテスト環境のセットアップ
@@ -102,205 +41,254 @@ Bunの組み込みSQLite機能を使用してインメモリデータベース�
 // src/db/config/database.ts
 import { Database } from "bun:sqlite";
 import { drizzle as drizzleSqlite } from "drizzle-orm/bun-sqlite";
-import { migrate as migrateSqlite } from "drizzle-orm/bun-sqlite/migrator";
+import type { D1Database } from "@cloudflare/workers-types";
+import { drizzle } from "drizzle-orm/d1";
+
+// プロダクション環境用のデータベースクライアントを作成
+export const createDbClient = (db: D1Database) => {
+  return drizzle(db);
+};
 
 // テスト環境用のデータベースクライアントを作成
-export const createTestDbClient = async (migrationsPath = "./drizzle") => {
+export const createTestDbClient = async () => {
   // インメモリデータベースを作成（":memory:"を指定）
   const sqlite = new Database(":memory:");
 
+  // テーブルスキーマを作成
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS authors (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      icon_url TEXT NOT NULL,
+      bio TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+  `);
+  // 他のテーブル作成
+
   // Drizzle ORMのクライアントを作成
   const db = drizzleSqlite(sqlite);
-
-  // マイグレーションを実行
-  await migrateSqlite(db, { migrationsFolder: migrationsPath });
 
   return db;
 };
 ```
 
-## テスト用ユーティリティの実装
+## サービス層の設計とテスト
 
-リポジトリテスト用の共通ユーティリティ関数を作成します：
+サービス層は次のポイントを考慮して設計します：
+
+1. **依存性注入**: DBクライアントをパラメータとして受け取る
+2. **明確なエラーハンドリング**: 具体的なエラー型を定義して使用
+3. **テストの独立性**: 各テストは独自のデータセットで実行
 
 ```typescript
-// src/repositories/testUtils.ts
+// src/db/services/authors.ts
+import type { D1Database } from "@cloudflare/workers-types";
+import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import type { SQL } from "drizzle-orm";
-import { createTestDbClient } from "../db/config/database";
-import type { authors } from "../db/models/authors";
-import type { videos } from "../db/models/videos";
-import type { playlists } from "../db/models/playlists";
+import { createDbClient, type createTestDbClient } from "../config/database";
+import { authors } from "../models/authors";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
 
-// テスト用のデータベースクライアントを作成
-export const createTestDb = async (migrationsPath = "./drizzle") => {
-  return await createTestDbClient(migrationsPath);
-};
+export type Author = InferSelectModel<typeof authors>;
+export type AuthorInsert = Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">;
+export type AuthorUpdate = Partial<Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">>;
 
-// テスト用の著者データを作成
-export const createTestAuthor = (
-  overrides: Partial<typeof authors.$inferInsert> = {}
-) => {
-  const now = new Date();
-  return {
-    id: nanoid(),
-    name: "テスト著者",
-    iconUrl: "https://example.com/icon.png",
-    bio: "テスト用の著者です",
-    createdAt: now,
-    updatedAt: now,
-    ...overrides,
-  };
-};
+// データベースクライアントの型定義（プロダクションとテスト両方に対応）
+export type DbClient =
+  | ReturnType<typeof createDbClient>
+  | Awaited<ReturnType<typeof createTestDbClient>>;
 
-// テスト用のリポジトリ環境をセットアップ
-export const setupTestRepository = async (seedQueries: SQL[] = []) => {
-  // テスト用のデータベースクライアントを作成
-  const db = await createTestDb();
-
-  // シードデータを挿入（指定されている場合）
-  if (seedQueries.length > 0) {
-    for (const query of queries) {
-      await db.run(query);
+// 依存性注入パターンを使った著者サービスの作成関数
+export const createAuthorService = (dbClient: DbClient) => ({
+  // 全著者取得
+  async getAllAuthors(): Promise<Author[]> {
+    try {
+      return await dbClient.select().from(authors).all();
+    } catch (_) {
+      throw new DatabaseError("著者一覧の取得に失敗しました");
     }
-  }
+  },
 
-  return { db };
-};
+  // IDによる著者取得
+  async getAuthorById(id: string): Promise<Author> {
+    try {
+      const author = await dbClient
+        .select()
+        .from(authors)
+        .where(eq(authors.id, id))
+        .get();
 
-// テスト終了後のクリーンアップ
-export const cleanupTestRepository = async (_db: any) => {
-  // インメモリDBなので自動的にクリーンアップされる
+      if (!author) {
+        throw new NotFoundError(`ID: ${id} の著者が見つかりません`);
+      }
+
+      return author;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `著者の取得中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`
+      );
+    }
+  },
+
+  // その他のCRUD操作
+});
+
+// デフォルトのauthorServiceインスタンス（API層で使用）
+export const authorService = {
+  getAllAuthors: (db: D1Database) => {
+    const client = createDbClient(db);
+    return createAuthorService(client).getAllAuthors();
+  },
+  // 他のメソッド
 };
 ```
 
-## リポジトリのテスト実装例
+## サービス層のテスト実装
 
 ```typescript
-// src/repositories/author/__tests__/authorRepository.test.ts
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { authors } from "../../../db/models/authors";
-import {
-  createTestAuthor,
-  setupTestRepository,
-  cleanupTestRepository,
-} from "../../testUtils";
-import { authorRepository } from "../authorRepository";
+// src/db/services/__tests__/authors.test.ts
+import { beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
+import { createTestDbClient } from "../../config/database";
+import { authors } from "../../models/authors";
+import { NotFoundError } from "../../utils/errors";
+import { type Author, createAuthorService } from "../authors";
 
-describe("authorRepository", () => {
-  let db;
+// テストデータ
+const testAuthors: Omit<Author, "createdAt" | "updatedAt">[] = [
+  {
+    id: "author1",
+    name: "テスト著者1",
+    iconUrl: "https://example.com/icon1.png",
+    bio: "テスト著者1の自己紹介",
+  },
+  {
+    id: "author2",
+    name: "テスト著者2",
+    iconUrl: "https://example.com/icon2.png",
+    bio: "テスト著者2の自己紹介",
+  },
+];
 
-  beforeEach(async () => {
-    // テスト用データベースをセットアップ
-    const setup = await setupTestRepository();
-    db = setup.db;
-  });
+// ヘルパー関数: データベースとサービスの初期化
+async function setupDatabase() {
+  const dbClient = await createTestDbClient();
+  const service = createAuthorService(dbClient);
 
-  afterEach(async () => {
-    // テスト後のクリーンアップ
-    await cleanupTestRepository(db);
-  });
+  // テーブルをクリア
+  await dbClient.delete(authors).run();
 
-  describe("findAll", () => {
-    it("全ての著者を取得できること", async () => {
-      // テストデータを準備
-      const author1 = createTestAuthor({ name: "著者1" });
-      const author2 = createTestAuthor({ name: "著者2" });
+  // テストデータを挿入
+  for (const author of testAuthors) {
+    await dbClient.insert(authors).values({
+      ...author,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
 
-      // データをデータベースに挿入
-      await db.insert(authors).values([author1, author2]);
+  return { dbClient, service };
+}
 
-      // テスト対象の関数を実行
-      const result = await authorRepository.findAll(db);
+describe("authorService", () => {
+  describe("getAllAuthors", () => {
+    let service: ReturnType<typeof createAuthorService>;
 
-      // 結果を検証
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        const authorsResult = result.value;
-        expect(authorsResult).toHaveLength(2);
-        expect(authorsResult.map(a => a.name)).toContain("著者1");
-        expect(authorsResult.map(a => a.name)).toContain("著者2");
-      }
+    beforeEach(async () => {
+      const result = await setupDatabase();
+      service = result.service;
     });
 
-    it("データベースエラーが発生した場合はエラーを返すこと", async () => {
-      // DBクライアントをモックしてエラーをシミュレート
-      const mockDb = {
-        ...db,
-        select: () => {
-          throw new Error("データベースエラー");
-        },
-      } as unknown as typeof db;
+    test("全ての著者を取得できること", async () => {
+      const result = await service.getAllAuthors();
+      expect(result.length).toBe(2);
 
-      // テスト対象の関数を実行
-      const result = await authorRepository.findAll(mockDb);
-
-      // 結果を検証
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error.type).toBe("serverError");
-      }
+      // データを検証
+      const sorted = result.sort((a, b) => a.id.localeCompare(b.id));
+      expect(sorted[0].id).toBe("author1");
+      expect(sorted[0].name).toBe("テスト著者1");
     });
   });
 
-  // 他のテストケース
+  // 更新や削除のテストケース
+  describe("updateAuthor", () => {
+    let dbClient: Awaited<ReturnType<typeof createTestDbClient>>;
+    let service: ReturnType<typeof createAuthorService>;
+
+    beforeEach(async () => {
+      ({ dbClient, service } = await setupDatabase());
+    });
+
+    test("著者を更新できること", async () => {
+      const updateData = {
+        name: "更新著者名",
+        bio: "更新された自己紹介",
+      };
+
+      await service.updateAuthor("author1", updateData);
+
+      // 更新を検証
+      const updatedAuthor = await dbClient
+        .select()
+        .from(authors)
+        .where(eq(authors.id, "author1"))
+        .get();
+
+      expect(updatedAuthor?.name).toBe("更新著者名");
+      expect(updatedAuthor?.bio).toBe("更新された自己紹介");
+      // 更新していないフィールドは変更されないことを確認
+      expect(updatedAuthor?.iconUrl).toBe("https://example.com/icon1.png");
+    });
+
+    test("存在しないIDの更新はNotFoundErrorをスローすること", async () => {
+      let errorThrown = false;
+      try {
+        await service.updateAuthor("non-existent", { name: "更新名" });
+      } catch (error) {
+        errorThrown = true;
+        expect(error instanceof NotFoundError).toBe(true);
+      }
+      expect(errorThrown).toBe(true);
+    });
+  });
 });
 ```
 
-## 環境変数に基づくDBクライアントの選択
+## テスト実装における重要なポイント
 
-テストや開発、本番環境で適切なDBクライアントを選択するための関数：
+1. **テスト間の独立性**:
+   - 各テストの`beforeEach`でデータベースをリセットし新しいテストデータを挿入
+   - テストケース間での副作用を防止
 
-```typescript
-// src/db/config/database.ts
-export const createClient = (env: {
-  D1_INSTANCE?: D1Database;
-  NODE_ENV?: string;
-}) => {
-  // 本番/ステージング環境の場合
-  if (env.D1_INSTANCE) {
-    return createDbClient(env.D1_INSTANCE);
-  }
+2. **エラーケースのテスト**:
+   - 存在しないIDの取得・更新・削除など、エラーケースを適切にテスト
+   - 正しいエラー型がスローされることを確認
 
-  // 開発環境の場合
-  if (env.NODE_ENV === "development") {
-    return createDevDbClient();
-  }
+3. **データベース接続の抽象化**:
+   - `createTestDbClient`関数を使用して、テスト用のインメモリDBを作成
+   - プロダクション環境のD1とテスト環境のSQLiteを統一的に扱うインターフェース
 
-  // テスト環境の場合
-  if (env.NODE_ENV === "test") {
-    return createTestDbClient();
-  }
+4. **テスト前の事前確認**:
+   - 更新・削除操作の前に、データの存在確認を行い、エラーを早期に検出
+   - 例: `updateAuthor`メソッドで対象レコードを先に取得して存在確認
 
-  // デフォルトはテスト環境
-  return createTestDbClient();
-};
-```
+5. **型安全性の確保**:
+   - すべてのデータ操作に適切な型定義を使用
+   - 型の不一致によるランタイムエラーを防止
 
-## テスト実行方法
+6. **サービス層での例外処理**:
+   - NotFoundErrorなどの具体的なエラークラスを使用
+   - エラースタックの伝播と変換を適切に行う
 
-```bash
-# すべてのテストを実行
-bun test
+7. **テストのカバレッジ**:
+   - 成功ケースだけでなく失敗ケースもテスト
+   - エッジケースを含めた網羅的なテストシナリオを用意
 
-# 特定のディレクトリのみテスト
-bun test src/repositories
-
-# 特定のファイルのみテスト
-bun test src/repositories/author/__tests__/authorRepository.test.ts
-
-# 変更を監視して自動的にテスト実行
-bun test --watch
-```
-
-## テスト時と実装時の使い分け
-
-- **テスト時**:
-  - リポジトリ層（authorRepository）を直接使用
-  - DBクライアントをDIで注入
-  - Result型のエラーハンドリングを検証
-
-- **UI実装時**:
-  - フック層（hooks）を使用
-  - React Queryの機能（キャッシュ、リフェッチなど）を活用
-  - データロード状態やエラー状態を簡単に取得
+これらのプラクティスにより、堅牢で信頼性の高いテストが可能になります。
