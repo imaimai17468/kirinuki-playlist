@@ -166,6 +166,265 @@ export function createHonoApp(options?: { dbClient?: DbClient }) {
 }
 ```
 
+## サービス層の実装と依存性注入パターン
+
+サービス層ではデータベースクライアントを外部から注入する依存性注入パターンを採用し、テスト容易性と柔軟性を高めています：
+
+```typescript
+// src/db/services/videos.ts
+import type { DbClient } from "@/db/config/hono";
+import { videos } from "@/db/models/videos";
+import { authors } from "@/db/models/authors";
+import { NotFoundError, DatabaseError } from "@/db/utils/errors";
+import { eq } from "drizzle-orm";
+import { nanoid } from "nanoid";
+
+// 型定義
+export type Video = {
+  id: string;
+  title: string;
+  url: string;
+  start: number | null;
+  end: number | null;
+  authorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author: {
+    id: string;
+    name: string;
+    iconUrl: string;
+    bio: string | null;
+  };
+};
+
+export type VideoInsert = {
+  title: string;
+  url: string;
+  authorId: string;
+  start?: number;
+  end?: number;
+};
+
+export type VideoUpdate = Partial<VideoInsert>;
+
+/**
+ * 動画サービスを作成する関数
+ * 依存性注入パターンを使用して、DBクライアントを外部から注入できるようにする
+ */
+export function createVideoService(dbClient: DbClient) {
+  return {
+    /**
+     * すべての動画を著者情報付きで取得する
+     */
+    async getAllVideos(): Promise<Video[]> {
+      try {
+        // JOIN操作を使用して動画と著者情報を一度に取得
+        const results = await dbClient
+          .select()
+          .from(videos)
+          .innerJoin(authors, eq(videos.authorId, authors.id))
+          .all();
+
+        // 結果を適切な形式に変換
+        return results.map((row) => ({
+          id: row.videos.id,
+          title: row.videos.title,
+          url: row.videos.url,
+          start: row.videos.start,
+          end: row.videos.end,
+          authorId: row.videos.authorId,
+          createdAt: row.videos.createdAt,
+          updatedAt: row.videos.updatedAt,
+          author: {
+            id: row.authors.id,
+            name: row.authors.name,
+            iconUrl: row.authors.iconUrl,
+            bio: row.authors.bio,
+          },
+        }));
+      } catch (error) {
+        throw new DatabaseError(
+          `動画一覧の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
+        );
+      }
+    },
+
+    /**
+     * IDによって動画を著者情報付きで取得する
+     */
+    async getVideoById(id: string): Promise<Video> {
+      try {
+        // JOIN操作を使用して動画と著者情報を一度に取得
+        const result = await dbClient
+          .select()
+          .from(videos)
+          .innerJoin(authors, eq(videos.authorId, authors.id))
+          .where(eq(videos.id, id))
+          .get();
+
+        if (!result) {
+          throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+        }
+
+        return {
+          id: result.videos.id,
+          title: result.videos.title,
+          url: result.videos.url,
+          start: result.videos.start,
+          end: result.videos.end,
+          authorId: result.videos.authorId,
+          createdAt: result.videos.createdAt,
+          updatedAt: result.videos.updatedAt,
+          author: {
+            id: result.authors.id,
+            name: result.authors.name,
+            iconUrl: result.authors.iconUrl,
+            bio: result.authors.bio,
+          },
+        };
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          throw error;
+        }
+        throw new DatabaseError(
+          `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
+        );
+      }
+    },
+
+    /**
+     * 新しい動画を作成する
+     */
+    async createVideo(data: VideoInsert): Promise<string> {
+      // 現在の日時
+      const now = new Date();
+      // 一意のIDを生成
+      const id = nanoid();
+
+      try {
+        // 著者が存在するか確認
+        const author = await dbClient
+          .select()
+          .from(authors)
+          .where(eq(authors.id, data.authorId))
+          .get();
+
+        if (!author) {
+          throw new NotFoundError(`ID: ${data.authorId} の著者が見つかりません`);
+        }
+
+        // 動画をデータベースに挿入
+        await dbClient.insert(videos).values({
+          id,
+          ...data,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        return id;
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          throw error;
+        }
+        throw new DatabaseError(
+          `動画の作成中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
+        );
+      }
+    },
+
+    // その他のメソッド...
+  };
+}
+```
+
+### サービス層のテスト
+
+依存性注入パターンを使用したサービス層は、テスト容易性が向上し、実際のデータベースを使わずにユニットテストを実行できます：
+
+```typescript
+// src/db/services/__tests__/videos.test.ts
+import { beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
+import { createTestDbClient } from "../../config/test-database";
+import { authors } from "../../models/authors";
+import { videos } from "../../models/videos";
+import { NotFoundError } from "../../utils/errors";
+import { createVideoService } from "../videos";
+
+// テストデータ
+const testAuthors = [
+  {
+    id: "author1",
+    name: "テスト著者1",
+    iconUrl: "https://example.com/icon1.png",
+    bio: "テスト著者1の自己紹介",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  // ...
+];
+
+const testVideos = [
+  {
+    id: "video1",
+    title: "テスト動画1",
+    url: "https://example.com/video1",
+    start: 0,
+    end: 60,
+    authorId: "author1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  // ...
+];
+
+// ヘルパー関数: データベースとサービスの初期化
+async function setupDatabase() {
+  const dbClient = await createTestDbClient();
+  const service = createVideoService(dbClient);
+
+  // テーブルをクリア
+  await dbClient.delete(videos).run();
+  await dbClient.delete(authors).run();
+
+  // テストデータを挿入
+  for (const author of testAuthors) {
+    await dbClient.insert(authors).values(author);
+  }
+
+  for (const video of testVideos) {
+    await dbClient.insert(videos).values(video);
+  }
+
+  return { dbClient, service };
+}
+
+describe("videoService", () => {
+  describe("getVideoById", () => {
+    let service: ReturnType<typeof createVideoService>;
+
+    beforeEach(async () => {
+      const result = await setupDatabase();
+      service = result.service;
+    });
+
+    test("IDを指定して動画を取得できること", async () => {
+      const result = await service.getVideoById("video1");
+
+      expect(result.id).toBe("video1");
+      expect(result.title).toBe("テスト動画1");
+      expect(result.author.name).toBe("テスト著者1");
+    });
+
+    test("存在しないIDの場合はNotFoundErrorをスローすること", async () => {
+      await expect(service.getVideoById("non-existent")).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  // 他のテストケース...
+});
+```
+
 ## APIクライアント管理
 
 フロントエンドからAPIにアクセスするためのクライアント実装：
@@ -223,26 +482,46 @@ export const client = hc<AppType>(`${getBaseURL()}/api`);
 
 ```typescript
 // src/repositories/video/index.ts の例
-import type { CreateVideoInput, Video } from "@/db/types/video";
 import { getApiClient } from "@/db/config/client";
 
 /**
  * ビデオリポジトリ関数 - クライアントサイド実装
  * APIクライアントを使用してサーバーと通信
  */
-export async function getAllVideos(): Promise<Video[]> {
+export async function getAllVideos() {
   try {
     const response = await getApiClient().api.videos.$get();
     if (!response.ok) {
       throw new Error(`動画リストの取得に失敗しました: ${response.status}`);
     }
-    return await response.json();
+
+    const data = await response.json();
+    return data.videos;
   } catch (error) {
     console.error("動画リストの取得中にエラーが発生しました:", error);
     throw error;
   }
 }
-// ...その他のメソッド実装
+
+export async function getVideoById(id: string) {
+  try {
+    const response = await getApiClient().api.videos[id].$get();
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`ID: ${id} の動画が見つかりません`);
+      }
+      throw new Error(`動画の取得に失敗しました: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.video;
+  } catch (error) {
+    console.error(`ID: ${id} の動画取得中にエラーが発生しました:`, error);
+    throw error;
+  }
+}
+
+// その他のメソッド実装...
 ```
 
 ## マイグレーション管理
