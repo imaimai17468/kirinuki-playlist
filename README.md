@@ -114,10 +114,82 @@ API クライアントのテストでは、`setApiClient()`関数を使用して
 
 ## 🔄 開発ワークフロー
 
+### 基本的な開発フロー
+
 ```bash
 # 依存関係のインストール
 bun install
 
-# 開発サーバー起動
+# 開発サーバー起動（フロントエンドのみ）
 bun run dev
+```
+
+### データベースを含む完全な開発環境の起動
+
+このプロジェクトは Cloudflare D1 データベースを使用していますが、ローカル開発では`libsql-server`（Docker）を使用してデータベースサーバーを実行します。
+
+```bash
+# データベースサーバーの起動、マイグレーション実行、開発サーバー起動を一括で行う
+bun run dev:with-db
+
+# または、以下の手順で個別に実行することもできます
+```
+
+#### 個別のセットアップ手順
+
+1. **データベースサーバーの起動**
+
+```bash
+# Dockerを使用してlibsql-serverを起動
+bun run db:server
+```
+
+2. **データベースマイグレーションの実行**
+
+```bash
+# マイグレーションスクリプトを実行
+bun run migrate:server
+```
+
+3. **テストデータの投入（必要な場合）**
+
+```bash
+# シードデータを投入
+bun run seed
+
+# またはマイグレーションと一緒にシードデータを投入する場合
+bun run seed:with-migrate
+```
+
+4. **開発サーバーの起動**
+
+```bash
+# 開発サーバーを起動
+bun run dev
+```
+
+#### その他の便利なコマンド
+
+```bash
+# データベースサーバーの停止
+bun run db:server:stop
+
+# Drizzleによるマイグレーションファイルの生成
+bun run generate
+
+# Drizzleによるマイグレーションの実行
+bun run migrate
+
+# ローカルのWranglerを使用したマイグレーション
+bun run migrate:local
+```
+
+### プレビューとデプロイ
+
+```bash
+# Cloudflare Pagesのプレビュー
+bun run preview
+
+# Cloudflare Pagesへのデプロイ
+bun run deploy
 ```
