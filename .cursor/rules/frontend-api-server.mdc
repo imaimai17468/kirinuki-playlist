@@ -24,14 +24,18 @@ src/
 │           ├── playlists.ts     # プレイリスト関連エンドポイント
 │           └── author.ts        # 著者関連エンドポイント
 ├── db/
+│   ├── config/                  # データベース構成
+│   │   ├── database.ts          # DB接続管理
+│   │   ├── client.ts            # APIクライアント
+│   │   └── hono.ts              # Honoアプリ構成
 │   ├── models/                  # データモデル
 │   │   ├── videos.ts
 │   │   ├── playlists.ts
 │   │   └── authors.ts
 │   └── services/                # データアクセスサービス
-│       ├── videoService.ts
-│       ├── playlistService.ts
-│       └── authorService.ts
+│       ├── videos.ts
+│       ├── playlists.ts
+│       └── authors.ts
 ├── middleware/                  # ミドルウェア
 │   ├── auth.ts
 │   └── error-handler.ts
@@ -55,21 +59,12 @@ APIコードは以下の責任に分けて実装します：
 
 ```typescript
 // src/app/api/[...route]/route.ts
-import { Hono } from 'hono';
-import { handle } from 'hono/vercel';
-import { videosRouter } from './videos';
-import { playlistsRouter } from './playlists';
-import { authorsRouter } from './authors';
-import { errorHandler } from '@/middleware/error-handler';
+import { createHonoApp } from "@/db/config/hono";
+import { handle } from "hono/vercel";
 
-// Honoインスタンスの作成
-const app = new Hono<{ Bindings: Bindings }>()
-  .use('*', errorHandler);
-
-// 各リソースのルーターを登録
-app.route('/videos', videosRouter);
-app.route('/playlists', playlistsRouter);
-app.route('/authors', authorsRouter);
+// Honoアプリケーションの作成
+// 環境に応じたデータベースクライアントが自動的に注入される
+const app = createHonoApp();
 
 // Vercelハンドラー
 export const GET = handle(app);
@@ -77,282 +72,252 @@ export const POST = handle(app);
 export const PUT = handle(app);
 export const PATCH = handle(app);
 export const DELETE = handle(app);
+
+// 型定義をエクスポートして、クライアント側で型安全にAPIを呼び出せるようにする
+export type AppType = typeof app;
+```
+
+### 環境とデータベース接続の管理
+
+Kirinuki-Playlistでは、環境（本番、開発、テスト）に応じたデータベースクライアント管理と依存性注入パターンを実装しています。
+
+```typescript
+// src/db/config/hono.ts
+import { authorsRouter } from "@/app/api/[...route]/author";
+import { playlistsRouter } from "@/app/api/[...route]/playlists";
+import { videosRouter } from "@/app/api/[...route]/videos";
+import type { createDbClient } from "@/db/config/database";
+import { createDevDbClient } from "@/db/config/database";
+import type { createTestDbClient } from "@/db/config/test-database";
+import { errorHandler } from "@/db/middlewares/error-handler";
+import type { Bindings } from "@/db/types/bindings";
+import type { MiddlewareHandler } from "hono";
+import { Hono } from "hono";
+
+// DBクライアント型の定義
+export type DbClient =
+  | ReturnType<typeof createDbClient>
+  | Awaited<ReturnType<typeof createTestDbClient>>
+  | Awaited<ReturnType<typeof createDevDbClient>>;
+
+// 依存性を格納するための型拡張
+type Variables = {
+  dbClient?: DbClient;
+};
+
+// Bindings型にVariablesを追加した合成型
+export type AppEnv = {
+  Bindings: Bindings;
+  Variables: Variables;
+};
+
+/**
+ * 環境に応じたHonoアプリケーションを作成する関数
+ * 本番環境では実際のD1データベースを使用し、テスト環境ではテスト用DBクライアントを使用
+ */
+export function createHonoApp(options?: { dbClient?: DbClient }) {
+  // 依存性をコンテキストに注入するミドルウェア
+  const injectDependencies: MiddlewareHandler<AppEnv> = async (c, next) => {
+    // dbClientが直接提供されている場合はそれを使用
+    if (options?.dbClient) {
+      c.set("dbClient", options.dbClient);
+    } else if (process.env.NODE_ENV === "development") {
+      const client = await createDevDbClient();
+      c.set("dbClient", client);
+    }
+    await next();
+  };
+
+  // Honoアプリケーションの組み立て
+  const app = new Hono<AppEnv>()
+    .basePath("/api")
+    .use("*", errorHandler)
+    .use("*", injectDependencies) // 依存性注入ミドルウェア
+    .route("/authors", authorsRouter)
+    .route("/videos", videosRouter)
+    .route("/playlists", playlistsRouter)
+    .get("/hello", (c) => c.json({ status: "ok" }));
+
+  return app;
+}
 ```
 
 ### リソース別ルーター
 
 ```typescript
 // src/app/api/[...route]/videos.ts
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { videoService } from '@/db/services/videoService';
-import { videoSchema } from '@/schemas/video';
-import { getRequestContext } from '@/utils/requestContext';
+import { createDbClient } from "@/db/config/database";
+import type { AppEnv } from "@/db/config/hono";
+import { videoInsertSchema, videoUpdateSchema } from "@/db/models/videos";
+import { createVideoService } from "@/db/services/videos";
+import type { VideoInsert, VideoUpdate } from "@/db/services/videos";
+import { getRequestContext } from "@cloudflare/next-on-pages";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
 
-export const videosRouter = new Hono<{ Bindings: Bindings }>()
-  // 一覧取得
-  .get('/', async (c) => {
-    const { DB } = getRequestContext().env;
-    const videos = await videoService.getAllVideos(DB);
+export const videosRouter = new Hono<AppEnv>()
+  // 動画一覧の取得（著者情報を含む）
+  .get("/", async (c) => {
+    // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+    let dbClient = c.get("dbClient");
+    if (!dbClient) {
+      const { DB } = getRequestContext().env;
+      dbClient = createDbClient(DB);
+    }
+
+    const service = createVideoService(dbClient);
+    const videos = await service.getAllVideos();
     return c.json({ success: true, videos });
   })
+  // 動画の詳細取得（著者情報を含む）
+  .get("/:id", async (c) => {
+    const id = c.req.param("id");
 
-  // 詳細取得
-  .get('/:id', async (c) => {
-    const { DB } = getRequestContext().env;
-    const id = c.req.param('id');
-    const video = await videoService.getVideoById(DB, id);
-
-    if (!video) {
-      return c.json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: `Video with ID ${id} not found` }
-      }, 404);
+    // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+    let dbClient = c.get("dbClient");
+    if (!dbClient) {
+      const { DB } = getRequestContext().env;
+      dbClient = createDbClient(DB);
     }
 
+    const service = createVideoService(dbClient);
+    const video = await service.getVideoById(id);
     return c.json({ success: true, video });
   })
+  // 動画の追加
+  .post("/", zValidator("json", videoInsertSchema), async (c) => {
+    const input = c.req.valid("json") as VideoInsert;
 
-  // 新規作成
-  .post('/', zValidator('json', videoSchema.create), async (c) => {
-    const { DB } = getRequestContext().env;
-    const data = c.req.valid('json');
-    const id = await videoService.createVideo(DB, data);
-    return c.json({ success: true, id }, 201);
-  })
-
-  // 更新
-  .patch('/:id', zValidator('json', videoSchema.update), async (c) => {
-    const { DB } = getRequestContext().env;
-    const id = c.req.param('id');
-    const data = c.req.valid('json');
-
-    const success = await videoService.updateVideo(DB, id, data);
-
-    if (!success) {
-      return c.json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: `Video with ID ${id} not found` }
-      }, 404);
+    // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+    let dbClient = c.get("dbClient");
+    if (!dbClient) {
+      const { DB } = getRequestContext().env;
+      dbClient = createDbClient(DB);
     }
 
-    return c.json({ success: true });
+    const service = createVideoService(dbClient);
+    const id = await service.createVideo(input);
+
+    // 作成後、著者情報を含めて返す
+    const video = await service.getVideoById(id);
+    return c.json({ success: true, id, video }, 201);
   })
-
-  // 削除
-  .delete('/:id', async (c) => {
-    const { DB } = getRequestContext().env;
-    const id = c.req.param('id');
-
-    const success = await videoService.deleteVideo(DB, id);
-
-    if (!success) {
-      return c.json({
-        success: false,
-        error: { code: 'NOT_FOUND', message: `Video with ID ${id} not found` }
-      }, 404);
-    }
-
-    return c.json({ success: true });
-  });
+  // ...その他のエンドポイント
 ```
 
-## サービスレイヤー
+## 依存性注入パターン
 
-サービスレイヤーはビジネスロジックを担当し、データアクセスレイヤーを使用してデータの取得や操作を行います。
-
-```typescript
-// src/db/services/videoService.ts
-import { D1Database } from '@cloudflare/workers-types';
-import { eq } from 'drizzle-orm';
-import { getDb } from '@/db/drizzle';
-import { videos } from '@/db/models/videos';
-import { generateId } from '@/utils/id';
-
-export const videoService = {
-  /**
-   * すべてのビデオを取得する
-   */
-  async getAllVideos(db: D1Database) {
-    const drizzle = getDb(db);
-    return drizzle.select().from(videos).all();
-  },
-
-  /**
-   * IDによってビデオを取得する
-   */
-  async getVideoById(db: D1Database, id: string) {
-    const drizzle = getDb(db);
-    const results = await drizzle.select()
-      .from(videos)
-      .where(eq(videos.id, id))
-      .limit(1)
-      .all();
-
-    return results.length > 0 ? results[0] : null;
-  },
-
-  /**
-   * 新しいビデオを作成する
-   */
-  async createVideo(db: D1Database, data: VideoCreate) {
-    const drizzle = getDb(db);
-    const id = generateId();
-    const now = new Date();
-
-    await drizzle.insert(videos).values({
-      id,
-      title: data.title,
-      description: data.description,
-      url: data.url,
-      authorId: data.authorId,
-      createdAt: now,
-      updatedAt: now
-    });
-
-    return id;
-  },
-
-  /**
-   * ビデオを更新する
-   */
-  async updateVideo(db: D1Database, id: string, data: Partial<VideoCreate>) {
-    const drizzle = getDb(db);
-    const now = new Date();
-
-    const result = await drizzle.update(videos)
-      .set({
-        ...data,
-        updatedAt: now
-      })
-      .where(eq(videos.id, id))
-      .run();
-
-    return result.changes > 0;
-  },
-
-  /**
-   * ビデオを削除する
-   */
-  async deleteVideo(db: D1Database, id: string) {
-    const drizzle = getDb(db);
-    const result = await drizzle.delete(videos)
-      .where(eq(videos.id, id))
-      .run();
-
-    return result.changes > 0;
-  }
-};
-```
-
-## データモデル
-
-データモデルはデータベースのテーブル構造とバリデーションスキーマを定義します。
+サービスレイヤーでは依存性注入パターンを採用し、テスト容易性と柔軟性を高めています。
 
 ```typescript
-// src/db/models/videos.ts
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { z } from 'zod';
-
-// SQLiteテーブル定義
-export const videos = sqliteTable(
-  'videos',
-  {
-    id: text('id').primaryKey(),
-    title: text('title').notNull(),
-    description: text('description'),
-    url: text('url').notNull(),
-    authorId: text('author_id').notNull(),
-    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-  }
-);
-
-// バリデーションスキーマ
-const baseSchema = createSelectSchema(videos);
-
-export const videoSchema = {
-  select: baseSchema,
-  create: createInsertSchema(videos, {
-    title: z.string().min(1).max(100),
-    description: z.string().max(1000).optional(),
-    url: z.string().url(),
-    authorId: z.string()
-  }).omit({ id: true, createdAt: true, updatedAt: true }),
-  update: createInsertSchema(videos, {
-    title: z.string().min(1).max(100).optional(),
-    description: z.string().max(1000).optional(),
-    url: z.string().url().optional(),
-    authorId: z.string().optional()
-  }).omit({ id: true, createdAt: true, updatedAt: true })
-};
+// src/db/services/videos.ts
+import type { DbClient } from "@/db/config/hono";
+import { videos } from "@/db/models/videos";
+import { NotFoundError, DatabaseError } from "@/db/utils/errors";
+import { eq } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 // 型定義
-export type Video = z.infer<typeof baseSchema>;
-export type VideoCreate = z.infer<typeof videoSchema.create>;
-export type VideoUpdate = z.infer<typeof videoSchema.update>;
+export type VideoInsert = {
+  title: string;
+  url: string;
+  authorId: string;
+  start?: number;
+  end?: number;
+};
+
+export type VideoUpdate = Partial<VideoInsert>;
+
+/**
+ * 動画サービスを作成する関数
+ * 依存性注入パターンを使用して、DBクライアントを外部から注入できるようにする
+ */
+export function createVideoService(dbClient: DbClient) {
+  return {
+    /**
+     * すべての動画を取得する
+     */
+    async getAllVideos() {
+      try {
+        const result = await dbClient.select().from(videos).all();
+        return result;
+      } catch (error) {
+        throw new DatabaseError(
+          `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
+        );
+      }
+    },
+
+    /**
+     * IDによって動画を取得する
+     */
+    async getVideoById(id: string) {
+      try {
+        const video = await dbClient
+          .select()
+          .from(videos)
+          .where(eq(videos.id, id))
+          .get();
+
+        if (!video) {
+          throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+        }
+
+        return video;
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          throw error;
+        }
+        throw new DatabaseError(
+          `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
+        );
+      }
+    },
+
+    // その他のメソッド...
+  };
+}
 ```
-
-## 型安全性の確保
-
-プロジェクトでは型安全性を確保するために以下のツールを使用しています：
-
-1. **TypeScript**: 静的型チェック
-2. **Drizzle ORM**: 型安全なデータベースアクセス
-3. **Zod**: ランタイムでのデータバリデーション
-4. **Hono**: 型安全なAPIルーター
 
 ## エラーハンドリング
 
-エラーハンドリングはミドルウェアを使用して一元管理します。
+API実装では一貫したエラーハンドリングパターンを使用して、クライアントに適切なエラーメッセージを返します。
 
 ```typescript
-// src/middleware/error-handler.ts
-import { MiddlewareHandler } from 'hono';
-import { ZodError } from 'zod';
-import { HTTPException } from 'hono/http-exception';
+// エラーハンドリングの例（PlaylistsRouterから）
+.get("/:id", async (c) => {
+  const id = c.req.param("id");
 
-export const errorHandler: MiddlewareHandler = async (c, next) => {
-  try {
-    await next();
-  } catch (error) {
-    console.error('API Error:', error);
-
-    // Honoの例外
-    if (error instanceof HTTPException) {
-      return c.json({
-        success: false,
-        error: {
-          code: error.status.toString(),
-          message: error.message
-        }
-      }, error.status);
-    }
-
-    // Zodのバリデーションエラー
-    if (error instanceof ZodError) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid input data',
-          details: error.errors
-        }
-      }, 400);
-    }
-
-    // その他のエラー
-    return c.json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An unexpected error occurred'
-      }
-    }, 500);
+  // DbClientをコンテキストから取得、なければ新規作成
+  let dbClient = c.get("dbClient");
+  if (!dbClient) {
+    const { DB } = getRequestContext().env;
+    dbClient = createDbClient(DB);
   }
-};
+
+  try {
+    const service = createPlaylistService(dbClient);
+    const playlist = await service.getPlaylistWithVideosById(id);
+    return c.json({ success: true, playlist });
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return c.json({ success: false, message: error.message }, 404);
+    }
+    console.error("Failed to get playlist:", error);
+    return c.json({ success: false, message: "プレイリストの取得に失敗しました" }, 500);
+  }
+})
 ```
+
+## セキュリティ
+
+APIのセキュリティ対策として以下を実装します：
+
+1. **認証**: JWTベースの認証システム
+2. **認可**: ロールベースのアクセス制御
+3. **入力バリデーション**: すべてのリクエストデータのバリデーション
+4. **セキュアヘッダー**: 適切なセキュリティヘッダーの設定
+5. **レート制限**: 大量のリクエストからの保護
 
 ## データベース操作
 
@@ -378,69 +343,3 @@ APIのテストは以下のアプローチで行います：
 3. **E2Eテスト**: フロントエンドからの実際のAPI呼び出しをテスト
 
 詳細なテスト方法については [api-testing.mdc](mdc:api-testing.mdc) を参照してください。
-
-## セキュリティ
-
-APIのセキュリティ対策として以下を実装します：
-
-1. **認証**: JWTベースの認証システム
-2. **認可**: ロールベースのアクセス制御
-3. **入力バリデーション**: すべてのリクエストデータのバリデーション
-4. **セキュアヘッダー**: 適切なセキュリティヘッダーの設定
-5. **レート制限**: 大量のリクエストからの保護
-
-## Honoルーター実装メソッド
-
-Honoルーターは以下のメソッドを使用して実装できます：
-
-### 1. メソッドチェーンによる実装
-
-```typescript
-// メソッドチェーンによる実装
-export const videosRouter = new Hono<{ Bindings: Bindings }>()
-  .get('/', async (c) => { /* 実装 */ })
-  .get('/:id', async (c) => { /* 実装 */ })
-  .post('/', validator, async (c) => { /* 実装 */ })
-  .patch('/:id', validator, async (c) => { /* 実装 */ })
-  .delete('/:id', async (c) => { /* 実装 */ });
-```
-
-### 2. ルートグループによる実装
-
-```typescript
-// ルートグループによる実装
-export const apiRouter = new Hono<{ Bindings: Bindings }>();
-
-// videosグループ
-const videos = apiRouter.route('/videos');
-videos.get('/', async (c) => { /* 実装 */ });
-videos.get('/:id', async (c) => { /* 実装 */ });
-videos.post('/', validator, async (c) => { /* 実装 */ });
-videos.patch('/:id', validator, async (c) => { /* 実装 */ });
-videos.delete('/:id', async (c) => { /* 実装 */ });
-
-// playlistsグループ
-const playlists = apiRouter.route('/playlists');
-// 実装...
-```
-
-### 3. 関数での実装
-
-```typescript
-// 関数での実装
-export function createVideosRouter() {
-  const router = new Hono<{ Bindings: Bindings }>();
-
-  router.get('/', async (c) => { /* 実装 */ });
-  router.get('/:id', async (c) => { /* 実装 */ });
-  // 他のエンドポイント...
-
-  return router;
-}
-
-// 使用
-const app = new Hono();
-app.route('/videos', createVideosRouter());
-```
-
-いずれの方法を選択する場合も、プロジェクト全体で一貫性を保つことが重要です。
