@@ -14,6 +14,12 @@
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "migrate:local": "wrangler d1 migrations apply kirinuki-playlist --local",
+    "migrate:server": "bun scripts/migrate.ts",
+    "seed": "bun scripts/seed.ts",
+    "seed:with-migrate": "bun scripts/seed.ts --with-migration",
+    "db:server": "docker run -d -p 8080:8080 -v $(pwd)/data:/data -e SQLD_DB_PATH=/data/dev.db ghcr.io/tursodatabase/libsql-server:latest",
+    "db:server:stop": "docker stop $(docker ps -q --filter ancestor=ghcr.io/tursodatabase/libsql-server:latest)",
+    "dev:with-db": "bun run db:server && sleep 3 && bun run migrate:server && bun run dev",
     "pages:build": "bunx @cloudflare/next-on-pages",
     "preview": "bun run pages:build && wrangler pages dev",
     "deploy": "bun run pages:build && wrangler pages deploy"
@@ -21,6 +27,7 @@
   "dependencies": {
     "@cloudflare/next-on-pages": "^1.13.10",
     "@hono/zod-validator": "^0.4.3",
+    "@libsql/client": "^0.15.0",
     "@radix-ui/react-avatar": "^1.1.3",
     "@radix-ui/react-collapsible": "^1.1.3",
     "@radix-ui/react-dialog": "^1.1.6",
