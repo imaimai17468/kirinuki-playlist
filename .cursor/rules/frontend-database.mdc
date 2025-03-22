@@ -7,26 +7,242 @@ globs: src/db/**/*.ts,src/repositories/**/*.ts
 
 ## データベース構成
 
-Kirinuki-Playlistプロジェクトでは、Cloudflare D1をデータベースとして使用し、Drizzle ORMを通じてアクセスします。
+Kirinuki-Playlistプロジェクトでは、本番環境ではCloudflare D1、開発環境ではLibSQLをデータベースとして使用し、Drizzle ORMを通じてアクセスします。
 
 ### ディレクトリ構造
 
 ```
 src/
 ├── db/
-│   ├── schema/              # Drizzleテーブルスキーマ定義
+│   ├── config/                # データベース構成
+│   │   ├── database.ts        # DB接続管理
+│   │   ├── client.ts          # APIクライアント
+│   │   ├── hono.ts            # Honoアプリ構成
+│   │   └── test-database.ts   # テスト環境DB設定
+│   ├── models/                # データモデル定義
 │   │   ├── videos.ts
 │   │   ├── authors.ts
-│   │   └── index.ts         # スキーマのエクスポート
-│   ├── middlewares/         # DB関連ミドルウェア
-│   │   └── error-handler.ts # エラーハンドリング
-│   └── utils/
-│       └── client.ts        # DBクライアント生成
-├── repositories/           # データアクセス層
-│   ├── video-repository.ts
-│   └── author-repository.ts
+│   │   ├── playlists.ts
+│   │   ├── playlist_videos.ts
+│   │   └── index.ts           # モデルのエクスポート
+│   ├── services/              # サービス層
+│   │   ├── videos.ts
+│   │   ├── authors.ts
+│   │   └── playlists.ts
+│   ├── middlewares/           # DB関連ミドルウェア
+│   │   └── error-handler.ts   # エラーハンドリング
+│   └── types/
+│       └── bindings.ts        # 型定義
+├── repositories/              # クライアントサイド用データアクセス層
+│   ├── video/
+│   ├── author/
+│   └── playlist/
 └── app/
-    └── api/                # API実装
+    └── api/                   # API実装
+        └── [...route]/        # Honoルート実装
+```
+
+## データベースクライアント管理
+
+Kirinuki-Playlistプロジェクトでは、異なる環境（本番、開発、テスト）に対応する柔軟なデータベースクライアント管理を実装しています：
+
+### データベースクライアント
+
+```typescript
+// src/db/config/database.ts
+import type { D1Database } from "@cloudflare/workers-types";
+import { createClient } from "@libsql/client/web";
+import { drizzle } from "drizzle-orm/d1";
+import { drizzle as drizzleSqlite } from "drizzle-orm/libsql";
+
+/**
+ * 本番環境用のデータベースクライアントを作成します
+ * Cloudflare WorkersのD1データベースを使用
+ */
+export const createDbClient = (db: D1Database) => {
+  return drizzle(db);
+};
+
+/**
+ * 開発環境用のデータベースクライアントを作成します
+ * Edge環境対応版 - マイグレーションなし
+ * libsqlサーバーに接続
+ */
+export const createDevDbClient = async () => {
+  // WebクライアントでlibsqlサーバーにHTTP接続
+  const url = process.env.LIBSQL_URL || "http://localhost:8080";
+  const client = createClient({
+    url,
+  });
+
+  // Drizzle ORMのクライアントを作成 - マイグレーションなし
+  return drizzleSqlite(client);
+};
+```
+
+### テスト環境用データベース
+
+```typescript
+// src/db/config/test-database.ts
+import Database from "bun:sqlite";
+import { drizzle as drizzleSqlite } from "drizzle-orm/bun-sqlite";
+import { migrate as migrateSqlite } from "drizzle-orm/bun-sqlite/migrator";
+
+/**
+ * テスト環境用のデータベースクライアントを作成します
+ * インメモリSQLiteデータベースを使用
+ */
+export const createTestDbClient = async (migrationsPath = "./drizzle") => {
+  const client = new Database(":memory:");
+  const db = drizzleSqlite(client);
+  await migrateSqlite(db, { migrationsFolder: migrationsPath });
+
+  return drizzleSqlite(client);
+};
+```
+
+## API構成と依存性注入
+
+HonoアプリケーションとAPIルーターは、依存性注入パターンを使用して実装されています：
+
+```typescript
+// src/db/config/hono.ts
+import { authorsRouter } from "@/app/api/[...route]/author";
+import { playlistsRouter } from "@/app/api/[...route]/playlists";
+import { videosRouter } from "@/app/api/[...route]/videos";
+import type { createDbClient } from "@/db/config/database";
+import { createDevDbClient } from "@/db/config/database";
+import type { createTestDbClient } from "@/db/config/test-database";
+import { errorHandler } from "@/db/middlewares/error-handler";
+import type { Bindings } from "@/db/types/bindings";
+import type { MiddlewareHandler } from "hono";
+import { Hono } from "hono";
+
+// DBクライアント型の定義
+export type DbClient =
+  | ReturnType<typeof createDbClient>
+  | Awaited<ReturnType<typeof createTestDbClient>>
+  | Awaited<ReturnType<typeof createDevDbClient>>;
+
+// 依存性を格納するための型拡張
+type Variables = {
+  dbClient?: DbClient;
+};
+
+// Bindings型にVariablesを追加した合成型
+export type AppEnv = {
+  Bindings: Bindings;
+  Variables: Variables;
+};
+
+/**
+ * 環境に応じたHonoアプリケーションを作成する関数
+ * 本番環境では実際のD1データベースを使用し、テスト環境ではテスト用DBクライアントを使用
+ */
+export function createHonoApp(options?: { dbClient?: DbClient }) {
+  // 依存性をコンテキストに注入するミドルウェア
+  const injectDependencies: MiddlewareHandler<AppEnv> = async (c, next) => {
+    // dbClientが直接提供されている場合はそれを使用
+    if (options?.dbClient) {
+      c.set("dbClient", options.dbClient);
+    } else if (process.env.NODE_ENV === "development") {
+      const client = await createDevDbClient();
+      c.set("dbClient", client);
+    }
+    await next();
+  };
+
+  // Honoアプリケーションの組み立て
+  const app = new Hono<AppEnv>()
+    .basePath("/api")
+    .use("*", errorHandler)
+    .use("*", injectDependencies) // 依存性注入ミドルウェア
+    .route("/authors", authorsRouter)
+    .route("/videos", videosRouter)
+    .route("/playlists", playlistsRouter)
+    .get("/hello", (c) => c.json({ status: "ok" }));
+
+  return app;
+}
+```
+
+## APIクライアント管理
+
+フロントエンドからAPIにアクセスするためのクライアント実装：
+
+```typescript
+// src/db/config/client.ts
+import type { AppType } from "@/app/api/[...route]/route";
+import { getBaseURL } from "@/db/config/baseUrl";
+import { hc } from "hono/client";
+
+/**
+ * APIクライアントインターフェース
+ * 本番環境ではhcを使用したHonoクライアント
+ * テスト環境ではtestClientを使用するためのインターフェース
+ */
+export type ApiClient = ReturnType<typeof hc<AppType>>;
+
+// デフォルトのAPIクライアント（シングルトンパターン）
+let currentClient: ApiClient | null = null;
+
+/**
+ * 本番環境用APIクライアントを作成
+ * @returns 実際のAPIに接続するクライアント
+ */
+export function createProdClient(): ApiClient {
+  return hc<AppType>(`${getBaseURL()}/api`);
+}
+
+/**
+ * テスト環境用APIクライアントを作成・設定
+ * @param client テスト用クライアント
+ */
+export function setApiClient(client: ApiClient): void {
+  currentClient = client;
+}
+
+/**
+ * 現在のAPIクライアントを取得
+ * セットされていない場合は本番用クライアントを作成
+ */
+export function getApiClient(): ApiClient {
+  if (!currentClient) {
+    currentClient = createProdClient();
+  }
+  return currentClient;
+}
+
+// 従来の実装との互換性のために、デフォルトの実装もそのまま残す
+export const client = hc<AppType>(`${getBaseURL()}/api`);
+```
+
+## リポジトリパターン実装
+
+データアクセスロジックは、サーバーサイドではサービス層、クライアントサイドではリポジトリパターンに従って実装します：
+
+```typescript
+// src/repositories/video/index.ts の例
+import type { CreateVideoInput, Video } from "@/db/types/video";
+import { getApiClient } from "@/db/config/client";
+
+/**
+ * ビデオリポジトリ関数 - クライアントサイド実装
+ * APIクライアントを使用してサーバーと通信
+ */
+export async function getAllVideos(): Promise<Video[]> {
+  try {
+    const response = await getApiClient().api.videos.$get();
+    if (!response.ok) {
+      throw new Error(`動画リストの取得に失敗しました: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("動画リストの取得中にエラーが発生しました:", error);
+    throw error;
+  }
+}
+// ...その他のメソッド実装
 ```
 
 ## マイグレーション管理
