@@ -1,18 +1,13 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { DbClient } from "@/db/config/hono";
 import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { createDbClient, type createTestDbClient } from "../config/database";
 import { authors } from "../models/authors";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
 
 export type Author = InferSelectModel<typeof authors>;
 export type AuthorInsert = Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">;
 export type AuthorUpdate = Partial<Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">>;
-
-// データベースクライアントの型
-// プロダクション環境(D1)とテスト環境(SQLite)の両方をサポート
-export type DbClient = ReturnType<typeof createDbClient> | Awaited<ReturnType<typeof createTestDbClient>>;
 
 // 依存性注入パターンを使った著者サービスの作成関数
 export const createAuthorService = (dbClient: DbClient) => ({
@@ -127,31 +122,3 @@ export const createAuthorService = (dbClient: DbClient) => ({
     }
   },
 });
-
-// デフォルトのauthorServiceインスタンス（下位互換性のため）
-export const authorService = {
-  getAllAuthors: (db: D1Database) => {
-    const client = createDbClient(db);
-    return createAuthorService(client).getAllAuthors();
-  },
-
-  getAuthorById: (db: D1Database, id: string) => {
-    const client = createDbClient(db);
-    return createAuthorService(client).getAuthorById(id);
-  },
-
-  createAuthor: (db: D1Database, data: AuthorInsert) => {
-    const client = createDbClient(db);
-    return createAuthorService(client).createAuthor(data);
-  },
-
-  updateAuthor: (db: D1Database, id: string, data: AuthorUpdate) => {
-    const client = createDbClient(db);
-    return createAuthorService(client).updateAuthor(id, data);
-  },
-
-  deleteAuthor: (db: D1Database, id: string) => {
-    const client = createDbClient(db);
-    return createAuthorService(client).deleteAuthor(id);
-  },
-};

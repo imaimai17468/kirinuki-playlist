@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
-import { createTestDbClient } from "../../config/database";
+import { createTestDbClient } from "../../config/test-database";
 import { authors } from "../../models/authors";
 import { NotFoundError } from "../../utils/errors";
 import { type Author, createAuthorService } from "../authors";

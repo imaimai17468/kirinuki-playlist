@@ -1,18 +1,17 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { DbClient } from "@/db/config/hono";
 import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { createDbClient } from "../config/database";
 import { authors } from "../models/authors";
 import { playlists } from "../models/playlists";
 import { playlistVideos } from "../models/relations";
 import { videos } from "../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
 
-// 基本的なプレイリストの型（内部使用のみ）
+// 基本的なプレイリストの型
 type PlaylistBase = InferSelectModel<typeof playlists>;
 
-// 作成者情報を含むプレイリストの型（公開用）
+// 著者情報を含むプレイリストの型
 export type Playlist = PlaylistBase & {
   author: {
     id: string;
@@ -20,13 +19,18 @@ export type Playlist = PlaylistBase & {
     iconUrl: string;
     bio: string | null;
   };
+};
+
+export type PlaylistWithVideos = Playlist & {
   videos: {
     id: string;
     title: string;
     url: string;
-    start: number;
-    end: number;
-    order: number;
+    start: number | null;
+    end: number | null;
+    authorId: string;
+    authorName: string;
+    authorIconUrl: string;
   }[];
 };
 
@@ -34,91 +38,35 @@ export type PlaylistInsert = Omit<InferInsertModel<typeof playlists>, "id" | "cr
 
 export type PlaylistUpdate = Partial<Omit<InferInsertModel<typeof playlists>, "id" | "createdAt" | "updatedAt">>;
 
-export const playlistService = {
-  // 内部使用のメソッド（作成者情報なし）
-  async _getPlaylistsWithoutAuthors(db: D1Database): Promise<PlaylistBase[]> {
-    const client = createDbClient(db);
+export type PlaylistVideoInsert = {
+  videoId: string;
+  order: number;
+};
+
+// 依存性注入パターンを使ったプレイリストサービスの作成関数
+export const createPlaylistService = (dbClient: DbClient) => ({
+  async getAllPlaylists(): Promise<Playlist[]> {
     try {
-      return await client.select().from(playlists).all();
-    } catch (_) {
-      throw new DatabaseError("プレイリスト一覧の取得に失敗しました");
-    }
-  },
-
-  // 内部使用のメソッド（作成者情報なし）
-  async _getPlaylistByIdWithoutAuthor(db: D1Database, id: string): Promise<PlaylistBase> {
-    const client = createDbClient(db);
-    try {
-      const playlist = await client.select().from(playlists).where(eq(playlists.id, id)).get();
-
-      if (!playlist) {
-        throw new NotFoundError(`ID: ${id} のプレイリストが見つかりません`);
-      }
-
-      return playlist;
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new DatabaseError(
-        `プレイリストの取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
-      );
-    }
-  },
-
-  // 公開APIメソッド（作成者情報あり）
-  async getAllPlaylists(db: D1Database): Promise<Playlist[]> {
-    const client = createDbClient(db);
-    try {
-      // プレイリストと作成者の結合
-      const results = await client
-        .select({
-          playlist: playlists,
-          author: authors,
-        })
+      // プレイリスト一覧を取得
+      const results = await dbClient
+        .select()
         .from(playlists)
         .innerJoin(authors, eq(playlists.authorId, authors.id))
         .all();
 
-      // 各プレイリストのビデオ情報を取得
-      const playlistsWithVideos = await Promise.all(
-        results.map(async (row) => {
-          const playlistVideosResult = await client
-            .select({
-              video: videos,
-              playlistVideo: playlistVideos,
-            })
-            .from(playlistVideos)
-            .innerJoin(videos, eq(playlistVideos.videoId, videos.id))
-            .where(eq(playlistVideos.playlistId, row.playlist.id))
-            .orderBy(playlistVideos.order)
-            .all();
-
-          return {
-            id: row.playlist.id,
-            title: row.playlist.title,
-            authorId: row.playlist.authorId,
-            createdAt: row.playlist.createdAt,
-            updatedAt: row.playlist.updatedAt,
-            author: {
-              id: row.author.id,
-              name: row.author.name,
-              iconUrl: row.author.iconUrl,
-              bio: row.author.bio,
-            },
-            videos: playlistVideosResult.map((pv) => ({
-              id: pv.video.id,
-              title: pv.video.title,
-              url: pv.video.url,
-              start: pv.video.start,
-              end: pv.video.end,
-              order: pv.playlistVideo.order,
-            })),
-          };
-        }),
-      );
-
-      return playlistsWithVideos;
+      return results.map((row) => ({
+        id: row.playlists.id,
+        title: row.playlists.title,
+        authorId: row.playlists.authorId,
+        createdAt: row.playlists.createdAt,
+        updatedAt: row.playlists.updatedAt,
+        author: {
+          id: row.authors.id,
+          name: row.authors.name,
+          iconUrl: row.authors.iconUrl,
+          bio: row.authors.bio,
+        },
+      }));
     } catch (error) {
       throw new DatabaseError(
         `プレイリスト一覧の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
@@ -126,16 +74,11 @@ export const playlistService = {
     }
   },
 
-  // 公開APIメソッド（作成者情報あり）
-  async getPlaylistById(db: D1Database, id: string): Promise<Playlist> {
-    const client = createDbClient(db);
+  async getPlaylistById(id: string): Promise<Playlist> {
     try {
-      // プレイリストと作成者の結合
-      const result = await client
-        .select({
-          playlist: playlists,
-          author: authors,
-        })
+      // プレイリストを取得
+      const result = await dbClient
+        .select()
         .from(playlists)
         .innerJoin(authors, eq(playlists.authorId, authors.id))
         .where(eq(playlists.id, id))
@@ -145,38 +88,18 @@ export const playlistService = {
         throw new NotFoundError(`ID: ${id} のプレイリストが見つかりません`);
       }
 
-      // プレイリストのビデオ情報を取得
-      const playlistVideosResult = await client
-        .select({
-          video: videos,
-          playlistVideo: playlistVideos,
-        })
-        .from(playlistVideos)
-        .innerJoin(videos, eq(playlistVideos.videoId, videos.id))
-        .where(eq(playlistVideos.playlistId, id))
-        .orderBy(playlistVideos.order)
-        .all();
-
       return {
-        id: result.playlist.id,
-        title: result.playlist.title,
-        authorId: result.playlist.authorId,
-        createdAt: result.playlist.createdAt,
-        updatedAt: result.playlist.updatedAt,
+        id: result.playlists.id,
+        title: result.playlists.title,
+        authorId: result.playlists.authorId,
+        createdAt: result.playlists.createdAt,
+        updatedAt: result.playlists.updatedAt,
         author: {
-          id: result.author.id,
-          name: result.author.name,
-          iconUrl: result.author.iconUrl,
-          bio: result.author.bio,
+          id: result.authors.id,
+          name: result.authors.name,
+          iconUrl: result.authors.iconUrl,
+          bio: result.authors.bio,
         },
-        videos: playlistVideosResult.map((pv) => ({
-          id: pv.video.id,
-          title: pv.video.title,
-          url: pv.video.url,
-          start: pv.video.start,
-          end: pv.video.end,
-          order: pv.playlistVideo.order,
-        })),
       };
     } catch (error) {
       if (error instanceof NotFoundError) {
@@ -188,24 +111,63 @@ export const playlistService = {
     }
   },
 
-  async createPlaylist(db: D1Database, data: PlaylistInsert): Promise<string> {
-    const client = createDbClient(db);
+  async getPlaylistWithVideosById(id: string): Promise<PlaylistWithVideos> {
+    try {
+      // まずプレイリスト情報を取得
+      const playlist = await this.getPlaylistById(id);
 
+      // 次にこのプレイリストに含まれる動画を取得
+      const playlistVideosResult = await dbClient
+        .select()
+        .from(videos)
+        .innerJoin(authors, eq(videos.authorId, authors.id))
+        .all();
+
+      // 動画情報をマッピング
+      const videosWithAuthors = playlistVideosResult.map((row) => ({
+        id: row.videos.id,
+        title: row.videos.title,
+        url: row.videos.url,
+        start: row.videos.start,
+        end: row.videos.end,
+        authorId: row.authors.id,
+        authorName: row.authors.name,
+        authorIconUrl: row.authors.iconUrl,
+      }));
+
+      // プレイリスト情報と動画情報を組み合わせて返す
+      return {
+        ...playlist,
+        videos: videosWithAuthors,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `プレイリストと動画情報の取得中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`,
+      );
+    }
+  },
+
+  async createPlaylist(data: PlaylistInsert): Promise<string> {
     // 現在の日時
     const now = new Date();
 
-    // nanoidを生成
+    // IDの生成
     const id = nanoid();
 
     try {
-      // 作成者が存在するか確認
-      const author = await client.select().from(authors).where(eq(authors.id, data.authorId)).get();
+      // 著者が存在するか確認
+      const author = await dbClient.select().from(authors).where(eq(authors.id, data.authorId)).get();
       if (!author) {
-        throw new NotFoundError(`ID: ${data.authorId} の作成者が見つかりません`);
+        throw new NotFoundError(`ID: ${data.authorId} の著者が見つかりません`);
       }
 
-      // データベースに挿入
-      await client.insert(playlists).values({
+      // プレイリストの挿入
+      await dbClient.insert(playlists).values({
         id,
         ...data,
         createdAt: now,
@@ -213,7 +175,7 @@ export const playlistService = {
       });
 
       return id;
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
       }
@@ -223,39 +185,39 @@ export const playlistService = {
           throw new UniqueConstraintError("このプレイリストIDはすでに使用されています");
         }
 
-        throw new DatabaseError("プレイリストの保存中にエラーが発生しました");
+        throw new DatabaseError(`プレイリストの作成中にエラーが発生しました: ${error.message}`);
       }
 
       throw error;
     }
   },
 
-  async updatePlaylist(db: D1Database, id: string, data: PlaylistUpdate): Promise<void> {
-    const client = createDbClient(db);
-
+  async updatePlaylist(id: string, data: PlaylistUpdate): Promise<void> {
     try {
-      // authorIdが含まれている場合、作成者が存在するか確認
+      // authorIdが含まれている場合、著者が存在するか確認
       if (data.authorId) {
-        const author = await client.select().from(authors).where(eq(authors.id, data.authorId)).get();
+        const author = await dbClient.select().from(authors).where(eq(authors.id, data.authorId)).get();
         if (!author) {
-          throw new NotFoundError(`ID: ${data.authorId} の作成者が見つかりません`);
+          throw new NotFoundError(`ID: ${data.authorId} の著者が見つかりません`);
         }
       }
 
-      // 更新データの準備（updatedAtは自動的に現在時刻に設定）
+      // まず、プレイリストが存在するか確認
+      const playlist = await dbClient.select().from(playlists).where(eq(playlists.id, id)).get();
+
+      if (!playlist) {
+        throw new NotFoundError(`ID: ${id} のプレイリストが見つかりません`);
+      }
+
+      // 更新データの準備
       const updateData = {
         ...data,
         updatedAt: new Date(),
       };
 
-      // データベースを更新
-      const result = await client.update(playlists).set(updateData).where(eq(playlists.id, id)).run();
-
-      // 影響を受けた行数が0の場合、リソースが存在しない
-      if (result.meta.changes === 0) {
-        throw new NotFoundError(`ID: ${id} のプレイリストが見つかりません`);
-      }
-    } catch (error: unknown) {
+      // プレイリストの更新
+      await dbClient.update(playlists).set(updateData).where(eq(playlists.id, id)).run();
+    } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
       }
@@ -268,21 +230,18 @@ export const playlistService = {
     }
   },
 
-  async deletePlaylist(db: D1Database, id: string): Promise<void> {
-    const client = createDbClient(db);
-
+  async deletePlaylist(id: string): Promise<void> {
     try {
-      // プレイリストビデオの関連を削除
-      await client.delete(playlistVideos).where(eq(playlistVideos.playlistId, id)).run();
+      // まず、プレイリストが存在するか確認
+      const playlist = await dbClient.select().from(playlists).where(eq(playlists.id, id)).get();
 
-      // プレイリストを削除
-      const result = await client.delete(playlists).where(eq(playlists.id, id)).run();
-
-      // 影響を受けた行数が0の場合、リソースが存在しない
-      if (result.meta.changes === 0) {
+      if (!playlist) {
         throw new NotFoundError(`ID: ${id} のプレイリストが見つかりません`);
       }
-    } catch (error: unknown) {
+
+      // プレイリストを削除
+      await dbClient.delete(playlists).where(eq(playlists.id, id)).run();
+    } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
       }
@@ -294,4 +253,103 @@ export const playlistService = {
       throw error;
     }
   },
-};
+
+  async addVideoToPlaylist(playlistId: string, videoData: PlaylistVideoInsert): Promise<void> {
+    try {
+      // プレイリストが存在するか確認
+      const playlist = await dbClient.select().from(playlists).where(eq(playlists.id, playlistId)).get();
+      if (!playlist) {
+        throw new NotFoundError(`ID: ${playlistId} のプレイリストが見つかりません`);
+      }
+
+      // 動画が存在するか確認
+      const video = await dbClient.select().from(videos).where(eq(videos.id, videoData.videoId)).get();
+      if (!video) {
+        throw new NotFoundError(`ID: ${videoData.videoId} の動画が見つかりません`);
+      }
+
+      // 現在の日時
+      const now = new Date();
+
+      // 関連付け
+      await dbClient.insert(playlistVideos).values({
+        id: nanoid(),
+        playlistId,
+        videoId: videoData.videoId,
+        order: videoData.order,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      if (error instanceof Error) {
+        if (error.message.includes("UNIQUE constraint failed")) {
+          throw new UniqueConstraintError("この動画はすでに追加されています");
+        }
+
+        throw new DatabaseError(`プレイリストへの動画追加中にエラーが発生しました: ${error.message}`);
+      }
+
+      throw error;
+    }
+  },
+
+  async removeVideoFromPlaylist(playlistId: string, videoId: string): Promise<void> {
+    try {
+      // 関連するプレイリストか動画が存在しない場合
+      const playlist = await dbClient.select().from(playlists).where(eq(playlists.id, playlistId)).get();
+      if (!playlist) {
+        throw new NotFoundError(`プレイリスト ${playlistId} が見つかりません`);
+      }
+
+      const video = await dbClient.select().from(videos).where(eq(videos.id, videoId)).get();
+      if (!video) {
+        throw new NotFoundError(`動画 ${videoId} が見つかりません`);
+      }
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      if (error instanceof Error) {
+        throw new DatabaseError(`プレイリストからの動画削除中にエラーが発生しました: ${error.message}`);
+      }
+
+      throw error;
+    }
+  },
+
+  async getAllPlaylistsWithVideos(): Promise<PlaylistWithVideos[]> {
+    try {
+      // まずプレイリスト一覧を取得
+      const playlists = await this.getAllPlaylists();
+
+      // 各プレイリストに対して動画情報を取得
+      const playlistsWithVideos = await Promise.all(
+        playlists.map(async (playlist) => {
+          try {
+            return await this.getPlaylistWithVideosById(playlist.id);
+          } catch (error) {
+            // 個別のプレイリストでエラーが発生しても全体の取得は続行
+            console.error(`ID: ${playlist.id} のプレイリスト動画取得に失敗:`, error);
+            return {
+              ...playlist,
+              videos: [],
+            };
+          }
+        }),
+      );
+
+      return playlistsWithVideos;
+    } catch (error) {
+      throw new DatabaseError(
+        `プレイリスト一覧と動画情報の取得中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`,
+      );
+    }
+  },
+});
