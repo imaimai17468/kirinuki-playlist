@@ -16,7 +16,10 @@ kirinuki-playlist/
 │   │   │       └── author.ts     # 著者関連のルーター
 │   │   └── ...                   # その他のNext.jsページ
 │   ├── components/               # UIコンポーネント
-│   ├── db/                       # データベース関連
+│   ├── db/
+│   │   ├── config/               # データベース設定
+│   │   ├── models/               # データモデル
+│   │   └── services/             # データアクセスサービス
 │   ├── libs/                     # ユーティリティ
 │   ├── hooks/                    # Reactフック
 │   └── repositories/             # データアクセス層
@@ -76,6 +79,16 @@ Kirinuki Playlist は、YouTube 動画から必要な部分だけを切り取り
 - **[Vercel](https://vercel.com/)** - グローバルエッジネットワークでのシームレスなデプロイ
 - **[Cloudflare D1](https://developers.cloudflare.com/d1/)** - 分散 SQL データベース
 
+## 🧩 アーキテクチャ
+
+### 依存性注入パターン
+
+サーバーサイドのサービス層では依存性注入（DI）パターンを採用しています。各サービスは`create*Service`関数によって生成され、必要な依存関係（DB クライアントなど）が注入されます。これにより、テスト容易性と柔軟性が向上しています。
+
+### API クライアント管理
+
+フロントエンドからの API 呼び出しには、シングルトンパターンを採用した API クライアント管理を実装しています。リポジトリ層では`getApiClient()`関数を使用して API クライアントを取得することで、テスト時のモック化やクライアント設定の一元管理が容易になりました。
+
 ## 🧪 テスト
 
 このプロジェクトは Bun を使用してテストを実行します。リポジトリ層のテストはデータベース操作をモックせず、インメモリ SQLite データベースを使用して実際のデータベース操作をテストします。
@@ -93,35 +106,11 @@ bun test src/repositories
 
 ### リポジトリテストについて
 
-リポジトリ層のテストでは、依存性注入（DI）パターンを使用して、テスト環境ではインメモリデータベースを使用します。これにより、実際のデータベース操作をテストできます。
+リポジトリ層のテストでは、依存性注入（DI）パターンを使用して、テスト環境ではインメモリデータベースを使用します。これにより、実際のデータベース操作をテストできます。テスト用のユーティリティ関数を使用して、テスト用のデータベースクライアントを作成し、テストデータをシードする仕組みが整っています。
 
-テスト用のユーティリティ関数は `src/repositories/testUtils.ts` に定義されています。これらの関数を使用して、テスト用のデータベースクライアントを作成し、テストデータをシードします。
+### API クライアントテスト
 
-```typescript
-// テスト例
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { setupTestRepository, cleanupTestRepository } from "../../testUtils";
-import { authorRepository } from "../authorRepository";
-
-describe("authorRepository", () => {
-  let db;
-
-  beforeEach(async () => {
-    // テスト用DBをセットアップ
-    const setup = await setupTestRepository();
-    db = setup.db;
-  });
-
-  afterEach(async () => {
-    // テスト後のクリーンアップ
-    await cleanupTestRepository(db);
-  });
-
-  it("テストケース", async () => {
-    // テストコード
-  });
-});
-```
+API クライアントのテストでは、`setApiClient()`関数を使用してモッククライアントを注入できます。これにより、実際のネットワークリクエストを発生させることなく、リポジトリ層の機能を効率的にテストできます。
 
 ## 🔄 開発ワークフロー
 
