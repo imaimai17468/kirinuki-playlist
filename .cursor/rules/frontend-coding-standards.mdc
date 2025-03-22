@@ -1,6 +1,6 @@
 ---
 description: Kirinuki-Playlistプロジェクトのフロントエンド開発コーディング規約
-globs: src/**/*.ts,src/**/*.tsx,app/**/*.ts,app/**/*.tsx,components/**/*.ts,components/**/*.tsx
+globs: src/**/*.{ts,tsx}
 ---
 # Kirinuki-Playlist プロジェクトルール
 
@@ -57,6 +57,100 @@ globs: src/**/*.ts,src/**/*.tsx,app/**/*.ts,app/**/*.tsx,components/**/*.ts,comp
 - 複雑なスタイルはコンポーネント化する
 - レスポンシブデザインはTailwindのブレークポイントを使用する
 
+### リポジトリパターン
+
+- APIアクセスはリポジトリパターンを使用して抽象化する
+- リポジトリは`src/repositories/`ディレクトリに配置する
+- 各リソース（ビデオ、プレイリストなど）ごとにディレクトリを作成する
+- リポジトリファイルは`index.ts`として実装する
+- APIクライアントのインポートには`getApiClient()`関数を使用する
+- エラーハンドリングはResult型（neverthrow）を使用して実装する
+- レスポンスのバリデーションにはZodを使用する
+- テストでは適切にAPIクライアントをモック化する
+
+#### getApiClient() 関数の使用
+
+```typescript
+// 推奨されるAPIクライアントの使用方法
+import { getApiClient } from "@/db/config/client";
+
+export async function getAllVideos() {
+  try {
+    // client変数を直接インポートするのではなく、getApiClient()を使用
+    const client = getApiClient();
+    const response = await client.api.videos.$get();
+    // 以降の処理...
+  } catch (error) {
+    // エラーハンドリング...
+  }
+}
+```
+
+#### リポジトリの標準的な実装パターン
+
+```typescript
+// src/repositories/video/index.ts
+import { getApiClient } from "@/db/config/client";
+import type { ApiError } from "@/repositories/types";
+import { videoResponseSchema, videosResponseSchema } from "@/repositories/types";
+import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
+import type { z } from "zod";
+
+// 型をエクスポートして他のファイルで再利用可能にする
+export type Video = z.infer<typeof videoResponseSchema>["video"];
+export type Videos = z.infer<typeof videosResponseSchema>["videos"];
+
+// リソース一覧を取得する関数
+export async function getAllVideos(): Promise<Result<Videos, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.videos.$get();
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = videosResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.videos);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// リソースを取得する関数
+export async function getVideoById(id: string): Promise<Result<Video, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.videos[":id"].$get({
+      param: { id },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = videoResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.video);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+```
+
 ## テスト
 
 ### テスト全般
@@ -94,6 +188,57 @@ globs: src/**/*.ts,src/**/*.tsx,app/**/*.ts,app/**/*.tsx,components/**/*.ts,comp
 - テストデータは実際のデータ構造に準拠させる
 - 参照型の値（ref）を直接変更せず、適切なハンドラー経由で設定する
 - 非同期処理を含むフックは適切に待機処理を実装する
+
+### リポジトリのテスト
+
+- リポジトリのテストでは`setApiClient()`関数を使用してAPIクライアントをモック化する
+- APIレスポンスのモックデータは実際のレスポンス形式に準拠する
+- 成功ケースと失敗ケースの両方をテストする
+- ネットワークエラー、HTTPエラー、スキーマエラーの各シナリオをテストする
+- Result型の戻り値が適切に処理されることを確認する
+
+```typescript
+// src/repositories/video/__tests__/index.test.ts
+import { setApiClient } from "@/db/config/client";
+import { getAllVideos } from "@/repositories/video";
+
+describe("videoRepository", () => {
+  beforeEach(() => {
+    // APIクライアントのモック設定
+    const mockClient = {
+      api: {
+        videos: {
+          $get: jest.fn().mockResolvedValue({
+            ok: true,
+            json: jest.fn().mockResolvedValue({
+              success: true,
+              videos: [{ id: "1", title: "テスト動画" }],
+            }),
+          }),
+        },
+      },
+    };
+    setApiClient(mockClient as any);
+  });
+
+  it("getAllVideos が成功した場合、動画リストを返すべき", async () => {
+    const result = await getAllVideos();
+    expect(result.isOk()).toBe(true);
+
+    result.match(
+      (data) => {
+        expect(data).toHaveLength(1);
+        expect(data[0].title).toBe("テスト動画");
+      },
+      () => {
+        fail("エラーは発生しないはずです");
+      }
+    );
+  });
+
+  // 失敗ケースのテスト...
+});
+```
 
 ### テストの構造
 
@@ -144,6 +289,26 @@ globs: src/**/*.ts,src/**/*.tsx,app/**/*.ts,app/**/*.tsx,components/**/*.ts,comp
 - アバターには`@radix-ui/react-avatar`を使用する
 - アイコンには`lucide-react`を使用する
 - 折りたたみ可能な要素には`@radix-ui/react-collapsible`を使用する
+
+### APIクライアント
+
+- APIクライアントは`getApiClient()`関数を使用して取得する
+- 直接`client`変数をインポートするのではなく、常に`getApiClient()`を使用する
+- 新しいリポジトリを作成する際は既存のリポジトリのパターンに従う
+- エラーハンドリングはResult型を使用して統一的に実装する
+- 型安全性を確保するためにZodによるレスポンスバリデーションを実装する
+- テスト用モッククライアントの注入には`setApiClient()`関数を使用する
+
+```typescript
+// 非推奨 ❌
+import { client } from "@/db/config/client";
+const response = await client.api.videos.$get();
+
+// 推奨 ✅
+import { getApiClient } from "@/db/config/client";
+const client = getApiClient();
+const response = await client.api.videos.$get();
+```
 
 ## コード品質
 

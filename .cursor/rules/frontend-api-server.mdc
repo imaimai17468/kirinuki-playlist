@@ -36,6 +36,10 @@ src/
 │       ├── videos.ts
 │       ├── playlists.ts
 │       └── authors.ts
+├── repositories/                # クライアントサイドリポジトリ
+│   ├── video/
+│   ├── playlist/
+│   └── author/
 ├── middleware/                  # ミドルウェア
 │   ├── auth.ts
 │   └── error-handler.ts
@@ -52,6 +56,7 @@ APIコードは以下の責任に分けて実装します：
 1. **ルーター**: HTTP要求の受け付けとレスポンスの返却
 2. **サービスレイヤー**: ビジネスロジックの実装
 3. **データアクセスレイヤー**: データベースアクセスの抽象化
+4. **リポジトリレイヤー**: クライアントサイドからのAPIアクセス抽象化
 
 ## APIルーターの実装
 
@@ -279,6 +284,112 @@ export function createVideoService(dbClient: DbClient) {
 }
 ```
 
+## クライアントサイドリポジトリの実装
+
+サーバーサイドAPIをクライアントサイドから使用するために、リポジトリパターンを実装します。これらのリポジトリは型安全性、エラーハンドリング、レスポンスの検証を提供します。
+
+```typescript
+// src/repositories/video/index.ts
+import { getApiClient } from "@/db/config/client";
+import type { ApiError } from "@/repositories/types";
+import { videoResponseSchema, videosResponseSchema } from "@/repositories/types";
+import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
+import type { z } from "zod";
+
+// ビデオ一覧を取得
+export async function getAllVideos(): Promise<Result<z.infer<typeof videosResponseSchema>["videos"], ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.videos.$get();
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = videosResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.videos);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// ビデオを取得
+export async function getVideoById(
+  id: string,
+): Promise<Result<z.infer<typeof videoResponseSchema>["video"], ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.videos[":id"].$get({
+      param: { id },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = videoResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.video);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+```
+
+### APIクライアント管理
+
+クライアントサイドでは、シングルトンパターンを使用してAPIクライアントを管理します。これにより、テスト容易性とコード一貫性が向上します：
+
+```typescript
+// src/db/config/client.ts
+import type { AppType } from "@/app/api/[...route]/route";
+import { getBaseURL } from "@/db/config/baseUrl";
+import { hc } from "hono/client";
+
+/**
+ * APIクライアントインターフェース
+ */
+export type ApiClient = ReturnType<typeof hc<AppType>>;
+
+// シングルトンインスタンス管理
+let currentClient: ApiClient | null = null;
+
+/**
+ * 現在のAPIクライアントを取得
+ * セットされていない場合は本番用クライアントを作成して返す
+ */
+export function getApiClient(): ApiClient {
+  if (!currentClient) {
+    currentClient = hc<AppType>(`${getBaseURL()}/api`);
+  }
+  return currentClient;
+}
+
+/**
+ * テスト時などにクライアントを差し替えるための関数
+ */
+export function setApiClient(client: ApiClient): void {
+  currentClient = client;
+}
+
+// 従来の実装との互換性のために残しているが、新しいコードでは使用すべきでない
+// 代わりに getApiClient() を使用すること
+export const client = hc<AppType>(`${getBaseURL()}/api`);
+```
+
 ## エラーハンドリング
 
 API実装では一貫したエラーハンドリングパターンを使用して、クライアントに適切なエラーメッセージを返します。
@@ -308,6 +419,32 @@ API実装では一貫したエラーハンドリングパターンを使用し�
   }
 })
 ```
+
+## サーバーサイドとクライアントサイドの連携
+
+サーバーサイドAPIとクライアントサイドリポジトリは、以下の方法で連携しています：
+
+1. **Honoのタイプセーフなインターフェース**: `AppType` を通じて、API定義の型情報をクライアントと共有
+2. **一貫したレスポンス形式**: すべてのAPIエンドポイントは `{ success: boolean, ... }` 形式で応答
+3. **スキーマ検証**: Zodを使用して、クライアントでもサーバーからのレスポンスを検証
+4. **エラーハンドリング**: クライアント側でもサーバーのエラー応答を適切に処理
+
+### リポジトリとHonoクライアントの移行
+
+以前は直接 `client` をインポートしていましたが、シングルトンパターンの導入により `getApiClient()` を使用するように変更されました：
+
+```typescript
+// 古い実装（非推奨）
+import { client } from "@/db/config/client";
+const response = await client.api.videos.$get();
+
+// 新しい実装（推奨）
+import { getApiClient } from "@/db/config/client";
+const client = getApiClient();
+const response = await client.api.videos.$get();
+```
+
+この変更により、テスト時にモッククライアントを注入できるようになり、テスト容易性が向上しました。
 
 ## セキュリティ
 

@@ -1,17 +1,18 @@
 ---
 description: Kirinuki-PlaylistプロジェクトのHono APIエラーハンドリング規約
-globs: src/app/api/**/*.ts,src/db/middlewares/**/*.ts
+globs: src/app/api/**/*.ts, src/db/utils/errors.ts, src/repositories/**/*.ts
 ---
 # Kirinuki-PlaylistプロジェクトのHono APIエラーハンドリング規約
 
 ## 概要
 
-Kirinuki-PlaylistプロジェクトでのAPIエラーハンドリングに関する統一的なアプローチを定義します。
-適切なエラー処理はクライアントへの一貫性のあるレスポンスを保証し、デバッグと保守性を向上させます。
+Kirinuki-Playlistプロジェクトでは、APIエラーハンドリングを統一的に行うための規約を定めています。
+以下のパターンに従うことで、クライアント側で適切なエラーメッセージを表示し、
+エラーの原因を特定しやすくなります。
 
-## エラー型の定義
+## カスタムエラークラス
 
-サービス層とAPI層で一貫して使用できるカスタムエラークラスを定義します：
+エラーの種類によって適切に分類するために、カスタムエラークラスを定義します：
 
 ```typescript
 // src/db/utils/errors.ts
@@ -51,15 +52,13 @@ export class AuthorizationError extends Error {
 }
 ```
 
-## エラーミドルウェア
+## エラーハンドリングミドルウェア
 
-Honoのエラーミドルウェアを使用して、API全体で一貫したエラーハンドリングを実現します：
+Honoミドルウェアを使用して、一元的にエラーをハンドリングします：
 
 ```typescript
 // src/db/middlewares/error-handler.ts
-import { MiddlewareHandler } from "hono";
-import { HTTPException } from "hono/http-exception";
-import { ZodError } from "zod";
+import type { MiddlewareHandler } from "hono";
 import {
   NotFoundError,
   DatabaseError,
@@ -74,101 +73,447 @@ export const errorHandler: MiddlewareHandler = async (c, next) => {
   } catch (error) {
     console.error("API Error:", error);
 
-    // Honoの組み込みHTTP例外
-    if (error instanceof HTTPException) {
-      return c.json(
-        {
-          success: false,
-          message: error.message,
-        },
-        error.status
-      );
-    }
-
-    // カスタムエラー型の処理
+    // エラーの種類によって適切なステータスコードとレスポンスを返す
     if (error instanceof NotFoundError) {
-      return c.json(
-        {
-          success: false,
-          message: error.message,
-        },
-        404
-      );
+      return c.json({ success: false, message: error.message }, 404);
     }
 
     if (error instanceof ValidationError) {
-      return c.json(
-        {
-          success: false,
-          message: error.message,
-        },
-        400
-      );
+      return c.json({ success: false, message: error.message }, 400);
     }
 
     if (error instanceof AuthenticationError) {
-      return c.json(
-        {
-          success: false,
-          message: error.message,
-        },
-        401
-      );
+      return c.json({ success: false, message: error.message }, 401);
     }
 
     if (error instanceof AuthorizationError) {
-      return c.json(
-        {
-          success: false,
-          message: error.message,
-        },
-        403
-      );
+      return c.json({ success: false, message: error.message }, 403);
     }
 
-    // Zodバリデーションエラー
-    if (error instanceof ZodError) {
-      return c.json(
-        {
-          success: false,
-          message: "入力データが無効です",
-          details: error.errors,
-        },
-        400
-      );
-    }
-
-    // データベースエラー
     if (error instanceof DatabaseError) {
-      return c.json(
-        {
-          success: false,
-          message: "データベース操作中にエラーが発生しました",
-        },
-        500
-      );
+      return c.json({ success: false, message: error.message }, 500);
     }
 
-    // その他の予期しないエラー
-    return c.json(
-      {
-        success: false,
-        message: "予期しないエラーが発生しました",
-      },
-      500
-    );
+    // その他のエラー
+    return c.json({
+      success: false,
+      message: "予期しないエラーが発生しました",
+    }, 500);
   }
 };
 ```
 
-## サービス層でのエラーハンドリング
+## サービスレイヤーでのエラーハンドリング
 
-サービス層では、適切なカスタムエラーをスローしてください。依存性注入パターンを採用したサービスでは、エラーハンドリングを一貫して実装します：
+サービスレイヤーでは、適切なカスタムエラーをスローします：
 
 ```typescript
-// サービス関数内でのエラーハンドリング例
+// サービスレイヤーのエラーハンドリング例（videos.ts）
+async getVideoById(id: string) {
+  try {
+    const video = await this.dbClient
+      .select()
+      .from(videos)
+      .where(eq(videos.id, id))
+      .get();
+
+    if (!video) {
+      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
+    }
+
+    return video;
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      throw error; // NotFoundErrorはそのまま上位に伝播
+    }
+    throw new DatabaseError(
+      `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
+    );
+  }
+}
+```
+
+## APIレイヤーでのエラーハンドリング
+
+APIレイヤーでは、サービスからスローされたエラーを適切に処理します：
+
+```typescript
+// APIレイヤーでのエラーハンドリング（playlists.ts）
+.get("/:id", async (c) => {
+  const id = c.req.param("id");
+
+  try {
+    const service = createPlaylistService(c.get("dbClient"));
+    const playlist = await service.getPlaylistById(id);
+    return c.json({ success: true, playlist });
+  } catch (error) {
+    // エラーミドルウェアに処理を委譲
+    throw error;
+  }
+})
+```
+
+## リポジトリパターンでのエラーハンドリング
+
+クライアントサイドのリポジトリパターンでは、Result型を使用してエラーを扱います：
+
+```typescript
+// src/repositories/types.ts
+import { z } from "zod";
+
+// API エラータイプ
+export type ApiError = {
+  type: "network" | "http" | "schema" | "unknown";
+  status?: number;
+  message: string;
+  details?: unknown;
+};
+
+// レスポンススキーマ
+export const baseResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+});
+
+// 動画レスポンススキーマ
+export const videoSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  url: z.string(),
+  authorId: z.string(),
+  author: z.object({
+    id: z.string(),
+    name: z.string(),
+  }).optional(),
+  start: z.number().nullable().optional(),
+  end: z.number().nullable().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export const videoResponseSchema = baseResponseSchema.extend({
+  video: videoSchema,
+});
+
+export const videosResponseSchema = baseResponseSchema.extend({
+  videos: z.array(videoSchema),
+});
+```
+
+```typescript
+// src/repositories/utils.ts
+import type { ApiError } from "./types";
+import { baseResponseSchema } from "./types";
+import { err } from "neverthrow";
+import type { Result } from "neverthrow";
+import { z } from "zod";
+
+// ネットワークエラーを作成
+export function createNetworkError(error: unknown): ApiError {
+  return {
+    type: "network",
+    message: error instanceof Error ? error.message : "ネットワークエラーが発生しました",
+    details: error,
+  };
+}
+
+// スキーマエラーを作成
+export function createSchemaError(message: string): ApiError {
+  return {
+    type: "schema",
+    message: `レスポンスの形式が正しくありません: ${message}`,
+  };
+}
+
+// HTTPエラーを作成
+export function createHttpError(status: number, message: string): ApiError {
+  return {
+    type: "http",
+    status,
+    message,
+  };
+}
+
+// HTTPエラーを処理
+export async function handleHttpError(
+  response: Response
+): Promise<Result<never, ApiError>> {
+  try {
+    const data = await response.json();
+    const result = baseResponseSchema.safeParse(data);
+    const message = result.success ? data.message : "エラーが発生しました";
+
+    return err(createHttpError(response.status, message));
+  } catch (_) {
+    return err(createHttpError(response.status, "サーバーからのレスポンスの解析に失敗しました"));
+  }
+}
+```
+
+## クライアントサイドでのエラー処理
+
+リポジトリからのResultオブジェクトを使用して、フロントエンドでエラーを処理します：
+
+```typescript
+// クライアントコンポーネントでのエラー処理の例
+import { getAllVideos } from "@/repositories/video";
+import { useState, useEffect } from "react";
+
+export function VideoList() {
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function loadVideos() {
+      const result = await getAllVideos();
+
+      result.match(
+        // 成功した場合
+        (data) => {
+          setVideos(data);
+          setLoading(false);
+        },
+        // エラーの場合
+        (error) => {
+          setError(error.message);
+          setLoading(false);
+
+          // エラータイプに応じた処理
+          switch (error.type) {
+            case "network":
+              console.error("ネットワークエラー:", error);
+              break;
+            case "http":
+              if (error.status === 404) {
+                console.error("リソースが見つかりません:", error);
+              } else if (error.status >= 500) {
+                console.error("サーバーエラー:", error);
+              }
+              break;
+            case "schema":
+              console.error("スキーマエラー:", error);
+              break;
+            default:
+              console.error("不明なエラー:", error);
+          }
+        }
+      );
+    }
+
+    loadVideos();
+  }, []);
+
+  if (loading) return <div>読み込み中...</div>;
+  if (error) return <div>エラー: {error}</div>;
+
+  return (
+    <div>
+      <h1>動画一覧</h1>
+      <ul>
+        {videos.map((video) => (
+          <li key={video.id}>{video.title}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## React Queryとの統合
+
+React Queryを使用する場合は、以下のようにエラーハンドリングを統合できます：
+
+```typescript
+// src/hooks/useVideos.ts
+import { getAllVideos } from "@/repositories/video";
+import { useQuery } from "@tanstack/react-query";
+
+export function useVideos() {
+  return useQuery({
+    queryKey: ["videos"],
+    queryFn: async () => {
+      const result = await getAllVideos();
+      return result.match(
+        (data) => data,
+        (error) => {
+          throw error; // React Queryのエラーハンドリングに委譲
+        }
+      );
+    },
+  });
+}
+
+// コンポーネントでの使用例
+function VideoListWithReactQuery() {
+  const { data: videos, error, isLoading } = useVideos();
+
+  if (isLoading) return <div>読み込み中...</div>;
+
+  if (error) {
+    // エラータイプに応じたUIを表示
+    const apiError = error as ApiError;
+    if (apiError.type === "http" && apiError.status === 404) {
+      return <div>動画が見つかりませんでした</div>;
+    }
+    return <div>エラー: {apiError.message}</div>;
+  }
+
+  return (
+    <div>
+      <h1>動画一覧</h1>
+      <ul>
+        {videos.map((video) => (
+          <li key={video.id}>{video.title}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## エラーレスポンスの形式
+
+APIからのエラーレスポンスは以下の形式に統一します：
+
+```json
+{
+  "success": false,
+  "message": "エラーメッセージ"
+}
+```
+
+成功時のレスポンスは以下の形式に統一します：
+
+```json
+{
+  "success": true,
+  "データのキー": データの値
+}
+```
+
+例えば、動画のリストを返す場合：
+
+```json
+{
+  "success": true,
+  "videos": [
+    { "id": "1", "title": "サンプル動画1", ... },
+    { "id": "2", "title": "サンプル動画2", ... }
+  ]
+}
+```
+
+## クライアントサイドでのgetApiClient()への移行
+
+以前は直接`client`をインポートしてAPIリクエストを行っていましたが、シングルトンパターンを導入し、`getApiClient()`関数を使用するように変更されました：
+
+```typescript
+// 古い実装（非推奨）
+import { client } from "@/db/config/client";
+
+export async function getAllVideos() {
+  try {
+    const response = await client.api.videos.$get();
+    // ...処理...
+  } catch (error) {
+    // ...エラー処理...
+  }
+}
+
+// 新しい実装（推奨）
+import { getApiClient } from "@/db/config/client";
+
+export async function getAllVideos() {
+  try {
+    const client = getApiClient();
+    const response = await client.api.videos.$get();
+    // ...処理...
+  } catch (error) {
+    // ...エラー処理...
+  }
+}
+```
+
+この変更により以下のメリットがあります：
+
+1. **テスト容易性の向上**: テスト時にモッククライアントを注入できる
+2. **環境分離**: 環境ごとに異なるクライアント設定を使用可能
+3. **一貫性の確保**: アプリケーション全体で同じクライアントインスタンスを使用
+
+## コード例：エラーハンドリングの実装
+
+### 1. APIエンドポイントの実装
+
+```typescript
+// src/app/api/[...route]/videos.ts
+import { createDbClient } from "@/db/config/database";
+import type { AppEnv } from "@/db/config/hono";
+import { videoInsertSchema } from "@/db/models/videos";
+import { createVideoService } from "@/db/services/videos";
+import { getRequestContext } from "@cloudflare/next-on-pages";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
+
+export const videosRouter = new Hono<AppEnv>()
+  .get("/", async (c) => {
+    try {
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createVideoService(dbClient);
+      const videos = await service.getAllVideos();
+      return c.json({ success: true, videos });
+    } catch (error) {
+      // エラーハンドリングミドルウェアに処理を委譲
+      throw error;
+    }
+  })
+  .get("/:id", async (c) => {
+    try {
+      const id = c.req.param("id");
+
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createVideoService(dbClient);
+      const video = await service.getVideoById(id);
+      return c.json({ success: true, video });
+    } catch (error) {
+      // エラーハンドリングミドルウェアに処理を委譲
+      throw error;
+    }
+  });
+```
+
+### 2. サービスレイヤーの実装
+
+```typescript
+// src/db/services/videos.ts
+import type { DbClient } from "@/db/config/hono";
+import { videos } from "@/db/models/videos";
+import { NotFoundError, DatabaseError } from "@/db/utils/errors";
+import { eq } from "drizzle-orm";
+
 export function createVideoService(dbClient: DbClient) {
   return {
+    async getAllVideos() {
+      try {
+        const result = await dbClient.select().from(videos).all();
+        return result;
+      } catch (error) {
+        throw new DatabaseError(
+          `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
+        );
+      }
+    },
+
     async getVideoById(id: string) {
       try {
         const video = await dbClient
@@ -183,35 +528,11 @@ export function createVideoService(dbClient: DbClient) {
 
         return video;
       } catch (error) {
-        // NotFoundErrorは再スロー
         if (error instanceof NotFoundError) {
           throw error;
         }
-        // その他のエラーはDatabaseErrorにラップ
         throw new DatabaseError(
           `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
-        );
-      }
-    },
-
-    async updateVideo(id: string, data: VideoUpdate) {
-      try {
-        // ...実装...
-        const result = await dbClient
-          .update(videos)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(videos.id, id))
-          .run();
-
-        if (result.meta?.changes === 0) {
-          throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
-        }
-      } catch (error) {
-        if (error instanceof NotFoundError) {
-          throw error;
-        }
-        throw new DatabaseError(
-          `動画の更新中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
         );
       }
     }
@@ -219,89 +540,52 @@ export function createVideoService(dbClient: DbClient) {
 }
 ```
 
-## API層でのエラーハンドリング
-
-API層でのエラーハンドリングにはエラーミドルウェアを活用し、必要に応じて追加のエラーハンドリングを実装します：
+### 3. リポジトリの実装
 
 ```typescript
-// APIルーターでのエラーハンドリング
-.get("/:id", async (c) => {
-  const id = c.req.param("id");
+// src/repositories/video/index.ts
+import { getApiClient } from "@/db/config/client";
+import type { ApiError } from "@/repositories/types";
+import { videoResponseSchema, videosResponseSchema } from "@/repositories/types";
+import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
+import type { z } from "zod";
 
-  // DbClientをコンテキストから取得、なければ新規作成
-  let dbClient = c.get("dbClient");
-  if (!dbClient) {
-    const { DB } = getRequestContext().env;
-    dbClient = createDbClient(DB);
-  }
-
+export async function getAllVideos(): Promise<Result<z.infer<typeof videosResponseSchema>["videos"], ApiError>> {
   try {
-    const service = createPlaylistService(dbClient);
-    const playlist = await service.getPlaylistWithVideosById(id);
-    return c.json({ success: true, playlist });
-  } catch (error) {
-    // エラーミドルウェアですべてのエラーをハンドリングできるため、
-    // ここではエラーを再スローするだけでも可能
-    throw error;
+    const client = getApiClient();
+    const response = await client.api.videos.$get();
 
-    // あるいは、より詳細なエラーハンドリングを行う場合：
-    if (error instanceof NotFoundError) {
-      return c.json({ success: false, message: error.message }, 404);
+    if (!response.ok) {
+      return handleHttpError(response);
     }
-    console.error("プレイリスト取得中にエラーが発生しました:", error);
-    return c.json({ success: false, message: "プレイリストの取得に失敗しました" }, 500);
+
+    const data = await response.json();
+    const result = videosResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.videos);
+  } catch (error) {
+    return err(createNetworkError(error));
   }
-})
-```
-
-## エラーレスポンスの形式
-
-すべてのAPIエラーレスポンスは一貫した形式に従う必要があります：
-
-```json
-{
-  "success": false,
-  "message": "エラーの説明メッセージ",
-  "details": [
-    // オプションで詳細情報（特にバリデーションエラーの場合）
-  ]
 }
 ```
 
-これにより、フロントエンドでのエラー処理が簡素化され、一貫性が保たれます。
+## まとめ
 
-## エラーのログ記録
+Kirinuki-PlaylistのAPIエラーハンドリングでは以下のポイントを重視しています：
 
-重要なエラーはコンソールにログ記録する必要があります。環境に応じて詳細レベルを調整してください：
+1. **一貫したエラーレスポンスフォーマット**: すべてのAPIは統一されたフォーマットでエラーを返す
+2. **適切なステータスコード**: HTTPステータスコードを適切に使用する
+3. **具体的なエラーメッセージ**: エラーの理由を明確に示すメッセージを提供する
+4. **型安全性**: TypeScriptとZodを使用してレスポンスの型安全性を確保する
+5. **集中管理**: エラーハンドリングミドルウェアで一元的に処理する
+6. **効率的なデバッグ**: エラーログの記録と適切なデバッグ情報の提供
+7. **Results型**: クライアント側では Result<T, E> パターンで型安全にエラーを処理
 
-```typescript
-// 開発環境では詳細なエラー情報を記録
-console.error("API Error:", error);
-
-// 本番環境ではスタックトレースを含まない簡潔なログを記録
-console.error(`API Error: ${error.name} - ${error.message}`);
-```
-
-## バリデーションエラー
-
-リクエストデータのバリデーションにはZodを使用し、バリデーションエラーを適切に処理します：
-
-```typescript
-import { zValidator } from "@hono/zod-validator";
-import { videoInsertSchema } from "@/db/models/videos";
-
-// リクエストデータのバリデーション
-.post("/", zValidator("json", videoInsertSchema), async (c) => {
-  const input = c.req.valid("json");
-  // バリデーションが成功した場合のみここが実行される
-  // ...実装...
-})
-```
-
-## エラー処理のベストプラクティス
-
-1. **早期リターン**: エラー条件に一致した場合、できるだけ早くリターンする
-2. **適切なエラー型**: エラーの種類に応じて適切なカスタムエラークラスを使用する
-3. **一貫性**: プロジェクト全体で一貫したエラーハンドリングパターンを使用する
-4. **エラーメッセージ**: エンドユーザー向けの分かりやすいエラーメッセージを提供する
-5. **デバッグ情報の保護**: 本番環境では詳細なデバッグ情報を漏らさない
+これらの規約に従うことで、統一的かつ適切なエラー処理が可能になり、
+クライアント側でもユーザーフレンドリーなエラーメッセージを表示できます。

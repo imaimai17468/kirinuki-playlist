@@ -9,6 +9,94 @@ Kirinuki-Playlistでは、フロントエンドからAPIにアクセスする際
 
 1. **Honoクライアント**: APIのエンドポイントとの型安全な通信
 2. **リポジトリパターン**: APIロジックの抽象化と再利用性の向上
+3. **シングルトンパターン**: アプリケーション全体で一貫したAPIクライアントの使用
+
+## APIクライアント管理
+
+Kirinuki-Playlistでは、環境に応じたAPIクライアント管理と依存性注入パターンを実装しています。
+
+### シングルトンパターンの実装
+
+```typescript
+// src/db/config/client.ts
+import type { AppType } from "@/app/api/[...route]/route";
+import { getBaseURL } from "@/db/config/baseUrl";
+import { hc } from "hono/client";
+
+/**
+ * APIクライアントインターフェース
+ * 本番環境ではhcを使用したHonoクライアント
+ * テスト環境ではモッククライアントを使用するためのインターフェース
+ */
+export type ApiClient = ReturnType<typeof hc<AppType>>;
+
+// シングルトンインスタンス（アプリケーション内で共有）
+let currentClient: ApiClient | null = null;
+
+/**
+ * 本番環境用APIクライアントを作成
+ * @returns 実際のAPIに接続するクライアント
+ */
+export function createProdClient(): ApiClient {
+  return hc<AppType>(`${getBaseURL()}/api`);
+}
+
+/**
+ * APIクライアントを設定する（主にテスト用）
+ * @param client カスタムAPIクライアント
+ */
+export function setApiClient(client: ApiClient): void {
+  currentClient = client;
+}
+
+/**
+ * 現在のAPIクライアントを取得
+ * セットされていない場合は本番用クライアントを作成して返す
+ * すべてのリポジトリで使用すべき推奨メソッド
+ */
+export function getApiClient(): ApiClient {
+  if (!currentClient) {
+    currentClient = createProdClient();
+  }
+  return currentClient;
+}
+
+// 従来の実装との互換性のために残しているが、新しいコードでは使用すべきでない
+// 代わりに getApiClient() を使用すること
+export const client = hc<AppType>(`${getBaseURL()}/api`);
+```
+
+### getApiClient() の使用
+
+最新のベストプラクティスとして、直接 `client` をインポートする代わりに `getApiClient()` を使用します：
+
+```typescript
+// 古い実装（非推奨）
+import { client } from "@/db/config/client";
+
+// 新しい実装（推奨）
+import { getApiClient } from "@/db/config/client";
+
+export async function getAllVideos() {
+  try {
+    // API呼び出しごとにクライアントを取得
+    const client = getApiClient();
+    const response = await client.api.videos.$get();
+
+    // ... 以下処理
+  } catch (error) {
+    // ... エラーハンドリング
+  }
+}
+```
+
+### シングルトンパターンの利点
+
+このアプローチには以下の利点があります：
+
+1. **テスト容易性の向上**: テスト時に `setApiClient()` でモッククライアントを注入できます
+2. **一貫性の確保**: アプリケーション全体で同じクライアントインスタンスを使用できます
+3. **将来の変更への対応**: 実装の詳細を変更しても、インターフェースは維持できます
 
 ## Honoクライアント実装
 
@@ -68,179 +156,149 @@ const fetchVideos = async () => {
 src/
 ├── repositories/
 │   ├── video/
-│   │   ├── videoRepository.ts      # ビデオリポジトリの実装
-│   │   ├── videoRepository.test.ts # テスト
-│   │   └── types.ts                # ビデオ関連の型定義
+│   │   ├── index.ts            # ビデオリポジトリの実装
+│   │   └── types.ts            # ビデオ関連の型定義
 │   ├── playlist/
-│   │   ├── playlistRepository.ts
-│   │   ├── playlistRepository.test.ts
+│   │   ├── index.ts
 │   │   └── types.ts
 │   └── author/
-│       ├── authorRepository.ts
-│       ├── authorRepository.test.ts
+│       ├── index.ts
 │       └── types.ts
+│   ├── types.ts                # 共通型定義
+│   └── utils.ts                # 共通ユーティリティ
 ```
 
 ### 基本実装
 
-リポジトリは以下のような標準的なインターフェースを提供します：
+Kirinuki-Playlistでは、各リポジトリは以下のような標準パターンに従って実装されています:
 
 ```typescript
-// src/repositories/video/videoRepository.ts
-import { apiClient } from '@/app/_components/client';
-import { Result, ResultAsync, ok, err } from 'neverthrow';
-import { VideoSchema, VideoCreateSchema } from './types';
-import { z } from 'zod';
+// src/repositories/video/index.ts
+import { getApiClient } from "@/db/config/client";
+import type { ApiError } from "@/repositories/types";
+import { videoResponseSchema, videosResponseSchema } from "@/repositories/types";
+import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
+import type { z } from "zod";
 
-// ビデオリポジトリ
-export const videoRepository = {
-  /**
-   * 全てのビデオを取得
-   */
-  getAll: async (): Promise<Result<Video[], Error>> => {
-    try {
-      const response = await apiClient.videos.$get();
-      const data = await response.json();
+// ビデオ一覧を取得
+export async function getAllVideos(): Promise<Result<z.infer<typeof videosResponseSchema>["videos"], ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.videos.$get();
 
-      if (!data.success) {
-        return err(new Error(data.error.message));
-      }
-
-      // レスポンスのバリデーション
-      const validationResult = z.array(VideoSchema).safeParse(data.videos);
-      if (!validationResult.success) {
-        return err(new Error('Invalid response format'));
-      }
-
-      return ok(validationResult.data);
-    } catch (error) {
-      return err(error instanceof Error ? error : new Error('Unknown error'));
+    if (!response.ok) {
+      return handleHttpError(response);
     }
-  },
 
-  /**
-   * IDによるビデオ取得
-   */
-  getById: async (id: string): Promise<Result<Video, Error>> => {
-    try {
-      const response = await apiClient.videos[':id'].$get({
-        param: { id }
-      });
-      const data = await response.json();
+    const data = await response.json();
+    const result = videosResponseSchema.safeParse(data);
 
-      if (!data.success) {
-        return err(new Error(data.error.message));
-      }
-
-      // レスポンスのバリデーション
-      const validationResult = VideoSchema.safeParse(data.video);
-      if (!validationResult.success) {
-        return err(new Error('Invalid response format'));
-      }
-
-      return ok(validationResult.data);
-    } catch (error) {
-      return err(error instanceof Error ? error : new Error('Unknown error'));
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
     }
-  },
 
-  /**
-   * ビデオの作成
-   */
-  create: async (input: VideoCreate): Promise<Result<string, Error>> => {
-    try {
-      // 入力のバリデーション
-      const validationResult = VideoCreateSchema.safeParse(input);
-      if (!validationResult.success) {
-        return err(new Error('Invalid input'));
-      }
-
-      const response = await apiClient.videos.$post({
-        json: validationResult.data
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        return err(new Error(data.error.message));
-      }
-
-      return ok(data.id);
-    } catch (error) {
-      return err(error instanceof Error ? error : new Error('Unknown error'));
-    }
-  },
-
-  /**
-   * ビデオの更新
-   */
-  update: async (id: string, input: Partial<VideoCreate>): Promise<Result<void, Error>> => {
-    try {
-      const response = await apiClient.videos[':id'].$patch({
-        param: { id },
-        json: input
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        return err(new Error(data.error.message));
-      }
-
-      return ok(undefined);
-    } catch (error) {
-      return err(error instanceof Error ? error : new Error('Unknown error'));
-    }
-  },
-
-  /**
-   * ビデオの削除
-   */
-  delete: async (id: string): Promise<Result<void, Error>> => {
-    try {
-      const response = await apiClient.videos[':id'].$delete({
-        param: { id }
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        return err(new Error(data.error.message));
-      }
-
-      return ok(undefined);
-    } catch (error) {
-      return err(error instanceof Error ? error : new Error('Unknown error'));
-    }
+    return ok(result.data.videos);
+  } catch (error) {
+    return err(createNetworkError(error));
   }
-};
+}
+
+// ビデオを取得
+export async function getVideoById(
+  id: string,
+): Promise<Result<z.infer<typeof videoResponseSchema>["video"], ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.videos[":id"].$get({
+      param: { id },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = videoResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.video);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
 ```
 
 ### 型定義
 
 ```typescript
-// src/repositories/video/types.ts
+// src/repositories/types.ts
 import { z } from 'zod';
 
+// APIエラー型
+export type ApiError = {
+  type: 'network' | 'http' | 'schema' | 'unknown';
+  status?: number;
+  message: string;
+  details?: unknown;
+};
+
 // ビデオスキーマ（APIレスポンスのバリデーション用）
-export const VideoSchema = z.object({
+export const videoSchema = z.object({
   id: z.string(),
   title: z.string(),
-  description: z.string().optional(),
   url: z.string().url(),
-  authorId: z.string(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime()
+  // ... 他のフィールド
 });
 
-// ビデオ作成スキーマ（APIリクエストのバリデーション用）
-export const VideoCreateSchema = z.object({
-  title: z.string().min(1).max(100),
-  description: z.string().max(1000).optional(),
-  url: z.string().url(),
-  authorId: z.string()
+// レスポーススキーマ
+export const videoResponseSchema = z.object({
+  success: z.literal(true),
+  video: videoSchema,
 });
 
-// 型の抽出
-export type Video = z.infer<typeof VideoSchema>;
-export type VideoCreate = z.infer<typeof VideoCreateSchema>;
+export const videosResponseSchema = z.object({
+  success: z.literal(true),
+  videos: z.array(videoSchema),
+});
+```
+
+### 共通ユーティリティ
+
+```typescript
+// src/repositories/utils.ts
+import type { ApiError } from "./types";
+import { err } from "neverthrow";
+
+// ネットワークエラーを作成
+export function createNetworkError(error: unknown): ApiError {
+  return {
+    type: "network",
+    message: error instanceof Error ? error.message : "ネットワークエラーが発生しました",
+    details: error,
+  };
+}
+
+// スキーマエラーを作成
+export function createSchemaError(message: string): ApiError {
+  return {
+    type: "schema",
+    message: `データ形式が不正です: ${message}`,
+  };
+}
+
+// HTTPエラーを処理
+export function handleHttpError(response: Response) {
+  return err({
+    type: "http",
+    status: response.status,
+    message: `APIエラー: ${response.status} ${response.statusText}`,
+  } as ApiError);
+}
 ```
 
 ## エラーハンドリング
@@ -300,14 +358,14 @@ if (validationResult.success) {
 
 ```typescript
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { videoRepository } from '@/repositories/video/videoRepository';
+import { getAllVideos, getVideoById } from '@/repositories/video';
 
 // ビデオ一覧を取得するクエリフック
 export const useVideos = () => {
   return useQuery({
     queryKey: ['videos'],
     queryFn: async () => {
-      const result = await videoRepository.getAll();
+      const result = await getAllVideos();
 
       if (result.isErr()) {
         throw result.error;
@@ -318,62 +376,90 @@ export const useVideos = () => {
   });
 };
 
-// ビデオを作成するミューテーションフック
-export const useCreateVideo = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (input: VideoCreate) => {
-      const result = await videoRepository.create(input);
+// ビデオを取得するクエリフック
+export const useVideo = (id: string) => {
+  return useQuery({
+    queryKey: ['video', id],
+    queryFn: async () => {
+      const result = await getVideoById(id);
 
       if (result.isErr()) {
         throw result.error;
       }
 
       return result.value;
-    },
-    onSuccess: () => {
-      // 成功時にビデオ一覧を再取得
-      queryClient.invalidateQueries({ queryKey: ['videos'] });
     }
   });
 };
 ```
 
-## 重要な教訓
+## テスト戦略
 
-Honoクライアントとリポジトリパターンの実装から得られた重要な教訓：
+APIクライアントのシングルトンパターンを活用すると、テストが容易になります。
 
-1. **ルーターの実装がクライアントの型安全性に影響する**
-   - サーバーサイドのHonoルーターの実装方法が、クライアントサイドの型安全性に大きく影響します。
-   - 適切な型付けとパラメータ定義が重要です。
+```typescript
+// src/repositories/video/__tests__/index.test.ts
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { getAllVideos } from '@/repositories/video';
+import { setApiClient } from '@/db/config/client';
 
-2. **ベースパスの考慮**
-   - Honoクライアントを初期化する際は、APIのベースパスを適切に設定する必要があります。
-   - Next.jsの設定によって異なる場合があります。
+describe('videoRepository', () => {
+  // モックAPIクライアント
+  const mockClient = {
+    api: {
+      videos: {
+        $get: vi.fn(),
+      },
+    },
+  };
 
-3. **型安全な組み合わせ**
-   - Honoクライアント + Zod + neverthrowの組み合わせにより、フロントエンドからバックエンドまで一貫した型安全性を確保できます。
-   - この組み合わせはエラーハンドリングと検証を強化します。
+  // テスト前にモッククライアントを注入
+  beforeEach(() => {
+    setApiClient(mockClient as any);
+  });
 
-4. **レスポンス形式の一貫性**
-   - すべてのAPIエンドポイントで一貫したレスポンス形式を維持することが重要です。
-   - 型チェックが容易になり、リポジトリ実装が簡潔になります。
+  // テスト後にモックをリセット
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('should return videos when API call is successful', async () => {
+    // モックレスポンスの設定
+    mockClient.api.videos.$get.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        videos: [{ id: '1', title: 'Test Video' }],
+      }),
+    });
+
+    // テスト対象の関数を実行
+    const result = await getAllVideos();
+
+    // アサーション
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value).toHaveLength(1);
+      expect(result.value[0].title).toBe('Test Video');
+    }
+  });
+});
+```
 
 ## ベストプラクティス
 
-1. **Repository層でのエラーハンドリング**
+1. **getApiClient() の一貫した使用**
+   - 直接 `client` をインポートするのではなく、常に `getApiClient()` を使用します。
+   - これにより、テスト容易性と将来の変更への対応が向上します。
+
+2. **Repository層でのエラーハンドリング**
    - APIリクエストに関連するすべてのエラーはRepository層で処理します。
    - 上位レイヤーには型安全な結果を返します。
 
-2. **適切なキャッシュ戦略**
-   - React Queryのキャッシュメカニズムを活用します。
-   - API呼び出しを最小限に抑え、ユーザーエクスペリエンスを向上させます。
+3. **Zodによる型検証**
+   - APIレスポンスは常にZodスキーマで検証します。
+   - これにより、ランタイムエラーを防止し、型安全性を向上させます。
 
-3. **テスト可能性**
-   - リポジトリパターンを使用すると、APIロジックをモックしてテストが容易になります。
-   - モックサーバーやMSWを使用してE2Eテストを実施できます。
-
-4. **再利用可能なエラー処理**
-   - 共通のエラー処理ロジックを実装します。
-   - エラーメッセージの変換や分類など、再利用可能な関数を作成します。
+4. **neverthrowによる結果処理**
+   - `Result`型を使用して成功/失敗を表現します。
+   - 例外を投げるのではなく、型安全な結果を返します。
