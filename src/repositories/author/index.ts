@@ -1,4 +1,4 @@
-import { client } from "@/libs/client";
+import { getApiClient } from "@/db/config/client";
 import type { ApiError } from "@/repositories/types";
 import { authorResponseSchema, authorsResponseSchema } from "@/repositories/types";
 import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
@@ -9,6 +9,7 @@ import type { z } from "zod";
 // 作者一覧を取得
 export async function getAllAuthors(): Promise<Result<z.infer<typeof authorsResponseSchema>["authors"], ApiError>> {
   try {
+    const client = getApiClient();
     const response = await client.api.authors.$get();
 
     if (!response.ok) {
@@ -33,6 +34,7 @@ export async function getAuthorById(
   id: string,
 ): Promise<Result<z.infer<typeof authorResponseSchema>["author"], ApiError>> {
   try {
+    const client = getApiClient();
     const response = await client.api.authors[":id"].$get({
       param: { id },
     });

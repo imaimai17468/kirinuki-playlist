@@ -1,4 +1,4 @@
-import { client } from "@/libs/client";
+import { getApiClient } from "@/db/config/client";
 import type { ApiError } from "@/repositories/types";
 import { playlistResponseSchema, playlistsResponseSchema } from "@/repositories/types";
 import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
@@ -11,6 +11,7 @@ export async function getAllPlaylists(): Promise<
   Result<z.infer<typeof playlistsResponseSchema>["playlists"], ApiError>
 > {
   try {
+    const client = getApiClient();
     const response = await client.api.playlists.$get();
 
     if (!response.ok) {
@@ -35,6 +36,7 @@ export async function getPlaylistById(
   id: string,
 ): Promise<Result<z.infer<typeof playlistResponseSchema>["playlist"], ApiError>> {
   try {
+    const client = getApiClient();
     const response = await client.api.playlists[":id"].$get({
       param: { id },
     });
