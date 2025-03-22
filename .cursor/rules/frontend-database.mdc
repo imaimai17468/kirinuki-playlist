@@ -187,9 +187,20 @@ export const playlistVideos = sqliteTable(
   "playlist_videos",
   {
     id: text("id").primaryKey(),
-    playlistId: text("playlist_id").notNull().references(() => playlists.id),
-    videoId: text("video_id").notNull().references(() => videos.id),
+    playlistId: text("playlist_id").notNull(),
+    videoId: text("video_id").notNull(),
     order: integer("order").notNull(),  // 並び順を管理
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  }
+);
+
+export const playlists = sqliteTable(
+  "playlists",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    authorId: text("author_id").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   }
