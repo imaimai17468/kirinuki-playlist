@@ -42,16 +42,58 @@ Cloudflare D1とDrizzle ORMを使用したマイグレーションの正しい�
    このコマンドは`drizzle-kit generate`を実行し、`drizzle`ディレクトリにマイグレーションファイルを生成します
 
 3. **ローカル環境へのマイグレーション適用**：
+
+   **Cloudflare D1向け**:
    ```bash
    bun run migrate:local
    ```
    このコマンドは`wrangler d1 migrations apply kirinuki-playlist --local`を実行し、マイグレーションをローカル開発環境のD1データベースに適用します
+
+   **LibSQL向け**:
+   ```bash
+   bun run migrate:server
+   ```
+   このコマンドは`bun scripts/migrate.ts`を実行し、マイグレーションをローカル開発環境のLibSQLサーバーに適用します
 
 4. **リモート環境へのマイグレーション適用**（必要な場合）：
    ```bash
    bun run migrate:remote
    ```
    このコマンドは`wrangler d1 migrations apply kirinuki-playlist --remote`を実行し、マイグレーションをリモート（本番/ステージング）環境のD1データベースに適用します
+
+## データシード
+
+テスト・開発用にデータベースにサンプルデータを投入するためのシードスクリプトが用意されています：
+
+```bash
+# 通常のシード実行
+bun run seed
+
+# マイグレーション実行後にシードを実行
+bun run seed:with-migrate
+```
+
+シードスクリプト（`scripts/seed.ts`）は以下のデータを挿入します：
+
+1. テスト作者データ
+2. テスト動画データ
+3. テストプレイリストデータ
+4. プレイリスト・動画の関連データ
+
+### 開発環境のセットアップ
+
+開発環境を一度に起動するには以下のコマンドを使用します：
+
+```bash
+# DockerでLibSQLサーバーを起動し、マイグレーションを適用した後にNext.jsを起動
+bun run dev:with-db
+```
+
+このコマンドは以下の処理を順番に実行します：
+
+1. `bun run db:server` - Dockerでlibsqlサーバーをバックグラウンドで起動
+2. `bun run migrate:server` - libsqlサーバーにマイグレーションを適用
+3. `bun run dev` - Next.js開発サーバーを起動
 
 ## スキーマ定義
 
