@@ -1,4 +1,4 @@
-import { getAllPlaylists, getPlaylistById } from "@/repositories/playlist";
+import { getAllPlaylists, getPlaylistById } from "@/repositories/playlists";
 import { useQuery } from "@tanstack/react-query";
 
 // プレイリスト一覧を取得するフック

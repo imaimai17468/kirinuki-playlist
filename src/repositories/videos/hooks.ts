@@ -1,12 +1,12 @@
-import { getAllAuthors, getAuthorById } from "@/repositories/author";
+import { getAllVideos, getVideoById } from "@/repositories/videos";
 import { useQuery } from "@tanstack/react-query";
 
-// 著者一覧を取得するフック
-export function useAuthors() {
+// ビデオ一覧を取得するフック
+export function useVideos() {
   return useQuery({
-    queryKey: ["authors"],
+    queryKey: ["videos"],
     queryFn: async () => {
-      const result = await getAllAuthors();
+      const result = await getAllVideos();
       if (result.isErr()) {
         throw new Error(result.error.message);
       }
@@ -15,12 +15,12 @@ export function useAuthors() {
   });
 }
 
-// 特定の著者を取得するフック
-export function useAuthor(id: string) {
+// 特定のビデオを取得するフック
+export function useVideo(id: string) {
   return useQuery({
-    queryKey: ["authors", id],
+    queryKey: ["videos", id],
     queryFn: async () => {
-      const result = await getAuthorById(id);
+      const result = await getVideoById(id);
       if (result.isErr()) {
         throw new Error(result.error.message);
       }
