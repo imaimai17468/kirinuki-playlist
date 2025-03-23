@@ -16,6 +16,8 @@ export type Video = VideoBase & {
     name: string;
     iconUrl: string;
     bio: string | null;
+    createdAt: Date;
+    updatedAt: Date;
   };
 };
 
@@ -75,6 +77,8 @@ export const createVideoService = (dbClient: DbClient) => ({
           name: row.authors.name,
           iconUrl: row.authors.iconUrl,
           bio: row.authors.bio,
+          createdAt: row.authors.createdAt,
+          updatedAt: row.authors.updatedAt,
         },
       }));
     } catch (error) {
@@ -113,6 +117,8 @@ export const createVideoService = (dbClient: DbClient) => ({
           name: result.authors.name,
           iconUrl: result.authors.iconUrl,
           bio: result.authors.bio,
+          createdAt: result.authors.createdAt,
+          updatedAt: result.authors.updatedAt,
         },
       };
     } catch (error) {

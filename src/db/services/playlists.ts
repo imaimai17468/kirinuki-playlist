@@ -1,36 +1,42 @@
 import type { DbClient } from "@/db/config/hono";
-import { eq } from "drizzle-orm";
-import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import type { InferInsertModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authors } from "../models/authors";
-import { playlists } from "../models/playlists";
+import { type Playlist, playlists } from "../models/playlists";
 import { playlistVideos } from "../models/relations";
 import { videos } from "../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
 
-// 基本的なプレイリストの型
-type PlaylistBase = InferSelectModel<typeof playlists>;
-
 // 著者情報を含むプレイリストの型
-export type Playlist = PlaylistBase & {
+export type PlaylistWithAuthor = Playlist & {
   author: {
     id: string;
     name: string;
     iconUrl: string;
     bio: string | null;
+    createdAt: Date;
+    updatedAt: Date;
   };
 };
 
-export type PlaylistWithVideos = Playlist & {
+export type PlaylistWithAuthorAndVideos = PlaylistWithAuthor & {
   videos: {
     id: string;
     title: string;
     url: string;
     start: number | null;
     end: number | null;
-    authorId: string;
-    authorName: string;
-    authorIconUrl: string;
+    createdAt: Date;
+    updatedAt: Date;
+    author: {
+      id: string;
+      name: string;
+      iconUrl: string;
+      bio: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    };
   }[];
 };
 
@@ -45,7 +51,7 @@ export type PlaylistVideoInsert = {
 
 // 依存性注入パターンを使ったプレイリストサービスの作成関数
 export const createPlaylistService = (dbClient: DbClient) => ({
-  async getAllPlaylists(): Promise<Playlist[]> {
+  async getAllPlaylists(): Promise<PlaylistWithAuthor[]> {
     try {
       // プレイリスト一覧を取得
       const results = await dbClient
@@ -65,6 +71,8 @@ export const createPlaylistService = (dbClient: DbClient) => ({
           name: row.authors.name,
           iconUrl: row.authors.iconUrl,
           bio: row.authors.bio,
+          createdAt: row.authors.createdAt,
+          updatedAt: row.authors.updatedAt,
         },
       }));
     } catch (error) {
@@ -74,7 +82,7 @@ export const createPlaylistService = (dbClient: DbClient) => ({
     }
   },
 
-  async getPlaylistById(id: string): Promise<Playlist> {
+  async getPlaylistById(id: string): Promise<PlaylistWithAuthor> {
     try {
       // プレイリストを取得
       const result = await dbClient
@@ -99,6 +107,8 @@ export const createPlaylistService = (dbClient: DbClient) => ({
           name: result.authors.name,
           iconUrl: result.authors.iconUrl,
           bio: result.authors.bio,
+          createdAt: result.authors.createdAt,
+          updatedAt: result.authors.updatedAt,
         },
       };
     } catch (error) {
@@ -111,7 +121,7 @@ export const createPlaylistService = (dbClient: DbClient) => ({
     }
   },
 
-  async getPlaylistWithVideosById(id: string): Promise<PlaylistWithVideos> {
+  async getPlaylistWithVideosById(id: string): Promise<PlaylistWithAuthorAndVideos> {
     try {
       // まずプレイリスト情報を取得
       const playlist = await this.getPlaylistById(id);
@@ -119,8 +129,11 @@ export const createPlaylistService = (dbClient: DbClient) => ({
       // 次にこのプレイリストに含まれる動画を取得
       const playlistVideosResult = await dbClient
         .select()
-        .from(videos)
+        .from(playlistVideos)
+        .innerJoin(videos, eq(playlistVideos.videoId, videos.id))
         .innerJoin(authors, eq(videos.authorId, authors.id))
+        .where(eq(playlistVideos.playlistId, id))
+        .orderBy(playlistVideos.order)
         .all();
 
       // 動画情報をマッピング
@@ -130,9 +143,17 @@ export const createPlaylistService = (dbClient: DbClient) => ({
         url: row.videos.url,
         start: row.videos.start,
         end: row.videos.end,
-        authorId: row.authors.id,
-        authorName: row.authors.name,
-        authorIconUrl: row.authors.iconUrl,
+        authorId: row.videos.authorId,
+        createdAt: row.videos.createdAt,
+        updatedAt: row.videos.updatedAt,
+        author: {
+          id: row.authors.id,
+          name: row.authors.name,
+          iconUrl: row.authors.iconUrl,
+          bio: row.authors.bio,
+          createdAt: row.authors.createdAt,
+          updatedAt: row.authors.updatedAt,
+        },
       }));
 
       // プレイリスト情報と動画情報を組み合わせて返す
@@ -309,6 +330,12 @@ export const createPlaylistService = (dbClient: DbClient) => ({
       if (!video) {
         throw new NotFoundError(`動画 ${videoId} が見つかりません`);
       }
+
+      // プレイリストと動画の関連付けを削除
+      await dbClient
+        .delete(playlistVideos)
+        .where(and(eq(playlistVideos.playlistId, playlistId), eq(playlistVideos.videoId, videoId)))
+        .run();
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
@@ -322,7 +349,7 @@ export const createPlaylistService = (dbClient: DbClient) => ({
     }
   },
 
-  async getAllPlaylistsWithVideos(): Promise<PlaylistWithVideos[]> {
+  async getAllPlaylistsWithVideos(): Promise<PlaylistWithAuthorAndVideos[]> {
     try {
       // まずプレイリスト一覧を取得
       const playlists = await this.getAllPlaylists();

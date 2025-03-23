@@ -202,6 +202,22 @@ describe("playlistService", () => {
       expect(playlist1).toBeDefined();
       expect(playlist1?.videos.length).toBeGreaterThan(0); // 動画があることを確認
 
+      // 動画の著者情報が取得できていることを確認
+      if (playlist1 && playlist1.videos.length > 0) {
+        const video = playlist1.videos[0];
+        expect(video.author).toBeDefined();
+        expect(video.author.id).toBeDefined();
+        expect(video.author.name).toBeDefined();
+        expect(video.author.iconUrl).toBeDefined();
+
+        // 特定の動画の著者情報を確認
+        const video1 = playlist1.videos.find((v) => v.id === "video1");
+        if (video1) {
+          expect(video1.author.id).toBe("author1");
+          expect(video1.author.name).toBe("テスト著者1");
+        }
+      }
+
       // プレイリスト2の確認
       const playlist2 = result.find((p) => p.id === "playlist2");
       expect(playlist2).toBeDefined();
@@ -210,10 +226,12 @@ describe("playlistService", () => {
 
   describe("getPlaylistWithVideosById", () => {
     let service: ReturnType<typeof createPlaylistService>;
+    let dbClient: Awaited<ReturnType<typeof createTestDbClient>>;
 
     beforeEach(async () => {
       const result = await setupDatabase();
       service = result.service;
+      dbClient = result.dbClient;
     });
 
     test("IDを指定してプレイリストと関連動画を取得できること", async () => {
@@ -222,8 +240,51 @@ describe("playlistService", () => {
       expect(result.id).toBe("playlist1");
       expect(result.title).toBe("テストプレイリスト1");
       expect(result.videos).toBeDefined();
-      expect(result.videos.length).toBeGreaterThan(0);
+
+      // プレイリストVideoの関連付けを取得
+      const playlistVideoRelations = await dbClient
+        .select()
+        .from(playlistVideos)
+        .where(eq(playlistVideos.playlistId, "playlist1"))
+        .all();
+
+      // 取得された動画数がプレイリストに関連付けられた動画数と一致することを確認
+      expect(result.videos.length).toBe(playlistVideoRelations.length);
       expect(result.videos.some((v) => v.id === "video1")).toBe(true);
+
+      // 動画の著者情報が取得できていることを確認
+      const video1 = result.videos.find((v) => v.id === "video1");
+      expect(video1).toBeDefined();
+      expect(video1?.author).toBeDefined();
+      expect(video1?.author.id).toBe("author1");
+      expect(video1?.author.name).toBe("テスト著者1");
+      expect(video1?.author.iconUrl).toBe("https://example.com/icon1.png");
+
+      // 複数の動画がある場合、各動画に著者情報があることを確認
+      const video2 = result.videos.find((v) => v.id === "video2");
+      expect(video2).toBeDefined();
+      expect(video2?.author).toBeDefined();
+      expect(video2?.author.id).toBe("author2");
+      expect(video2?.author.name).toBe("テスト著者2");
+
+      // order順にソートされていることを確認
+      if (result.videos.length >= 2) {
+        const orderMapping = await dbClient
+          .select()
+          .from(playlistVideos)
+          .where(eq(playlistVideos.playlistId, "playlist1"))
+          .all();
+
+        // 各動画のIDに対応するorderを取得
+        const videoOrders = new Map(orderMapping.map((item) => [item.videoId, item.order]));
+
+        // 返された動画リストがorder順か確認
+        for (let i = 1; i < result.videos.length; i++) {
+          const currentOrder = videoOrders.get(result.videos[i - 1].id) || 0;
+          const nextOrder = videoOrders.get(result.videos[i].id) || 0;
+          expect(currentOrder).toBeLessThanOrEqual(nextOrder);
+        }
+      }
     });
 
     test("存在しないIDの場合はNotFoundErrorをスローすること", async () => {
@@ -409,7 +470,37 @@ describe("playlistService", () => {
       // 関連を削除
       await service.removeVideoFromPlaylist("playlist1", "video1");
 
-      // 削除後に存在しないことを確認 - 実装が空なので確認は省略
+      // 削除後に存在しないことを確認
+      const afterDelete = await dbClient
+        .select()
+        .from(playlistVideos)
+        .where(and(eq(playlistVideos.playlistId, "playlist1"), eq(playlistVideos.videoId, "video1")))
+        .get();
+      expect(afterDelete).toBeUndefined();
+    });
+
+    test("存在しないプレイリストIDを指定するとNotFoundErrorをスローすること", async () => {
+      let errorThrown = false;
+      try {
+        await service.removeVideoFromPlaylist("non-existent", "video1");
+      } catch (error) {
+        errorThrown = true;
+        expect(error instanceof NotFoundError).toBe(true);
+        expect((error as NotFoundError).message).toContain("プレイリスト");
+      }
+      expect(errorThrown).toBe(true);
+    });
+
+    test("存在しない動画IDを指定するとNotFoundErrorをスローすること", async () => {
+      let errorThrown = false;
+      try {
+        await service.removeVideoFromPlaylist("playlist1", "non-existent");
+      } catch (error) {
+        errorThrown = true;
+        expect(error instanceof NotFoundError).toBe(true);
+        expect((error as NotFoundError).message).toContain("動画");
+      }
+      expect(errorThrown).toBe(true);
     });
   });
 });
