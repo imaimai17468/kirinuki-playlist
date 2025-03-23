@@ -691,11 +691,11 @@ it("プレイリストと動画の関連付けに失敗した場合は適切なR
     await service.getPlaylistWithVideosById('playlist1');
     // エラーがスローされるべきなので、ここに到達したらテスト失敗
     fail('エラーがスローされませんでした');
-  } catch (error) {
+    } catch (error) {
     expect(error).toBeInstanceOf(RelationError);
     expect(error.message).toContain('動画が関連付けられていません');
-  }
-});
+    }
+  });
 ```
 
 ## エラーハンドリングのテストカバレッジ
