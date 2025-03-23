@@ -3,7 +3,6 @@ import type { AppEnv } from "@/db/config/hono";
 import { authorInsertSchema, authorUpdateSchema } from "@/db/models/authors";
 import { createAuthorService } from "@/db/services/authors";
 import type { AuthorInsert, AuthorUpdate } from "@/db/services/authors";
-import { getRequestContext } from "@cloudflare/next-on-pages";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
@@ -13,6 +12,7 @@ export const authorsRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -28,6 +28,7 @@ export const authorsRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -43,6 +44,7 @@ export const authorsRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -59,6 +61,7 @@ export const authorsRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -74,6 +77,7 @@ export const authorsRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }

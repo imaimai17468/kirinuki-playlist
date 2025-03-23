@@ -3,7 +3,6 @@ import type { AppEnv } from "@/db/config/hono";
 import { videoInsertSchema, videoUpdateSchema } from "@/db/models/videos";
 import { createVideoService } from "@/db/services/videos";
 import type { VideoInsert, VideoUpdate } from "@/db/services/videos";
-import { getRequestContext } from "@cloudflare/next-on-pages";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
@@ -13,6 +12,7 @@ export const videosRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -28,6 +28,7 @@ export const videosRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -43,6 +44,7 @@ export const videosRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -62,6 +64,7 @@ export const videosRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -80,6 +83,7 @@ export const videosRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }

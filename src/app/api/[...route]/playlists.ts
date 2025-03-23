@@ -5,7 +5,6 @@ import { createPlaylistService } from "@/db/services/playlists";
 import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "@/db/services/playlists";
 import { createVideoService } from "@/db/services/videos";
 import { NotFoundError } from "@/db/utils/errors";
-import { getRequestContext } from "@cloudflare/next-on-pages";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
@@ -15,6 +14,7 @@ export const playlistsRouter = new Hono<AppEnv>()
     // DbClientをコンテキストから取得、なければ新規作成
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -36,6 +36,7 @@ export const playlistsRouter = new Hono<AppEnv>()
     // DbClientをコンテキストから取得、なければ新規作成
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -60,6 +61,7 @@ export const playlistsRouter = new Hono<AppEnv>()
     // DbClientをコンテキストから取得、なければ新規作成
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -85,6 +87,7 @@ export const playlistsRouter = new Hono<AppEnv>()
     // DbClientをコンテキストから取得、なければ新規作成
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -109,6 +112,7 @@ export const playlistsRouter = new Hono<AppEnv>()
     // DbClientをコンテキストから取得、なければ新規作成
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -134,6 +138,7 @@ export const playlistsRouter = new Hono<AppEnv>()
     // DbClientをコンテキストから取得、なければ新規作成
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -173,6 +178,7 @@ export const playlistsRouter = new Hono<AppEnv>()
     // DbClientをコンテキストから取得、なければ新規作成
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
