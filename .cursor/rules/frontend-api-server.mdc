@@ -33,9 +33,15 @@ src/
 │   │   ├── playlists.ts
 │   │   └── authors.ts
 │   └── services/                # データアクセスサービス
-│       ├── videos.ts
-│       ├── playlists.ts
-│       └── authors.ts
+│       ├── authors/             # 著者サービス
+│       │   ├── authors.ts       # 著者サービス実装
+│       │   └── authors.test.ts  # 著者サービステスト
+│       ├── videos/              # 動画サービス
+│       │   ├── videos.ts        # 動画サービス実装
+│       │   └── videos.test.ts   # 動画サービステスト
+│       └── playlists/           # プレイリストサービス
+│           ├── playlists.ts     # プレイリストサービス実装
+│           └── playlists.test.ts # プレイリストサービステスト
 ├── repositories/                # クライアントサイドリポジトリ
 │   ├── videos/
 │   ├── playlists/
@@ -164,8 +170,8 @@ export function createHonoApp(options?: { dbClient?: DbClient }) {
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { videoInsertSchema, videoUpdateSchema } from "@/db/models/videos";
-import { createVideoService } from "@/db/services/videos";
-import type { VideoInsert, VideoUpdate } from "@/db/services/videos";
+import { createVideoService } from "@/db/services/videos/videos";
+import type { VideoInsert, VideoUpdate } from "@/db/services/videos/videos";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
@@ -247,9 +253,10 @@ if (!dbClient) {
 サービスレイヤーでは依存性注入パターンを採用し、テスト容易性と柔軟性を高めています。
 
 ```typescript
-// src/db/services/videos.ts
+// src/db/services/videos/videos.ts
 import type { DbClient } from "@/db/config/hono";
 import { videos } from "@/db/models/videos";
+import { authors } from "@/db/models/authors";
 import { NotFoundError, DatabaseError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";

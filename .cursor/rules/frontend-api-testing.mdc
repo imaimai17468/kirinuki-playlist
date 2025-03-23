@@ -24,11 +24,15 @@ src/
 │   │   ├── videos.ts                   # 動画モデル定義
 │   │   └── playlists.ts                # プレイリストモデル定義
 │   ├── services/                       # サービス層の実装
-│   │   ├── __tests__/                  # サービス層のテスト
-│   │   │   └── authors.test.ts         # 著者サービスのテスト
-│   │   ├── authors.ts                  # 著者サービスの実装
-│   │   ├── videos.ts                   # 動画サービスの実装
-│   │   └── playlists.ts                # プレイリストサービスの実装
+│   │   ├── authors/                    # 著者サービス
+│   │   │   ├── authors.ts              # 著者サービス実装
+│   │   │   └── authors.test.ts         # 著者サービステスト
+│   │   ├── videos/                     # 動画サービス
+│   │   │   ├── videos.ts               # 動画サービス実装
+│   │   │   └── videos.test.ts          # 動画サービステスト
+│   │   └── playlists/                  # プレイリストサービス
+│   │       ├── playlists.ts            # プレイリストサービス実装
+│   │       └── playlists.test.ts       # プレイリストサービステスト
 │   └── utils/
 │       └── errors.ts                   # エラー定義
 ```
