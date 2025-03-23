@@ -49,6 +49,7 @@ export async function getPlaylistById(
     const result = playlistResponseSchema.safeParse(data);
 
     if (!result.success) {
+      console.error(result.error);
       return err(createSchemaError(result.error.message));
     }
 

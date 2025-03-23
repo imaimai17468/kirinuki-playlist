@@ -20,6 +20,7 @@ export async function getAllVideos(): Promise<Result<z.infer<typeof videosRespon
     const result = videosResponseSchema.safeParse(data);
 
     if (!result.success) {
+      console.error("Schema validation error:", result.error.message);
       return err(createSchemaError(result.error.message));
     }
 
