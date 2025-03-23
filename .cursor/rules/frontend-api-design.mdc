@@ -182,10 +182,10 @@ export const videosRouter = new Hono<AppEnv>()
 APIアクセスはリポジトリパターンを使用して抽象化します。各リソースタイプに対して個別のリポジトリモジュールを作成します：
 
 ```typescript
-// src/repositories/video/index.ts
+// src/repositories/videos/index.ts
 import { getApiClient } from "@/db/config/client";
 import type { ApiError } from "@/repositories/types";
-import { videoResponseSchema, videosResponseSchema } from "@/repositories/types";
+import { videoResponseSchema, videosResponseSchema } from "@/repositories/videos/types";
 import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
 import { err, ok } from "neverthrow";
 import type { Result } from "neverthrow";
@@ -319,6 +319,13 @@ export const baseResponseSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
 });
+```
+
+```typescript
+// src/repositories/videos/types.ts
+import { z } from "zod";
+import { authorSchema } from "../authors/types";
+import { baseResponseSchema } from "../types";
 
 // 動画スキーマ
 export const videoSchema = z.object({
@@ -326,14 +333,12 @@ export const videoSchema = z.object({
   title: z.string(),
   url: z.string(),
   authorId: z.string(),
-  author: z.object({
-    id: z.string(),
-    name: z.string(),
-  }).optional(),
-  start: z.number().nullable().optional(),
-  end: z.number().nullable().optional(),
+  start: z.number(),
+  end: z.number(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
+  // 関連する著者情報が含まれる場合
+  author: authorSchema.optional(),
 });
 
 // 動画レスポンススキーマ
