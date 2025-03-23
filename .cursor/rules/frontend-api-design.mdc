@@ -2,313 +2,258 @@
 description: Kirinuki-PlaylistプロジェクトのAPI設計ガイドライン
 globs: src/app/api/**/*.ts, src/repositories/**/*.ts
 ---
-# Kirinuki-Playlist API設計ガイドライン
+# API 設計ガイドライン
 
-## 概要
+Kirinuki-Playlistプロジェクトでは、フロントエンドとバックエンドの間のAPI通信に関して、以下のガイドラインに従って設計を行います。
 
-Kirinuki-PlaylistプロジェクトのAPI設計は、シンプルさ、一貫性、型安全性を重視しています。
-このガイドラインに従うことで、サーバーとクライアント間の通信が予測可能で信頼性の高いものになります。
+## 基本原則
+
+1. **シンプル**: 理解しやすく、使いやすいAPIを設計する
+2. **一貫性**: 命名規則、レスポンス形式、エラー処理などを一貫させる
+3. **型安全**: TypeScriptとZodを使用して、型安全なAPIを構築する
+4. **自己文書化**: 型定義と規約によって、APIの使用方法が明確になるようにする
+5. **テスト容易性**: 単体テスト、統合テストが書きやすいAPI設計にする
 
 ## API構造
 
-### 命名規則
+### エンドポイント設計
 
-APIエンドポイントとリソース名には以下の命名規則を適用します：
-
-- **リソース名は複数形を使用**: `/api/videos`, `/api/playlists`, `/api/authors` など
-- **ファイル名もリソース名と一致させる**: `videos.ts`, `playlists.ts`, `authors.ts` など
-- **単一リソースの操作**: 単一リソースの操作には、URLパラメータを使用（例：`/api/videos/:id`）
-
-この命名規則に従うことで、APIの一貫性が保たれ、開発者が直感的に理解できるようになります。
-
-### エンドポイント
-
-基本的なエンドポイント構造は次のとおりです：
+RESTful APIの原則に従い、リソース指向のURLパスを使用します。
 
 ```
-/api/videos - 動画リソース
-/api/playlists - プレイリストリソース
-/api/authors - 著者リソース
+/api/[リソース名]        # リソースのコレクション（例: /api/videos）
+/api/[リソース名]/:id    # 特定のリソース（例: /api/videos/123）
 ```
 
-### HTTPメソッド
+### リレーションを含む場合のエンドポイント設計
 
-各リソースに対して次のHTTPメソッドを使用します：
-
-- `GET` - リソースの取得
-- `POST` - リソースの作成
-- `PUT` - リソースの完全な更新
-- `PATCH` - リソースの部分的な更新
-- `DELETE` - リソースの削除
-
-### 例：動画リソース
+リソース間のリレーションを表現する場合は、以下のパターンを使用します：
 
 ```
-GET /api/videos - すべての動画を取得
-GET /api/videos/:id - 特定のIDの動画を取得
-POST /api/videos - 新しい動画を作成
-PUT /api/videos/:id - 動画を完全に更新
-PATCH /api/videos/:id - 動画を部分的に更新
-DELETE /api/videos/:id - 動画を削除
+# 関連リソースの取得
+/api/[親リソース]/:id/[子リソース]        # 例: /api/playlists/123/videos
+
+# リレーション操作に特化したエンドポイント
+/api/[親リソース]/:id/[関連操作]          # 例: /api/playlists/123/addVideo
 ```
 
-## レスポンスフォーマット
+### ネストされたリソース
 
-すべてのAPIレスポンスは一貫した形式に従います：
+深いネストは避け、必要な場合は最大2階層までにします：
 
-### 成功レスポンス
+```
+/api/playlists/:playlistId/videos/:videoId  # 許容される最大ネスト
+```
+
+複雑なリレーションは、クエリパラメータや専用エンドポイントで表現します：
+
+```
+/api/videos?playlistId=123  # クエリパラメータによるフィルタリング
+/api/playlists/123/videos   # 特定のプレイリストに属する動画一覧
+```
+
+## 命名規則
+
+### URL
+
+- 複数形の名詞を使用（`/videos`, `/playlists`, `/authors`）
+- 小文字と `-` (ハイフン) を使用（`/api/video-categories`）
+- 動詞は避け、HTTPメソッドで操作を表現
+
+### リクエスト/レスポンスフィールド
+
+- camelCase形式を使用（`videoTitle`, `authorName`）
+- 一貫した命名パターンを使用（`createdAt`, `updatedAt` など）
+- ブール値のフィールドには、`is`, `has`, `can` などのプレフィックスを使用（`isPublished`, `hasComments`）
+
+## HTTPメソッド
+
+各操作には適切なHTTPメソッドを使用します：
+
+| メソッド | 用途                     | 例                               |
+|---------|-------------------------|----------------------------------|
+| GET     | リソースの取得           | `GET /api/videos`               |
+| POST    | リソースの作成           | `POST /api/videos`              |
+| PUT     | リソースの完全更新       | `PUT /api/videos/123`           |
+| PATCH   | リソースの部分更新       | `PATCH /api/videos/123`         |
+| DELETE  | リソースの削除           | `DELETE /api/videos/123`        |
+
+## レスポンス形式
+
+すべてのAPIレスポンスは一貫した形式で返します：
+
+```typescript
+// 成功レスポンス
+type SuccessResponse<T> = {
+  success: true;
+  [key: string]: T;  // リソース名をキーとして使用（例: { success: true, video: {...} }）
+  message?: string;  // 任意のメッセージ
+};
+
+// エラーレスポンス
+type ErrorResponse = {
+  success: false;
+  message: string;
+  errors?: Record<string, string[]>;  // バリデーションエラーの場合
+};
+```
+
+### レスポンス例
 
 ```json
+// 成功レスポンス（単一リソース）
 {
   "success": true,
-  "データのキー": データの値
+  "video": {
+    "id": "123",
+    "title": "サンプル動画",
+    "url": "https://example.com/video.mp4",
+    "authorId": "456",
+    "createdAt": "2023-01-01T00:00:00Z",
+    "updatedAt": "2023-01-02T00:00:00Z"
+  }
 }
-```
 
-例えば、動画のリストを返す場合：
-
-```json
+// 成功レスポンス（リソースコレクション）
 {
   "success": true,
   "videos": [
-    { "id": "1", "title": "サンプル動画1", ... },
-    { "id": "2", "title": "サンプル動画2", ... }
+    {
+      "id": "123",
+      "title": "サンプル動画1",
+      "url": "https://example.com/video1.mp4",
+      "authorId": "456",
+      "createdAt": "2023-01-01T00:00:00Z",
+      "updatedAt": "2023-01-02T00:00:00Z"
+    },
+    {
+      "id": "124",
+      "title": "サンプル動画2",
+      "url": "https://example.com/video2.mp4",
+      "authorId": "456",
+      "createdAt": "2023-01-03T00:00:00Z",
+      "updatedAt": "2023-01-04T00:00:00Z"
+    }
   ]
 }
-```
 
-### エラーレスポンス
-
-```json
+// エラーレスポンス
 {
   "success": false,
-  "message": "エラーメッセージ"
+  "message": "バリデーションエラー",
+  "errors": {
+    "title": ["タイトルは必須です"],
+    "url": ["有効なURLを入力してください"]
+  }
 }
 ```
 
-## ステータスコード
+## 関連リソースの扱い
 
-適切なHTTPステータスコードを使用します：
+### 関連リソースのインライン展開
 
-- `200 OK` - リクエストが成功
-- `201 Created` - リソースが正常に作成された
-- `400 Bad Request` - リクエストが無効
-- `401 Unauthorized` - 認証が必要
-- `403 Forbidden` - アクセス権限がない
-- `404 Not Found` - リソースが見つからない
-- `500 Internal Server Error` - サーバーエラー
+関連リソースを含める場合、以下の原則に従います：
+
+1. **基本リクエストではシンプルに**: 基本リクエストでは、IDのみを返す（`authorId`）
+2. **拡張情報はオプションで**: 詳細情報が必要な場合は、クエリパラメータや特別なエンドポイントを使用
+3. **一貫した命名**: 関連リソースは一貫した命名規則で表現（`author`, `videos`）
+
+```json
+// 関連リソースの展開例
+{
+  "success": true,
+  "playlist": {
+    "id": "123",
+    "title": "お気に入り動画",
+    "authorId": "456",
+    "createdAt": "2023-01-01T00:00:00Z",
+    "updatedAt": "2023-01-02T00:00:00Z",
+    // 関連リソースを展開
+    "author": {
+      "id": "456",
+      "name": "サンプルユーザー",
+      "iconUrl": "https://example.com/icon.jpg"
+    },
+    "videos": [
+      {
+        "id": "789",
+        "title": "サンプル動画",
+        "url": "https://example.com/video.mp4",
+        "authorId": "456",
+        "author": {
+          "id": "456",
+          "name": "サンプルユーザー",
+          "iconUrl": "https://example.com/icon.jpg"
+        }
+      }
+    ]
+  }
+}
+```
+
+### クライアントへのヒント
+
+関連リソースの存在をクライアントに示すため、以下のアプローチを使用できます：
+
+1. **明示的なクエリパラメータ**: `?include=author,videos`
+2. **特殊なエンドポイント**: `/api/playlists/123/withVideos`
+3. **コンテンツネゴシエーション**: Accept ヘッダーやカスタムヘッダー
 
 ## リクエストバリデーション
 
-リクエストデータのバリデーションにはZodを使用します：
+リクエストバリデーションには Zod を使用します：
 
 ```typescript
 import { z } from "zod";
-import { zValidator } from "@hono/zod-validator";
 
-// バリデーションスキーマの定義
-const videoCreateSchema = z.object({
-  title: z.string().min(1, "タイトルは必須です"),
+// 動画作成リクエストのバリデーションスキーマ
+export const videoCreateSchema = z.object({
+  title: z.string().min(1, "タイトルは必須です").max(100, "タイトルは100文字以内で入力してください"),
   url: z.string().url("有効なURLを入力してください"),
   authorId: z.string().min(1, "著者IDは必須です"),
-  start: z.number().optional(),
-  end: z.number().optional()
+  start: z.number().int().min(0).optional(),
+  end: z.number().int().min(0).optional(),
 });
 
-// バリデーションの適用
-.post("/", zValidator("json", videoCreateSchema), async (c) => {
-  const data = c.req.valid("json");
-  // バリデーション済みデータを使用した処理
-})
+// 動画更新リクエストのバリデーションスキーマ
+export const videoUpdateSchema = videoCreateSchema.partial();
+
+// スキーマから型を生成
+export type VideoCreate = z.infer<typeof videoCreateSchema>;
+export type VideoUpdate = z.infer<typeof videoUpdateSchema>;
 ```
 
-## API実装（サーバーサイド）
-
-### Honoを使用したルーター
+### リクエストの検証例
 
 ```typescript
-// src/app/api/[...route]/videos.ts
-import { createVideoService } from "@/db/services/videos";
-import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { videoInsertSchema } from "@/db/models/videos";
-import type { AppEnv } from "@/db/config/hono";
+import { Context } from "hono";
+import { videoCreateSchema } from "./schemas";
 
-export const videosRouter = new Hono<AppEnv>()
-  .get("/", async (c) => {
-    // コンテキストからdbClientを取得
-    const dbClient = c.get("dbClient");
-    const service = createVideoService(dbClient);
+async function createVideo(c: Context) {
+  const body = await c.req.json();
+  const result = videoCreateSchema.safeParse(body);
 
-    try {
-      const videos = await service.getAllVideos();
-      return c.json({ success: true, videos });
-    } catch (error) {
-      // エラーハンドリングミドルウェアに処理を委譲
-      throw error;
-    }
-  })
-  .get("/:id", async (c) => {
-    const id = c.req.param("id");
-    const dbClient = c.get("dbClient");
-    const service = createVideoService(dbClient);
-
-    try {
-      const video = await service.getVideoById(id);
-      return c.json({ success: true, video });
-    } catch (error) {
-      throw error;
-    }
-  })
-  .post("/", zValidator("json", videoInsertSchema), async (c) => {
-    const input = c.req.valid("json");
-    const dbClient = c.get("dbClient");
-    const service = createVideoService(dbClient);
-
-    try {
-      const id = await service.createVideo(input);
-      const video = await service.getVideoById(id);
-      return c.json({ success: true, id, video }, 201);
-    } catch (error) {
-      throw error;
-    }
-  });
-```
-
-## API呼び出し（クライアントサイド）
-
-### リポジトリパターンの実装
-
-APIアクセスはリポジトリパターンを使用して抽象化します。各リソースタイプに対して個別のリポジトリモジュールを作成します：
-
-```typescript
-// src/repositories/videos/index.ts
-import { getApiClient } from "@/db/config/client";
-import type { ApiError } from "@/repositories/types";
-import { videoResponseSchema, videosResponseSchema } from "@/repositories/videos/types";
-import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
-import { err, ok } from "neverthrow";
-import type { Result } from "neverthrow";
-import type { z } from "zod";
-
-// 型をエクスポートして他のファイルで再利用可能にする
-export type Video = z.infer<typeof videoResponseSchema>["video"];
-export type Videos = z.infer<typeof videosResponseSchema>["videos"];
-
-// 動画一覧を取得
-export async function getAllVideos(): Promise<Result<Videos, ApiError>> {
-  try {
-    // getApiClient()を使用してシングルトンクライアントを取得
-    const client = getApiClient();
-    const response = await client.api.videos.$get();
-
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
-
-    const data = await response.json();
-    const result = videosResponseSchema.safeParse(data);
-
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
-
-    return ok(result.data.videos);
-  } catch (error) {
-    return err(createNetworkError(error));
+  if (!result.success) {
+    return c.json({
+      success: false,
+      message: "バリデーションエラー",
+      errors: formatZodError(result.error)
+    }, 400);
   }
-}
 
-// 動画を取得
-export async function getVideoById(id: string): Promise<Result<Video, ApiError>> {
-  try {
-    const client = getApiClient();
-    const response = await client.api.videos[":id"].$get({
-      param: { id },
-    });
+  // 検証済みデータを使用してビデオを作成
+  const video = await createVideoInDb(result.data);
 
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
-
-    const data = await response.json();
-    const result = videoResponseSchema.safeParse(data);
-
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
-
-    return ok(result.data.video);
-  } catch (error) {
-    return err(createNetworkError(error));
-  }
+  return c.json({
+    success: true,
+    video
+  }, 201);
 }
 ```
 
-### APIクライアント管理（シングルトンパターン）
+## Zodを使用したスキーマ定義の実例
 
-APIクライアントはシングルトンパターンを使用して管理し、テスト時のモック化を容易にします：
-
-```typescript
-// src/db/config/client.ts
-import type { AppType } from "@/app/api/[...route]/route";
-import { getBaseURL } from "@/db/config/baseUrl";
-import { hc } from "hono/client";
-
-// APIクライアント型定義
-export type ApiClient = ReturnType<typeof hc<AppType>>;
-
-// シングルトンインスタンス
-let currentClient: ApiClient | null = null;
-
-/**
- * 現在のAPIクライアントを取得
- * 未設定の場合は新しいクライアントを作成して返す
- */
-export function getApiClient(): ApiClient {
-  if (!currentClient) {
-    currentClient = hc<AppType>(`${getBaseURL()}/api`);
-  }
-  return currentClient;
-}
-
-/**
- * テスト時などにクライアントを差し替える
- */
-export function setApiClient(client: ApiClient): void {
-  currentClient = client;
-}
-
-// 従来の実装との互換性のために残しているが、新しいコードでは使用すべきでない
-// 代わりに getApiClient() を使用すること
-export const client = hc<AppType>(`${getBaseURL()}/api`);
-```
-
-このシングルトンパターンを使用することで、以下のメリットがあります：
-
-1. **一貫性**: アプリケーション全体で同一のクライアントインスタンスを使用
-2. **テスト容易性**: テスト時にモッククライアントを注入可能
-3. **環境分離**: 実行環境に応じた設定を適用可能
-4. **ユニットテスト**: 個別のAPIコールを独立してテスト可能
-
-### getApiClient() 関数の使用
-
-新しい実装では、APIクライアントを取得するために`getApiClient()`関数を使用します：
-
-```typescript
-// 非推奨 ❌
-import { client } from "@/db/config/client";
-const response = await client.api.videos.$get();
-
-// 推奨 ✅
-import { getApiClient } from "@/db/config/client";
-const client = getApiClient();
-const response = await client.api.videos.$get();
-```
-
-### レスポンスの検証
-
-APIレスポンスの型安全性を確保するためにZodを使用します：
+### 基本的なエンティティスキーマ
 
 ```typescript
 // src/repositories/types.ts
@@ -319,26 +264,69 @@ export const baseResponseSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
 });
-```
 
-```typescript
-// src/repositories/videos/types.ts
-import { z } from "zod";
-import { authorSchema } from "../authors/types";
-import { baseResponseSchema } from "../types";
+// 著者スキーマ
+export const authorSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  iconUrl: z.string().url().optional(),
+  bio: z.string().optional(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
 
 // 動画スキーマ
 export const videoSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  url: z.string(),
-  authorId: z.string(),
-  start: z.number(),
-  end: z.number(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-  // 関連する著者情報が含まれる場合
-  author: authorSchema.optional(),
+  id: z.string().min(1),
+  title: z.string().min(1),
+  url: z.string().url(),
+  authorId: z.string().min(1),
+  start: z.number().int().min(0).optional(),
+  end: z.number().int().min(0).optional(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+// プレイリストスキーマ
+export const playlistSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  authorId: z.string().min(1),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+```
+
+### 関連エンティティを含むスキーマ
+
+```typescript
+// 著者情報を含む動画スキーマ
+export const videoWithAuthorSchema = videoSchema.extend({
+  author: authorSchema,
+});
+
+// 動画を含むプレイリストスキーマ
+export const playlistWithVideosSchema = playlistSchema.extend({
+  videos: z.array(videoSchema),
+});
+
+// 著者と動画を含むプレイリストスキーマ
+export const playlistWithVideosAndAuthorSchema = playlistSchema.extend({
+  author: authorSchema,
+  videos: z.array(videoWithAuthorSchema),
+});
+```
+
+### レスポンススキーマ
+
+```typescript
+// 著者レスポンススキーマ
+export const authorResponseSchema = baseResponseSchema.extend({
+  author: authorSchema,
+});
+
+export const authorsResponseSchema = baseResponseSchema.extend({
+  authors: z.array(authorSchema),
 });
 
 // 動画レスポンススキーマ
@@ -346,217 +334,287 @@ export const videoResponseSchema = baseResponseSchema.extend({
   video: videoSchema,
 });
 
-// 動画リストレスポンススキーマ
 export const videosResponseSchema = baseResponseSchema.extend({
   videos: z.array(videoSchema),
 });
-```
 
-### エラーハンドリング
+// 動画（著者情報付き）レスポンススキーマ
+export const videoWithAuthorResponseSchema = baseResponseSchema.extend({
+  video: videoWithAuthorSchema,
+});
 
-クライアントサイドではResult型（neverthrow）を使用して、エラーハンドリングを型安全に行います：
+// プレイリストレスポンススキーマ
+export const playlistResponseSchema = baseResponseSchema.extend({
+  playlist: playlistSchema,
+});
 
-```typescript
-// src/repositories/utils.ts
-import type { ApiError } from "./types";
-import { baseResponseSchema } from "./types";
-import { err } from "neverthrow";
-import type { Result } from "neverthrow";
+export const playlistsResponseSchema = baseResponseSchema.extend({
+  playlists: z.array(playlistSchema),
+});
 
-// ネットワークエラーを作成
-export function createNetworkError(error: unknown): ApiError {
-  return {
-    type: "network",
-    message: error instanceof Error ? error.message : "ネットワークエラーが発生しました",
-    details: error,
-  };
-}
+// プレイリスト（動画情報付き）レスポンススキーマ
+export const playlistWithVideosResponseSchema = baseResponseSchema.extend({
+  playlist: playlistWithVideosSchema,
+});
 
-// スキーマエラーを作成
-export function createSchemaError(message: string): ApiError {
-  return {
-    type: "schema",
-    message: `レスポンスの形式が正しくありません: ${message}`,
-  };
-}
-
-// HTTPエラーを処理
-export async function handleHttpError(
-  response: Response
-): Promise<Result<never, ApiError>> {
-  try {
-    const data = await response.json();
-    const result = baseResponseSchema.safeParse(data);
-    const message = result.success ? data.message : "エラーが発生しました";
-
-    return err({
-      type: "http",
-      status: response.status,
-      message,
-    });
-  } catch (_) {
-    return err({
-      type: "http",
-      status: response.status,
-      message: "サーバーからのレスポンスの解析に失敗しました",
-    });
-  }
-}
-```
-
-## React Queryとの統合
-
-APIリポジトリはReact Queryと組み合わせて使用することで、キャッシュやローディング状態の管理を効率化できます：
-
-```typescript
-// src/hooks/useVideos.ts
-import { getAllVideos } from "@/repositories/video";
-import { useQuery } from "@tanstack/react-query";
-import type { ApiError } from "@/repositories/types";
-
-export function useVideos() {
-  return useQuery({
-    queryKey: ["videos"],
-    queryFn: async () => {
-      const result = await getAllVideos();
-      return result.match(
-        (data) => data,
-        (error) => {
-          throw error; // React Queryのエラーハンドリングに委譲
-        }
-      );
-    },
-  });
-}
-
-// コンポーネントでの使用例
-function VideoList() {
-  const { data: videos, error, isLoading } = useVideos();
-
-  if (isLoading) return <div>読み込み中...</div>;
-
-  if (error) {
-    const apiError = error as ApiError;
-    return <div>エラー: {apiError.message}</div>;
-  }
-
-  return (
-    <div>
-      <h1>動画一覧</h1>
-      <ul>
-        {videos.map((video) => (
-          <li key={video.id}>{video.title}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-```
-
-## リポジトリテスト
-
-リポジトリのテストでは、`setApiClient()`関数を使用してモッククライアントを注入します：
-
-```typescript
-// src/repositories/video/__tests__/index.test.ts
-import { setApiClient } from "@/db/config/client";
-import { getAllVideos, getVideoById } from "@/repositories/video";
-
-describe("videoRepository", () => {
-  beforeEach(() => {
-    // モッククライアントの設定
-    const mockClient = {
-      api: {
-        videos: {
-          $get: jest.fn().mockResolvedValue({
-            ok: true,
-            json: jest.fn().mockResolvedValue({
-              success: true,
-              videos: [{ id: "1", title: "テスト動画" }],
-            }),
-          }),
-          [":id"]: {
-            $get: jest.fn().mockImplementation(({ param }) => ({
-              ok: true,
-              json: jest.fn().mockResolvedValue({
-                success: true,
-                video: { id: param.id, title: `テスト動画 ${param.id}` },
-              }),
-            })),
-          },
-        },
-      },
-    };
-
-    setApiClient(mockClient as any);
-  });
-
-  it("getAllVideos は動画リストを返すべき", async () => {
-    const result = await getAllVideos();
-    expect(result.isOk()).toBe(true);
-
-    result.match(
-      (data) => {
-        expect(data).toHaveLength(1);
-        expect(data[0].title).toBe("テスト動画");
-      },
-      () => {
-        fail("エラーは発生しないはずです");
-      }
-    );
-  });
-
-  it("getVideoById は指定したIDの動画を返すべき", async () => {
-    const result = await getVideoById("123");
-    expect(result.isOk()).toBe(true);
-
-    result.match(
-      (data) => {
-        expect(data.id).toBe("123");
-        expect(data.title).toBe("テスト動画 123");
-      },
-      () => {
-        fail("エラーは発生しないはずです");
-      }
-    );
-  });
+// プレイリスト（動画と著者情報付き）レスポンススキーマ
+export const playlistWithVideosAndAuthorResponseSchema = baseResponseSchema.extend({
+  playlist: playlistWithVideosAndAuthorSchema,
 });
 ```
 
-## API設計のベストプラクティス
-
-1. **一貫性**: すべてのエンドポイントで一貫したレスポンス形式を使用する
-2. **型安全性**: TypeScriptとZodを使用して型安全なAPIを実装する
-3. **エラーハンドリング**: Result型を使用して型安全なエラーハンドリングを実装する
-4. **バリデーション**: リクエストデータを厳格にバリデーションする
-5. **適切なHTTPメソッド**: リソースの操作に適したHTTPメソッドを使用する
-6. **テスト容易性**: APIクライアントをモック化してテストを容易にする
-7. **Result型**: クライアント側での成功/エラー結果を型安全に処理する
-8. **再利用可能なスキーマ**: スキーマを再利用して一貫性を保つ
-9. **シングルトンパターン**: APIクライアントを効率的に管理する
-10. **リポジトリパターン**: API呼び出しを抽象化して再利用性を高める
-
-## getRequestContext の動的インポート
-
-サーバーサイドAPIルートでは、パフォーマンス向上のために `getRequestContext` の動的インポートを採用しています：
+### リクエストスキーマ
 
 ```typescript
-// 以前の実装
-import { getRequestContext } from "@cloudflare/next-on-pages";
-const { DB } = getRequestContext().env;
-const dbClient = createDbClient(DB);
+// 著者作成スキーマ
+export const authorInsertSchema = z.object({
+  name: z.string().min(1, "名前は必須です"),
+  iconUrl: z.string().url("有効なURLを入力してください").optional(),
+  bio: z.string().max(500, "自己紹介は500文字以内で入力してください").optional(),
+});
 
-// 新しい実装（推奨）
-let dbClient = c.get("dbClient");
-if (!dbClient) {
-  const { getRequestContext } = await import("@cloudflare/next-on-pages");
-  const { DB } = getRequestContext().env;
-  dbClient = createDbClient(DB);
-}
+// 著者更新スキーマ
+export const authorUpdateSchema = authorInsertSchema.partial();
+
+// 動画作成スキーマ
+export const videoInsertSchema = z.object({
+  title: z.string().min(1, "タイトルは必須です"),
+  url: z.string().url("有効なURLを入力してください"),
+  authorId: z.string().min(1, "著者IDは必須です"),
+  start: z.number().int().min(0).optional(),
+  end: z.number().int().min(0).optional(),
+});
+
+// 動画更新スキーマ
+export const videoUpdateSchema = videoInsertSchema.partial();
+
+// プレイリスト作成スキーマ
+export const playlistInsertSchema = z.object({
+  title: z.string().min(1, "タイトルは必須です"),
+  authorId: z.string().min(1, "著者IDは必須です"),
+});
+
+// プレイリスト更新スキーマ
+export const playlistUpdateSchema = playlistInsertSchema.partial();
+
+// プレイリストに動画を追加するスキーマ
+export const playlistAddVideoSchema = z.object({
+  videoId: z.string().min(1, "動画IDは必須です"),
+});
 ```
 
-この実装により、必要な場合にのみ `getRequestContext` をインポートするため、初期ロード時のパフォーマンスが向上します。
+## エラーハンドリング
 
-## セキュリティ
+エラーハンドリングについては、`frontend-api-error-handling.mdc` を参照してください。
 
-このガイドラインに従うことで、サーバーとクライアント間の通信が予測可能で信頼性の高いものになります。
+## API実装のベストプラクティス
+
+1. **明確な関心の分離**
+   - ルーティング、バリデーション、ビジネスロジック、データアクセスを明確に分離する
+   - 各コンポーネントが単一の責任を持つようにする
+
+2. **型安全性の確保**
+   - スキーマ定義から TypeScript の型を生成
+   - APIクライアント、サーバー間で型の一貫性を保つ
+
+3. **一貫したエラーハンドリング**
+   - 詳細なエラーメッセージと適切なHTTPステータスコード
+   - クライアントが理解しやすいエラーフォーマット
+
+4. **効率的なデータ取得**
+   - N+1問題を避ける（複数のAPIリクエストが連鎖する問題）
+   - 必要に応じて、関連データをプリフェッチまたはインライン展開する
+
+5. **適切なドキュメント化**
+   - 型定義を活用した自己文書化
+   - コメントや専用ドキュメントによる補完
+
+## Next.js × Honoのルーティング
+
+Next.jsでのHonoの実装では、以下のパターンを使用します：
+
+```typescript
+// src/app/api/[...route]/route.ts
+import { Hono } from "hono";
+import { handle } from "hono/vercel";
+import { authorsRouter } from "./authors";
+import { playlistsRouter } from "./playlists";
+import { videosRouter } from "./videos";
+
+// APIルーターの作成
+const app = new Hono().basePath("/api");
+
+// 各リソースのルーターをマウント
+app.route("/authors", authorsRouter);
+app.route("/playlists", playlistsRouter);
+app.route("/videos", videosRouter);
+
+// エクスポートされる型（クライアント側で使用）
+export type AppType = typeof app;
+
+// Vercel用のハンドラー
+export const GET = handle(app);
+export const POST = handle(app);
+export const PUT = handle(app);
+export const PATCH = handle(app);
+export const DELETE = handle(app);
+```
+
+### リソース固有のルーター
+
+```typescript
+// src/app/api/[...route]/videos.ts
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { videoInsertSchema, videoUpdateSchema } from "@/repositories/videos/types";
+import {
+  getAllVideos,
+  getVideoById,
+  createVideo,
+  updateVideo,
+  deleteVideo
+} from "@/db/services/videos";
+
+// 動画リソース用のルーター
+export const videosRouter = new Hono()
+
+// 全ての動画を取得
+.get("/", async (c) => {
+  const videos = await getAllVideos();
+  return c.json({ success: true, videos });
+})
+
+// 新しい動画を作成
+.post("/", zValidator("json", videoInsertSchema), async (c) => {
+  const data = c.req.valid("json");
+  const video = await createVideo(data);
+  return c.json({ success: true, video, message: "動画を作成しました" }, 201);
+})
+
+// 特定の動画を取得
+.get("/:id", async (c) => {
+  const id = c.req.param("id");
+  const video = await getVideoById(id);
+
+  if (!video) {
+    return c.json({ success: false, message: "動画が見つかりません" }, 404);
+  }
+
+  return c.json({ success: true, video });
+})
+
+// 動画を更新
+.patch("/:id", zValidator("json", videoUpdateSchema), async (c) => {
+  const id = c.req.param("id");
+  const data = c.req.valid("json");
+
+  const updated = await updateVideo(id, data);
+
+  if (!updated) {
+    return c.json({ success: false, message: "動画が見つかりません" }, 404);
+  }
+
+  return c.json({ success: true, message: "動画を更新しました" });
+})
+
+// 動画を削除
+.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  const deleted = await deleteVideo(id);
+
+  if (!deleted) {
+    return c.json({ success: false, message: "動画が見つかりません" }, 404);
+  }
+
+  return c.json({ success: true, message: "動画を削除しました" });
+});
+```
+
+## 関連エンティティを含むエンドポイントの実装例
+
+プレイリストと関連する動画、著者情報を取得するエンドポイントの実装例：
+
+```typescript
+// src/app/api/[...route]/playlists.ts
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import {
+  getAllPlaylists,
+  getPlaylistById,
+  getPlaylistWithVideosById,
+  addVideoToPlaylist,
+  removeVideoFromPlaylist,
+  // その他の関数
+} from "@/db/services/playlists";
+import { playlistInsertSchema, playlistAddVideoSchema } from "@/repositories/playlists/types";
+
+export const playlistsRouter = new Hono()
+
+// プレイリスト一覧の取得
+.get("/", async (c) => {
+  const playlists = await getAllPlaylists();
+  return c.json({ success: true, playlists });
+})
+
+// 特定のプレイリストを取得（基本情報のみ）
+.get("/:id", async (c) => {
+  const id = c.req.param("id");
+  const playlist = await getPlaylistById(id);
+
+  if (!playlist) {
+    return c.json({ success: false, message: "プレイリストが見つかりません" }, 404);
+  }
+
+  return c.json({ success: true, playlist });
+})
+
+// 特定のプレイリストを動画情報と共に取得
+.get("/:id/withVideos", async (c) => {
+  const id = c.req.param("id");
+  const playlist = await getPlaylistWithVideosById(id);
+
+  if (!playlist) {
+    return c.json({ success: false, message: "プレイリストが見つかりません" }, 404);
+  }
+
+  return c.json({ success: true, playlist });
+})
+
+// プレイリストに動画を追加
+.post("/:id/videos", zValidator("json", playlistAddVideoSchema), async (c) => {
+  const playlistId = c.req.param("id");
+  const { videoId } = c.req.valid("json");
+
+  const result = await addVideoToPlaylist(playlistId, videoId);
+
+  if (!result.success) {
+    return c.json({ success: false, message: result.message }, result.statusCode || 400);
+  }
+
+  return c.json({ success: true, message: "動画をプレイリストに追加しました" });
+})
+
+// プレイリストから動画を削除
+.delete("/:playlistId/videos/:videoId", async (c) => {
+  const playlistId = c.req.param("playlistId");
+  const videoId = c.req.param("videoId");
+
+  const result = await removeVideoFromPlaylist(playlistId, videoId);
+
+  if (!result.success) {
+    return c.json({ success: false, message: result.message }, result.statusCode || 400);
+  }
+
+  return c.json({ success: true, message: "動画をプレイリストから削除しました" });
+});
+```
+
+## まとめ
+
+このAPI設計ガイドラインに従うことで、以下のメリットが得られます：
+
+1. **一貫性**: すべてのAPIが同じパターンを共有し、開発者が予測しやすい
+2. **安全性**: TypeScriptとZodによる型安全な実装
+3. **拡張性**: 新しいエンドポイントや機能を追加しやすい設計
+4. **保守性**: 明確な関心の分離により、メンテナンスが容易
+5. **テスト容易性**: モジュール化されたコンポーネントで単体テストが書きやすい
