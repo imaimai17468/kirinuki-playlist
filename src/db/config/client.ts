@@ -38,6 +38,3 @@ export function getApiClient(): ApiClient {
   }
   return currentClient;
 }
-
-// 従来の実装との互換性のために、デフォルトの実装もそのまま残す
-export const client = hc<AppType>(`${getBaseURL()}/api`);
