@@ -1,22 +1,11 @@
 import { createDbClient } from "@/db/config/database";
+import type { AppEnv } from "@/db/config/hono";
 import { authorInsertSchema, authorUpdateSchema } from "@/db/models/authors";
 import { createAuthorService } from "@/db/services/authors";
 import type { AuthorInsert, AuthorUpdate } from "@/db/services/authors";
-import type { Bindings } from "@/db/types/bindings";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-
-// 依存性を格納するための型定義
-type Variables = {
-  dbClient?: ReturnType<typeof createDbClient>;
-};
-
-// Bindings型とVariables型を持つ環境型
-type AppEnv = {
-  Bindings: Bindings;
-  Variables: Variables;
-};
 
 export const authorsRouter = new Hono<AppEnv>()
   // 作成者一覧の取得
