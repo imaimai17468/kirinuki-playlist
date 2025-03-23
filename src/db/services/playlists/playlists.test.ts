@@ -6,7 +6,7 @@ import { playlists } from "../../models/playlists";
 import { playlistVideos } from "../../models/relations";
 import { videos } from "../../models/videos";
 import { NotFoundError } from "../../utils/errors";
-import { createPlaylistService } from "../playlists";
+import { createPlaylistService } from "./playlists";
 
 // 各テストで使用するテストデータ
 const testAuthors = [

@@ -2,8 +2,8 @@ import type { DbClient } from "@/db/config/hono";
 import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authors } from "../models/authors";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
+import { authors } from "../../models/authors";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
 
 export type Author = InferSelectModel<typeof authors>;
 export type AuthorInsert = Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">;

@@ -4,7 +4,7 @@ import { createTestDbClient } from "../../config/test-database";
 import { authors } from "../../models/authors";
 import { videos } from "../../models/videos";
 import { NotFoundError } from "../../utils/errors";
-import { createVideoService } from "../videos";
+import { createVideoService } from "./videos";
 
 // 各テストで使用するテストデータ
 const testAuthors = [

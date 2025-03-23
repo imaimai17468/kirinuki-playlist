@@ -1,8 +1,8 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { authorInsertSchema, authorUpdateSchema } from "@/db/models/authors";
-import { createAuthorService } from "@/db/services/authors";
-import type { AuthorInsert, AuthorUpdate } from "@/db/services/authors";
+import { createAuthorService } from "@/db/services/authors/authors";
+import type { AuthorInsert, AuthorUpdate } from "@/db/services/authors/authors";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 

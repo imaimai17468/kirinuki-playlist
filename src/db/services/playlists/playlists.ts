@@ -2,11 +2,11 @@ import type { DbClient } from "@/db/config/hono";
 import { and, eq } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authors } from "../models/authors";
-import { type Playlist, playlists } from "../models/playlists";
-import { playlistVideos } from "../models/relations";
-import { videos } from "../models/videos";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
+import { authors } from "../../models/authors";
+import { type Playlist, playlists } from "../../models/playlists";
+import { playlistVideos } from "../../models/relations";
+import { videos } from "../../models/videos";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
 
 // 著者情報を含むプレイリストの型
 export type PlaylistWithAuthor = Playlist & {

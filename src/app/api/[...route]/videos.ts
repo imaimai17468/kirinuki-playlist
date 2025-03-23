@@ -1,8 +1,8 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { videoInsertSchema, videoUpdateSchema } from "@/db/models/videos";
-import { createVideoService } from "@/db/services/videos";
-import type { VideoInsert, VideoUpdate } from "@/db/services/videos";
+import { createVideoService } from "@/db/services/videos/videos";
+import type { VideoInsert, VideoUpdate } from "@/db/services/videos/videos";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { createTestDbClient } from "../../config/test-database";
 import { authors } from "../../models/authors";
 import { NotFoundError } from "../../utils/errors";
-import { type Author, createAuthorService } from "../authors";
+import { type Author, createAuthorService } from "./authors";
 
 // 各テストで使用するテストデータ
 const testAuthors: Omit<Author, "createdAt" | "updatedAt">[] = [

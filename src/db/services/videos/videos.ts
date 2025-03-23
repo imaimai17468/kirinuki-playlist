@@ -2,9 +2,9 @@ import type { DbClient } from "@/db/config/hono";
 import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authors } from "../models/authors";
-import { videos } from "../models/videos";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../utils/errors";
+import { authors } from "../../models/authors";
+import { videos } from "../../models/videos";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
 
 // 基本的なビデオの型（内部使用のみ）
 type VideoBase = InferSelectModel<typeof videos>;
