@@ -543,3 +543,219 @@ try {
 ```
 
 このエラーハンドリング規約に従うことで、堅牢でユーザーフレンドリーなAPI実装が可能になります。
+
+## プレイリストと動画のリポジトリテストにおけるエラーハンドリング
+
+リポジトリレイヤーのテストでは、特に関連エンティティを含むデータ取得において、エラーケースを適切に検証することが重要です。以下にプレイリストと動画の関連データのテスト例を示します：
+
+```typescript
+// 失敗ケースのテスト
+describe("エラーハンドリング", () => {
+  it("存在しないプレイリストIDではNotFoundエラーになること", async () => {
+    // 存在しないIDでリポジトリ関数を呼び出し
+    const result = await getPlaylistById("non-existent-id");
+
+    // 結果がエラーであることを確認
+    expect(result.isErr()).toBe(true);
+
+    if (result.isErr()) {
+      const error = result.error;
+
+      // 適切なエラータイプであることを確認
+      expect(error.type).toBe("notFound");
+      expect(error.message).toContain("見つかりません");
+    }
+  });
+
+  it("動画の著者情報が不足している場合はRelationエラーになること", async () => {
+    // モックを使って著者情報がない動画データを返すようにする
+    mockClientApi.api.playlists[":id"].withVideos.$get.mockImplementationOnce(async () => {
+      return {
+        ok: true,
+        json: async () => ({
+          success: true,
+          playlist: {
+            id: "playlist1",
+            title: "テストプレイリスト",
+            videos: [
+              {
+                id: "video1",
+                title: "動画1",
+                url: "https://example.com/video1",
+                // 著者情報が欠落している
+              }
+            ]
+          }
+        })
+      };
+    });
+
+    // テスト対象の関数を呼び出し
+    const result = await getPlaylistWithVideosById("playlist1");
+
+    // エラー結果を確認
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("relation");
+      expect(result.error.message).toContain("著者情報");
+    }
+  });
+
+  it("ネットワークエラーが発生した場合はNetworkエラーになること", async () => {
+    // ネットワークエラーをシミュレート
+    mockClientApi.api.playlists[":id"].withVideos.$get.mockRejectedValueOnce(
+      new Error("Network error")
+    );
+
+    // テスト対象の関数を呼び出し
+    const result = await getPlaylistWithVideosById("playlist1");
+
+    // エラー結果を確認
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("network");
+    }
+  });
+
+  it("スキーマ検証に失敗した場合はSchemaエラーになること", async () => {
+    // スキーマ検証に失敗するデータを返すようにモック
+    mockClientApi.api.playlists[":id"].withVideos.$get.mockImplementationOnce(async () => {
+      return {
+        ok: true,
+        json: async () => ({
+          success: true,
+          playlist: {
+            id: "playlist1",
+            // titleフィールドが欠落
+            videos: [] // 空の動画配列
+          }
+        })
+      };
+    });
+
+    // テスト対象の関数を呼び出し
+    const result = await getPlaylistWithVideosById("playlist1");
+
+    // エラー結果を確認
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.type).toBe("schema");
+    }
+  });
+});
+```
+
+## 複合的なエラーシナリオのテスト
+
+より複雑な状況で発生するエラーをテストする例：
+
+```typescript
+// サービスの統合テストにおける複合的なエラーシナリオ
+it("プレイリストと動画の関連付けに失敗した場合は適切なRelationエラーになること", async () => {
+  // プレイリストは存在するが、動画との関連付けに失敗するシナリオ
+  const dbClientMock = {
+    ...createMockDbClient(),
+    select: jest.fn().mockImplementation(() => {
+      // プレイリストのクエリは成功
+      if (currentQuery === 'playlists') {
+        return {
+          from: () => ({
+            where: () => ({
+              get: async () => ({ id: 'playlist1', title: 'テストプレイリスト' })
+            })
+          })
+        };
+      }
+      // 関連付けクエリは空の結果を返す
+      if (currentQuery === 'playlistVideos') {
+        return {
+          from: () => ({
+            innerJoin: () => ({
+              innerJoin: () => ({
+                where: () => ({
+                  orderBy: () => ({
+                    all: async () => []
+                  })
+                })
+              })
+            })
+          })
+        };
+      }
+    })
+  };
+
+  const service = createPlaylistService(dbClientMock);
+
+  try {
+    await service.getPlaylistWithVideosById('playlist1');
+    // エラーがスローされるべきなので、ここに到達したらテスト失敗
+    fail('エラーがスローされませんでした');
+  } catch (error) {
+    expect(error).toBeInstanceOf(RelationError);
+    expect(error.message).toContain('動画が関連付けられていません');
+  }
+});
+```
+
+## エラーハンドリングのテストカバレッジ
+
+テストでは、以下のエラーシナリオをカバーすることが重要です：
+
+1. **存在しないリソース**: 指定されたIDのリソースが存在しない場合
+2. **関連エンティティの欠落**: 必要な関連エンティティ（例：動画の著者）が欠落している場合
+3. **スキーマ検証の失敗**: レスポンスデータがスキーマに適合しない場合
+4. **ネットワークエラー**: API通信中に発生するネットワーク関連のエラー
+5. **認証/認可エラー**: ユーザーの権限不足や認証失敗によるエラー
+6. **一意制約違反**: 一意であるべきデータが重複する場合
+7. **入力検証エラー**: ユーザー入力が検証に失敗する場合
+
+各テストケースでは、エラーの種類（type）だけでなく、エラーメッセージの内容も検証して、デバッグに役立つ情報が含まれていることを確認します。
+
+## テスト用のエラーモックヘルパー関数
+
+テストをシンプルに保つためのヘルパー関数の例：
+
+```typescript
+// テスト用のエラーモックヘルパー
+export function mockHttpError(status: number, message: string) {
+  return {
+    ok: false,
+    status,
+    json: async () => ({
+      success: false,
+      message
+    })
+  };
+}
+
+export function mockNetworkError() {
+  return () => {
+    throw new Error('Network error');
+  };
+}
+
+export function mockSchemaValidationError() {
+  return {
+    ok: true,
+    json: async () => ({
+      success: true,
+      // スキーマ検証に失敗する不完全なデータ
+      data: { incomplete: true }
+    })
+  };
+}
+
+// 使用例
+it('APIがHTTP 404を返した場合はNotFoundエラーになること', async () => {
+  mockClientApi.api.playlists[':id'].$get.mockResolvedValueOnce(
+    mockHttpError(404, 'プレイリストが見つかりません')
+  );
+
+  const result = await getPlaylistById('non-existent');
+  expect(result.isErr()).toBe(true);
+  if (result.isErr()) {
+    expect(result.error.type).toBe('notFound');
+  }
+});
+```

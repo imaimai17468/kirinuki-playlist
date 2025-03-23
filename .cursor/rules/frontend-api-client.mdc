@@ -523,3 +523,481 @@ Honoクライアントとリポジトリパターンの実装から得られた�
 5. **詳細なエラータイプ**
    - より詳細なエラータイプを定義することで、ユーザーに適切なフィードバックを提供できます。
    - ネットワークエラー、未検出エラー、バリデーションエラーなど、異なるエラータイプに対して異なる処理を実装します。
+
+## プレイリスト、ビデオ、著者の関連データ取得の実装例
+
+プレイリストとそれに関連するビデオ、およびビデオの著者情報を一度に取得するリポジトリの実装例を示します：
+
+```typescript
+// src/repositories/playlists/index.ts
+import { getApiClient } from "@/app/_components/client";
+import {
+  playlistResponseSchema,
+  playlistWithVideosResponseSchema,
+  type Playlist,
+  type PlaylistWithVideos,
+  type ApiError
+} from "@/repositories/types";
+import {
+  createNetworkError,
+  createSchemaError,
+  createRelationError,
+  handleHttpError
+} from "@/repositories/utils";
+import { err, ok, type Result } from "neverthrow";
+
+/**
+ * プレイリストを取得する
+ */
+export async function getPlaylistById(id: string): Promise<Result<Playlist, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.playlists[":id"].$get({
+      param: { id },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = playlistResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.playlist);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+/**
+ * プレイリストと関連するすべての動画、および各動画の著者情報を取得する
+ */
+export async function getPlaylistWithVideosById(id: string): Promise<Result<PlaylistWithVideos, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.playlists[":id"].withVideos.$get({
+      param: { id },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = playlistWithVideosResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      console.error("Schema validation error:", result.error.format());
+      return err(createSchemaError(result.error.message));
+    }
+
+    const playlist = result.data.playlist;
+
+    // 動画配列の存在を確認
+    if (!Array.isArray(playlist.videos)) {
+      return err(createRelationError("プレイリストに関連付けられた動画情報が見つかりません"));
+    }
+
+    // 各動画の著者情報が存在するか確認
+    for (const video of playlist.videos) {
+      if (!video.author) {
+        return err(createRelationError(`動画 ${video.id} に著者情報が不足しています`));
+      }
+    }
+
+    return ok(playlist);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+/**
+ * すべてのプレイリストを取得する
+ */
+export async function getAllPlaylists(): Promise<Result<Playlist[], ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.playlists.$get();
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = z.object({
+      success: z.boolean(),
+      playlists: z.array(playlistSchema)
+    }).safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.playlists);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+## プレイリストリポジトリのテスト実装例
+
+複数のエンティティが関連するデータのテストは、モックとセットアップが複雑になることがあります。以下は、プレイリストと関連するビデオ、著者情報のテスト例です：
+
+```typescript
+// src/repositories/__tests__/playlists.test.ts
+import { getPlaylistById, getPlaylistWithVideosById } from "@/repositories/playlists";
+import { mockApiClient, resetMockApiClient } from "@/test/mock-api-client";
+import { ok } from "neverthrow";
+
+describe("プレイリストリポジトリ", () => {
+  // モッククライアントとテストデータ
+  let mockClient: ReturnType<typeof mockApiClient>;
+
+  const testAuthor = {
+    id: "author1",
+    name: "テスト著者1",
+    iconUrl: "https://example.com/icon1.jpg",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  const testVideo = {
+    id: "video1",
+    title: "テスト動画1",
+    url: "https://example.com/video1",
+    authorId: testAuthor.id,
+    author: testAuthor,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  const testPlaylist = {
+    id: "playlist1",
+    title: "テストプレイリスト1",
+    authorId: testAuthor.id,
+    author: testAuthor,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    videos: [testVideo]
+  };
+
+  // 各テスト前の準備
+  beforeEach(() => {
+    mockClient = mockApiClient();
+
+    // APIレスポンスのモック設定
+    mockClient.api.playlists[":id"].$get.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        playlist: {
+          id: testPlaylist.id,
+          title: testPlaylist.title,
+          authorId: testPlaylist.authorId,
+          author: testPlaylist.author,
+          createdAt: testPlaylist.createdAt,
+          updatedAt: testPlaylist.updatedAt
+        }
+      })
+    });
+
+    mockClient.api.playlists[":id"].withVideos.$get.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        playlist: testPlaylist
+      })
+    });
+  });
+
+  // 各テスト後のクリーンアップ
+  afterEach(() => {
+    resetMockApiClient();
+  });
+
+  describe("getPlaylistById", () => {
+    it("プレイリスト情報を正しく取得できること", async () => {
+      const result = await getPlaylistById(testPlaylist.id);
+
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const playlist = result.value;
+        expect(playlist.id).toBe(testPlaylist.id);
+        expect(playlist.title).toBe(testPlaylist.title);
+        expect(playlist.authorId).toBe(testPlaylist.authorId);
+
+        // 著者情報が含まれていることを確認
+        expect(playlist.author).toBeDefined();
+        if (playlist.author) {
+          expect(playlist.author.id).toBe(testAuthor.id);
+          expect(playlist.author.name).toBe(testAuthor.name);
+        }
+      }
+    });
+
+    it("存在しないIDを指定するとエラーになること", async () => {
+      // 404エラーのモック
+      mockClient.api.playlists[":id"].$get.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          success: false,
+          message: "プレイリストが見つかりません"
+        })
+      });
+
+      const result = await getPlaylistById("non-existent-id");
+
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        expect(result.error.type).toBe("notFound");
+        expect(result.error.message).toContain("見つかりません");
+      }
+    });
+  });
+
+  describe("getPlaylistWithVideosById", () => {
+    it("プレイリストとそれに関連する動画および著者情報を取得できること", async () => {
+      const result = await getPlaylistWithVideosById(testPlaylist.id);
+
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const playlist = result.value;
+
+        // プレイリストの基本情報
+        expect(playlist.id).toBe(testPlaylist.id);
+        expect(playlist.title).toBe(testPlaylist.title);
+
+        // 動画情報
+        expect(playlist.videos).toBeDefined();
+        expect(Array.isArray(playlist.videos)).toBe(true);
+        expect(playlist.videos?.length).toBeGreaterThan(0);
+
+        if (playlist.videos && playlist.videos.length > 0) {
+          const video = playlist.videos[0];
+
+          // 動画の基本情報
+          expect(video.id).toBe(testVideo.id);
+          expect(video.title).toBe(testVideo.title);
+          expect(video.url).toBe(testVideo.url);
+
+          // 動画の著者情報
+          expect(video.author).toBeDefined();
+          expect(video.author.id).toBe(testAuthor.id);
+          expect(video.author.name).toBe(testAuthor.name);
+          expect(video.author.iconUrl).toBe(testAuthor.iconUrl);
+        }
+      }
+    });
+
+    it("動画配列が存在しない場合はRelationエラーになること", async () => {
+      // 動画配列がないレスポンスをモック
+      mockClient.api.playlists[":id"].withVideos.$get.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          playlist: {
+            ...testPlaylist,
+            videos: undefined // 動画配列が存在しない
+          }
+        })
+      });
+
+      const result = await getPlaylistWithVideosById(testPlaylist.id);
+
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        expect(result.error.type).toBe("relation");
+        expect(result.error.message).toContain("動画情報");
+      }
+    });
+
+    it("動画の著者情報が不足している場合はRelationエラーになること", async () => {
+      // 著者情報がない動画データをモック
+      mockClient.api.playlists[":id"].withVideos.$get.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          playlist: {
+            ...testPlaylist,
+            videos: [{
+              ...testVideo,
+              author: undefined // 著者情報が存在しない
+            }]
+          }
+        })
+      });
+
+      const result = await getPlaylistWithVideosById(testPlaylist.id);
+
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        expect(result.error.type).toBe("relation");
+        expect(result.error.message).toContain("著者情報");
+      }
+    });
+  });
+});
+```
+
+## モックAPIクライアントの実装
+
+テストを容易にするためのモックAPIクライアントの実装例：
+
+```typescript
+// src/test/mock-api-client.ts
+import { apiClient } from '@/app/_components/client';
+
+// APIクライアントをモックする
+export function mockApiClient() {
+  const mockClient = {
+    api: {
+      playlists: {
+        $get: jest.fn(),
+        $post: jest.fn(),
+        [':id']: {
+          $get: jest.fn(),
+          $patch: jest.fn(),
+          $delete: jest.fn(),
+          withVideos: {
+            $get: jest.fn()
+          }
+        }
+      },
+      videos: {
+        $get: jest.fn(),
+        $post: jest.fn(),
+        [':id']: {
+          $get: jest.fn(),
+          $patch: jest.fn(),
+          $delete: jest.fn()
+        }
+      },
+      authors: {
+        $get: jest.fn(),
+        $post: jest.fn(),
+        [':id']: {
+          $get: jest.fn(),
+          $patch: jest.fn(),
+          $delete: jest.fn()
+        }
+      }
+    }
+  };
+
+  // 元のクライアントを保存
+  const originalClient = global.apiClient;
+
+  // モックに置き換え
+  global.apiClient = mockClient;
+
+  return mockClient;
+}
+
+// モックをリセットする
+export function resetMockApiClient() {
+  jest.resetAllMocks();
+  delete global.apiClient;
+}
+```
+
+## Reactフックの実装例
+
+リポジトリ関数をReactで使いやすくするためのカスタムフックの実装例：
+
+```typescript
+// src/repositories/playlists/hooks.ts
+import { useQuery } from '@tanstack/react-query';
+import { getPlaylistById, getPlaylistWithVideosById, getAllPlaylists } from './index';
+import type { ApiError } from '@/repositories/types';
+
+/**
+ * プレイリスト一覧を取得するフック
+ */
+export function usePlaylists() {
+  return useQuery({
+    queryKey: ['playlists'],
+    queryFn: async () => {
+      const result = await getAllPlaylists();
+
+      if (result.isErr()) {
+        throw result.error;
+      }
+
+      return result.value;
+    },
+  });
+}
+
+/**
+ * 特定のプレイリストを取得するフック
+ */
+export function usePlaylist(id: string) {
+  return useQuery({
+    queryKey: ['playlist', id],
+    queryFn: async () => {
+      const result = await getPlaylistById(id);
+
+      if (result.isErr()) {
+        throw result.error;
+      }
+
+      return result.value;
+    },
+    // IDが存在する場合のみクエリを有効にする
+    enabled: !!id,
+  });
+}
+
+/**
+ * 特定のプレイリストと関連する動画、著者情報を取得するフック
+ */
+export function usePlaylistWithVideos(id: string) {
+  return useQuery({
+    queryKey: ['playlist', id, 'with-videos'],
+    queryFn: async () => {
+      const result = await getPlaylistWithVideosById(id);
+
+      if (result.isErr()) {
+        throw result.error;
+      }
+
+      return result.value;
+    },
+    // IDが存在する場合のみクエリを有効にする
+    enabled: !!id,
+  });
+}
+
+/**
+ * エラーハンドリングを含むカスタムフックのエラータイプ
+ */
+export type QueryError = ApiError | Error;
+
+/**
+ * エラータイプを判定するヘルパー関数
+ */
+export function isApiError(error: unknown): error is ApiError {
+  return !!error && typeof error === 'object' && 'type' in error;
+}
+```
+
+## リポジトリパターンの利点
+
+関連エンティティを含むデータ取得においてリポジトリパターンを使用する利点：
+
+1. **型安全性**: スキーマ検証により、複雑な関連データ構造でも型安全性を確保できます。
+2. **整合性検証**: 各エンティティ間の関連性をバリデーションで確認できます。
+3. **階層的エラーハンドリング**: ネットワークエラー、スキーマエラー、関係エラーなど、様々なエラーシナリオを適切に処理できます。
+4. **テスト容易性**: モックを使用して様々なシナリオをテストしやすくなります。
+5. **UIとの分離**: データ取得ロジックとUIを分離することで、コードの保守性が向上します。
+6. **パフォーマンス最適化**: 必要なデータを一度のAPI呼び出しで取得できます。

@@ -376,6 +376,150 @@ test("動画情報と著者情報を取得できること", async () => {
 });
 ```
 
+## プレイリストリポジトリテスト
+
+プレイリストリポジトリでは、関連動画と著者情報を含むプレイリストの取得を検証する必要があります。これにより、API経由での結合データ取得が正しく機能することを確認できます：
+
+```typescript
+describe("プレイリストリポジトリのテスト", () => {
+  // 各テストの前に実行するセットアップ
+  beforeEach(async () => {
+    // テスト環境をセットアップ
+    const env = await setupTestEnv();
+    dbClient = env.dbClient;
+
+    // テストデータを挿入
+    await insertTestAuthors(dbClient);
+    await insertTestVideos(dbClient);
+    await insertTestPlaylists(dbClient);
+    await insertTestPlaylistVideos(dbClient);
+  });
+
+  // 各テストの後に実行するクリーンアップ
+  afterEach(async () => {
+    await cleanupTestData(dbClient);
+  });
+
+  describe("getPlaylistById", () => {
+    it("プレイリストに関連する動画と動画の作者情報が正しく取得できること", async () => {
+      // リポジトリ関数を呼び出し
+      const result = await getPlaylistById("playlist1");
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const playlist = result.value;
+
+        // プレイリスト情報を確認
+        expect(playlist.id).toBe("playlist1");
+        expect(playlist.title).toBe("テストプレイリスト1");
+
+        // 動画情報があることを確認
+        expect(playlist.videos).toBeDefined();
+        expect(Array.isArray(playlist.videos)).toBe(true);
+        expect(playlist.videos?.length).toBeGreaterThan(0);
+
+        if (playlist.videos) {
+          // 関連する動画の情報を確認
+          const video1 = playlist.videos.find((v) => v.id === "video1");
+          expect(video1).toBeDefined();
+
+          if (video1) {
+            expect(video1.title).toBe("テストビデオ1");
+            expect(video1.url).toBe("https://example.com/video1");
+
+            // 動画の作者情報を確認
+            expect(video1.author).toBeDefined();
+            if (video1.author) {
+              expect(video1.author.id).toBe("author1");
+              expect(video1.author.name).toBe("テスト著者1");
+              expect(video1.author.iconUrl).toBe("https://example.com/icon1.jpg");
+            }
+          }
+
+          // 複数の動画がある場合は2つ目の動画も確認
+          const video2 = playlist.videos.find((v) => v.id === "video2");
+          expect(video2).toBeDefined();
+          if (video2 && video2.author) {
+            expect(video2.author.id).toBe("author2");
+            expect(video2.author.name).toBe("テスト著者2");
+          }
+        }
+      }
+    });
+  });
+});
+```
+
+## 複数エンティティのテストデータセットアップ
+
+複雑な関連を持つエンティティのテストには、テストデータをモジュール化して再利用可能にすることが重要です：
+
+```typescript
+// テストヘルパー関数の例
+export async function setupTestEnv() {
+  // テスト用のDBクライアントを作成
+  const dbClient = await createTestDbClient();
+
+  // テスト用Honoアプリを作成
+  const app = createHonoApp({
+    dbClient,
+  });
+
+  // テスト用クライアントを作成
+  const client = testClient(app);
+
+  // 全てのテストデータをクリア
+  await dbClient.delete(playlistVideos).run();
+  await dbClient.delete(playlists).run();
+  await dbClient.delete(videos).run();
+  await dbClient.delete(authors).run();
+
+  // APIクライアントを設定
+  setApiClient(client);
+
+  return { dbClient, app, client };
+}
+
+export async function insertAllTestData(dbClient: DbClient) {
+  const authors = await insertTestAuthors(dbClient);
+  const videos = await insertTestVideos(dbClient);
+  const playlists = await insertTestPlaylists(dbClient);
+  const relations = await insertTestPlaylistVideos(dbClient);
+
+  return { authors, videos, playlists, relations };
+}
+```
+
+## 検証エラーハンドリングのテスト強化
+
+スキーマ検証エラーのログ出力とエラー処理の強化も重要です：
+
+```typescript
+// リポジトリ関数でのエラーハンドリング
+if (!result.success) {
+  console.error("Schema validation error:", result.error.message);
+  return err(createSchemaError(result.error.message));
+}
+
+// エラーテストの実装
+it("存在しないプレイリストIDではエラーになること", async () => {
+  // 存在しないIDでリポジトリ関数を呼び出し
+  const result = await getPlaylistById("non-existent-id");
+
+  // 結果がエラーであることを確認
+  expect(result.isErr()).toBe(true);
+
+  if (result.isErr()) {
+    const error = result.error;
+
+    // 適切なエラータイプであることを確認
+    expect(error.type).toBe("notFound");
+  }
+});
+```
+
 ## テストのベストプラクティス
 
 1. **各テストの独立性を確保**: 各テストは他のテストに依存せず、独立して実行できるようにする
