@@ -27,6 +27,7 @@ export type PlaylistWithAuthorAndVideos = PlaylistWithAuthor & {
     url: string;
     start: number | null;
     end: number | null;
+    order: number;
     createdAt: Date;
     updatedAt: Date;
     author: {
@@ -144,6 +145,7 @@ export const createPlaylistService = (dbClient: DbClient) => ({
         start: row.videos.start,
         end: row.videos.end,
         authorId: row.videos.authorId,
+        order: row.playlist_videos.order,
         createdAt: row.videos.createdAt,
         updatedAt: row.videos.updatedAt,
         author: {

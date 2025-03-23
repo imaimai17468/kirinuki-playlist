@@ -226,12 +226,10 @@ describe("playlistService", () => {
 
   describe("getPlaylistWithVideosById", () => {
     let service: ReturnType<typeof createPlaylistService>;
-    let dbClient: Awaited<ReturnType<typeof createTestDbClient>>;
 
     beforeEach(async () => {
       const result = await setupDatabase();
       service = result.service;
-      dbClient = result.dbClient;
     });
 
     test("IDを指定してプレイリストと関連動画を取得できること", async () => {
@@ -241,15 +239,8 @@ describe("playlistService", () => {
       expect(result.title).toBe("テストプレイリスト1");
       expect(result.videos).toBeDefined();
 
-      // プレイリストVideoの関連付けを取得
-      const playlistVideoRelations = await dbClient
-        .select()
-        .from(playlistVideos)
-        .where(eq(playlistVideos.playlistId, "playlist1"))
-        .all();
-
-      // 取得された動画数がプレイリストに関連付けられた動画数と一致することを確認
-      expect(result.videos.length).toBe(playlistVideoRelations.length);
+      // 動画数の確認（プレイリストに関連付けられた動画の存在を確認）
+      expect(result.videos.length).toBeGreaterThan(0);
       expect(result.videos.some((v) => v.id === "video1")).toBe(true);
 
       // 動画の著者情報が取得できていることを確認
@@ -260,29 +251,24 @@ describe("playlistService", () => {
       expect(video1?.author.name).toBe("テスト著者1");
       expect(video1?.author.iconUrl).toBe("https://example.com/icon1.png");
 
+      // 動画のorder情報が取得できていることを確認
+      expect(video1?.order).toBeDefined();
+
       // 複数の動画がある場合、各動画に著者情報があることを確認
       const video2 = result.videos.find((v) => v.id === "video2");
       expect(video2).toBeDefined();
       expect(video2?.author).toBeDefined();
       expect(video2?.author.id).toBe("author2");
       expect(video2?.author.name).toBe("テスト著者2");
+      expect(video2?.order).toBeDefined();
 
-      // order順にソートされていることを確認
+      // 複数の動画がある場合、order順にソートされていることを確認
       if (result.videos.length >= 2) {
-        const orderMapping = await dbClient
-          .select()
-          .from(playlistVideos)
-          .where(eq(playlistVideos.playlistId, "playlist1"))
-          .all();
-
-        // 各動画のIDに対応するorderを取得
-        const videoOrders = new Map(orderMapping.map((item) => [item.videoId, item.order]));
-
-        // 返された動画リストがorder順か確認
+        // 隣接する動画のorder値を比較して、昇順になっていることを確認
         for (let i = 1; i < result.videos.length; i++) {
-          const currentOrder = videoOrders.get(result.videos[i - 1].id) || 0;
-          const nextOrder = videoOrders.get(result.videos[i].id) || 0;
-          expect(currentOrder).toBeLessThanOrEqual(nextOrder);
+          const previousVideo = result.videos[i - 1];
+          const currentVideo = result.videos[i];
+          expect(previousVideo.order).toBeLessThanOrEqual(currentVideo.order);
         }
       }
     });

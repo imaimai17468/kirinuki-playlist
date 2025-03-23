@@ -143,5 +143,41 @@ describe("プレイリストリポジトリのテスト", () => {
         }
       }
     });
+
+    it("プレイリスト内の動画がorder情報を持ち、正しくソートされていること", async () => {
+      // リポジトリ関数を呼び出し
+      const result = await getPlaylistById("playlist1");
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const playlist = result.value;
+
+        // 動画情報があることを確認
+        expect(playlist.videos).toBeDefined();
+        expect(Array.isArray(playlist.videos)).toBe(true);
+
+        if (playlist.videos) {
+          expect(playlist.videos.length).toBeGreaterThan(0);
+
+          // すべての動画がorder情報を持っていることを確認
+          for (const video of playlist.videos) {
+            expect(video.order).toBeDefined();
+            expect(typeof video.order).toBe("number");
+          }
+
+          // 動画がorder順に並んでいることを確認（昇順）
+          if (playlist.videos.length >= 2) {
+            const sortedVideos = [...playlist.videos].sort((a, b) => a.order - b.order);
+
+            // 並び順が同じであることを確認（IDで比較）
+            for (let i = 0; i < playlist.videos.length; i++) {
+              expect(playlist.videos[i].id).toBe(sortedVideos[i].id);
+            }
+          }
+        }
+      }
+    });
   });
 });

@@ -3,6 +3,10 @@ import { authorSchema } from "../authors/types";
 import { baseResponseSchema } from "../types";
 import { videoSchema } from "../videos/types";
 
+export const playlistVideoSchema = videoSchema.extend({
+  order: z.number(),
+});
+
 export const playlistSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -18,7 +22,7 @@ export const playlistSchema = z.object({
   // 関連するauthorフィールドがAPIから返される場合は以下を追加
   author: authorSchema.optional(),
   // 関連するvideoフィールドがAPIから返される場合は以下を追加
-  videos: z.array(videoSchema).optional(),
+  videos: z.array(playlistVideoSchema).optional(),
 });
 
 export const playlistsResponseSchema = baseResponseSchema.extend({
