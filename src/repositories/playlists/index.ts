@@ -1,6 +1,6 @@
 import { getApiClient } from "@/db/config/client";
+import { playlistResponseSchema, playlistsResponseSchema } from "@/repositories/playlists/types";
 import type { ApiError } from "@/repositories/types";
-import { playlistResponseSchema, playlistsResponseSchema } from "@/repositories/types";
 import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
 import { err, ok } from "neverthrow";
 import type { Result } from "neverthrow";

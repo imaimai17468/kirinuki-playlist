@@ -1,7 +1,7 @@
 import { getApiClient } from "@/db/config/client";
 import type { ApiError } from "@/repositories/types";
-import { videoResponseSchema, videosResponseSchema } from "@/repositories/types";
 import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
+import { videoResponseSchema, videosResponseSchema } from "@/repositories/videos/types";
 import { err, ok } from "neverthrow";
 import type { Result } from "neverthrow";
 import type { z } from "zod";

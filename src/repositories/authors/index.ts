@@ -1,6 +1,6 @@
 import { getApiClient } from "@/db/config/client";
+import { authorResponseSchema, authorsResponseSchema } from "@/repositories/authors/types";
 import type { ApiError } from "@/repositories/types";
-import { authorResponseSchema, authorsResponseSchema } from "@/repositories/types";
 import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
 import { err, ok } from "neverthrow";
 import type { Result } from "neverthrow";
