@@ -11,6 +11,16 @@ Kirinuki-PlaylistプロジェクトのAPI設計は、シンプルさ、一貫性
 
 ## API構造
 
+### 命名規則
+
+APIエンドポイントとリソース名には以下の命名規則を適用します：
+
+- **リソース名は複数形を使用**: `/api/videos`, `/api/playlists`, `/api/authors` など
+- **ファイル名もリソース名と一致させる**: `videos.ts`, `playlists.ts`, `authors.ts` など
+- **単一リソースの操作**: 単一リソースの操作には、URLパラメータを使用（例：`/api/videos/:id`）
+
+この命名規則に従うことで、APIの一貫性が保たれ、開発者が直感的に理解できるようになります。
+
 ### エンドポイント
 
 基本的なエンドポイント構造は次のとおりです：
@@ -520,3 +530,28 @@ describe("videoRepository", () => {
 8. **再利用可能なスキーマ**: スキーマを再利用して一貫性を保つ
 9. **シングルトンパターン**: APIクライアントを効率的に管理する
 10. **リポジトリパターン**: API呼び出しを抽象化して再利用性を高める
+
+## getRequestContext の動的インポート
+
+サーバーサイドAPIルートでは、パフォーマンス向上のために `getRequestContext` の動的インポートを採用しています：
+
+```typescript
+// 以前の実装
+import { getRequestContext } from "@cloudflare/next-on-pages";
+const { DB } = getRequestContext().env;
+const dbClient = createDbClient(DB);
+
+// 新しい実装（推奨）
+let dbClient = c.get("dbClient");
+if (!dbClient) {
+  const { getRequestContext } = await import("@cloudflare/next-on-pages");
+  const { DB } = getRequestContext().env;
+  dbClient = createDbClient(DB);
+}
+```
+
+この実装により、必要な場合にのみ `getRequestContext` をインポートするため、初期ロード時のパフォーマンスが向上します。
+
+## セキュリティ
+
+このガイドラインに従うことで、サーバーとクライアント間の通信が予測可能で信頼性の高いものになります。

@@ -64,22 +64,27 @@ const fetchVideos = async () => {
 
 ### ディレクトリ構造
 
+リポジトリのディレクトリ名はAPIルートと一貫性を持たせるため、**複数形**を使用することを推奨します：
+
 ```
 src/
 ├── repositories/
-│   ├── video/
-│   │   ├── videoRepository.ts      # ビデオリポジトリの実装
-│   │   ├── videoRepository.test.ts # テスト
-│   │   └── types.ts                # ビデオ関連の型定義
-│   ├── playlist/
-│   │   ├── playlistRepository.ts
-│   │   ├── playlistRepository.test.ts
+│   ├── videos/           # 複数形を使用（推奨）
+│   │   ├── index.ts      # ビデオリポジトリの実装
+│   │   ├── hooks.ts      # Reactフック
+│   │   ├── types.ts      # ビデオ関連の型定義（必要な場合）
+│   │   └── __tests__/    # テスト
+│   ├── playlists/
+│   │   ├── index.ts
+│   │   ├── hooks.ts
 │   │   └── types.ts
-│   └── author/
-│       ├── authorRepository.ts
-│       ├── authorRepository.test.ts
+│   └── authors/         # 著者用リポジトリも複数形に
+│       ├── index.ts
+│       ├── hooks.ts
 │       └── types.ts
 ```
+
+**注意**: 以前の実装では `author`（単数形）のようなディレクトリ名を使用していましたが、APIルートの命名規則（`/api/authors`）と一致させるため、リポジトリディレクトリも複数形（`authors/`）を使用するようにしてください。
 
 ### 基本実装
 

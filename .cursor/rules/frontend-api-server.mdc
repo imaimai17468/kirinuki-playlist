@@ -22,7 +22,7 @@ src/
 │           ├── route.ts         # エントリーポイント
 │           ├── videos.ts        # ビデオ関連エンドポイント
 │           ├── playlists.ts     # プレイリスト関連エンドポイント
-│           └── author.ts        # 著者関連エンドポイント
+│           └── authors.ts       # 著者関連エンドポイント
 ├── db/
 │   ├── config/                  # データベース構成
 │   │   ├── database.ts          # DB接続管理
@@ -37,9 +37,9 @@ src/
 │       ├── playlists.ts
 │       └── authors.ts
 ├── repositories/                # クライアントサイドリポジトリ
-│   ├── video/
-│   ├── playlist/
-│   └── author/
+│   ├── videos/
+│   ├── playlists/
+│   └── authors/
 ├── middleware/                  # ミドルウェア
 │   ├── auth.ts
 │   └── error-handler.ts
@@ -48,6 +48,16 @@ src/
     ├── playlist.ts
     └── author.ts
 ```
+
+### 命名規則
+
+APIファイルとディレクトリの命名には以下の規則を適用します：
+
+- **APIルートファイル名は複数形**: リソースを表すファイル名には複数形を使用します（例: `videos.ts`, `playlists.ts`, `authors.ts`）
+- **一貫性**: APIルート、モデル、サービス、リポジトリなど、すべての層で同じ命名規則を使用します
+- **モデル名も複数形**: データベースモデルファイル名も同様に複数形を使用します（例: `videos.ts`）
+
+これらの命名規則により、コードベースの一貫性が保たれ、開発者が直感的に理解できるようになります。
 
 ## 責任の分離
 
@@ -156,7 +166,6 @@ import type { AppEnv } from "@/db/config/hono";
 import { videoInsertSchema, videoUpdateSchema } from "@/db/models/videos";
 import { createVideoService } from "@/db/services/videos";
 import type { VideoInsert, VideoUpdate } from "@/db/services/videos";
-import { getRequestContext } from "@cloudflare/next-on-pages";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
@@ -166,6 +175,7 @@ export const videosRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -181,6 +191,7 @@ export const videosRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -196,6 +207,7 @@ export const videosRouter = new Hono<AppEnv>()
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
       const { DB } = getRequestContext().env;
       dbClient = createDbClient(DB);
     }
@@ -209,6 +221,26 @@ export const videosRouter = new Hono<AppEnv>()
   })
   // ...その他のエンドポイント
 ```
+
+### getRequestContext の動的インポート
+
+パフォーマンス向上のため、`getRequestContext` 関数は必要な時のみ動的にインポートします：
+
+```typescript
+// 推奨される実装
+let dbClient = c.get("dbClient");
+if (!dbClient) {
+  const { getRequestContext } = await import("@cloudflare/next-on-pages");
+  const { DB } = getRequestContext().env;
+  dbClient = createDbClient(DB);
+}
+```
+
+この実装方法には以下の利点があります：
+
+1. 初期ロード時のパフォーマンス向上
+2. 依存関係の遅延ロード
+3. 必要な場合のみリソースを使用
 
 ## 依存性注入パターン
 
@@ -402,6 +434,7 @@ API実装では一貫したエラーハンドリングパターンを使用し�
   // DbClientをコンテキストから取得、なければ新規作成
   let dbClient = c.get("dbClient");
   if (!dbClient) {
+    const { getRequestContext } = await import("@cloudflare/next-on-pages");
     const { DB } = getRequestContext().env;
     dbClient = createDbClient(DB);
   }
