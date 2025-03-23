@@ -1,4 +1,4 @@
-import { authorsRouter } from "@/app/api/[...route]/author";
+import { authorsRouter } from "@/app/api/[...route]/authors";
 import { playlistsRouter } from "@/app/api/[...route]/playlists";
 import { videosRouter } from "@/app/api/[...route]/videos";
 import type { createDbClient } from "@/db/config/database";
