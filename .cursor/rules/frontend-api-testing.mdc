@@ -292,3 +292,95 @@ describe("authorService", () => {
    - エッジケースを含めた網羅的なテストシナリオを用意
 
 これらのプラクティスにより、堅牢で信頼性の高いテストが可能になります。
+
+## 関連エンティティを含む拡張テスト
+
+最新のプレイリストサービスでは、プレイリスト、ビデオ、著者の関係性をテストする必要があります。
+
+### 関連エンティティをテストするための基本ステップ
+
+1. すべての関連エンティティ（著者、ビデオ、プレイリスト）のテストデータを作成
+2. エンティティ間の関連付け（playlist_videosなど）を作成
+3. サービスメソッドを呼び出して、関連データが正しく取得できることを検証
+
+### テストコード例
+
+```typescript
+test("プレイリストの取得時に関連動画と著者情報も取得できること", async () => {
+  // テストデータのセットアップは beforeEach で実行済み
+
+  // プレイリストを取得（動画と著者情報を含む）
+  const result = await service.getPlaylistWithVideosById("playlist1");
+
+  // プレイリスト情報の検証
+  expect(result.id).toBe("playlist1");
+  expect(result.title).toBe("テストプレイリスト");
+
+  // 著者情報の検証
+  expect(result.author).toBeDefined();
+  expect(result.author.id).toBe("author1");
+  expect(result.author.name).toBe("テスト著者1");
+
+  // 関連動画の検証
+  expect(result.videos).toBeDefined();
+  expect(result.videos.length).toBe(2);
+
+  // 各動画に著者情報が含まれていることを確認
+  const video1 = result.videos.find(v => v.id === "video1");
+  expect(video1).toBeDefined();
+  expect(video1.author).toBeDefined();
+  expect(video1.author.id).toBe("author1");
+  expect(video1.author.name).toBe("テスト著者1");
+});
+```
+
+## 著者メタデータテストの重要なポイント
+
+著者メタデータとビデオ情報を含むプレイリストのテストでは、以下の点に注意します：
+
+1. **完全なデータセット**: テスト前に著者、ビデオ、プレイリスト、関連付けのすべてのデータを用意
+2. **エンティティ間の一貫性**: authorIdとauthorオブジェクトの整合性を確認
+3. **メタデータの検証**: createdAt、updatedAtなどのメタデータも検証
+4. **ネスト関係の検証**: プレイリスト > ビデオ > 著者という階層関係を検証
+
+## テストで検証すべき項目
+
+1. **正しい型**: 各プロパティが期待される型であることを確認
+2. **データの正確性**: IDや名前などのデータが正しいことを確認
+3. **関連の完全性**: すべての関連エンティティが取得されていることを確認
+4. **エラーケース**: 存在しないIDを指定した場合など、エラーケースも検証
+
+## リポジトリテストでの著者情報検証
+
+APIリポジトリのテストでも、著者情報を含むレスポンスを正しく処理できることを検証します：
+
+```typescript
+test("動画情報と著者情報を取得できること", async () => {
+  const result = await getVideoById("video1");
+
+  expect(result.isOk()).toBe(true);
+
+  if (result.isOk()) {
+    const video = result.value;
+
+    // 基本情報の検証
+    expect(video.id).toBe("video1");
+    expect(video.title).toBe("テスト動画");
+
+    // 著者情報の検証
+    expect(video.author).toBeDefined();
+    expect(video.author.id).toBe("author1");
+    expect(video.author.name).toBe("テスト著者");
+    expect(video.author.iconUrl).toBeDefined();
+  }
+});
+```
+
+## テストのベストプラクティス
+
+1. **各テストの独立性を確保**: 各テストは他のテストに依存せず、独立して実行できるようにする
+2. **現実的なデータを使用**: 実際の使用シナリオに近いテストデータを使用する
+3. **エラーケースをカバー**: 境界条件やエラーケースも適切にテストする
+4. **テストの可読性**: テスト目的が明確に理解できるようにする
+
+この規約に従うことで、サービス層の品質と信頼性を確保し、安全なリファクタリングや機能追加が可能になります。

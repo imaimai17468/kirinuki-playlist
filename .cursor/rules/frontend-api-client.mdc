@@ -218,63 +218,192 @@ export const videoRepository = {
 };
 ```
 
-### 型定義
+## 関連エンティティと著者メタデータの拡張
+
+### 関連データを含むレスポンス
+
+プレイリスト、ビデオなどのリソースには関連エンティティのメタデータを含めることができます。これにより、フロントエンドでの追加のAPI呼び出しが減少し、パフォーマンスが向上します。
 
 ```typescript
-// src/repositories/video/types.ts
+// src/repositories/types.ts
 import { z } from 'zod';
 
-// ビデオスキーマ（APIレスポンスのバリデーション用）
-export const VideoSchema = z.object({
+// 著者スキーマ
+export const authorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  iconUrl: z.string().url(),
+  bio: z.string().nullable().optional(),
+  createdAt: z.number().or(z.string()).transform(val =>
+    typeof val === 'string' ? new Date(val) : new Date(val)
+  ),
+  updatedAt: z.number().or(z.string()).transform(val =>
+    typeof val === 'string' ? new Date(val) : new Date(val)
+  ),
+});
+
+// ビデオスキーマ（著者データを含む拡張バージョン）
+export const videoWithAuthorSchema = z.object({
   id: z.string(),
   title: z.string(),
-  description: z.string().optional(),
   url: z.string().url(),
+  start: z.number().nullable().optional(),
+  end: z.number().nullable().optional(),
   authorId: z.string(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime()
+  createdAt: z.number().or(z.string()).transform(val =>
+    typeof val === 'string' ? new Date(val) : new Date(val)
+  ),
+  updatedAt: z.number().or(z.string()).transform(val =>
+    typeof val === 'string' ? new Date(val) : new Date(val)
+  ),
+  // 著者情報を含める
+  author: authorSchema,
 });
 
-// ビデオ作成スキーマ（APIリクエストのバリデーション用）
-export const VideoCreateSchema = z.object({
-  title: z.string().min(1).max(100),
-  description: z.string().max(1000).optional(),
-  url: z.string().url(),
-  authorId: z.string()
+// プレイリストスキーマ（ビデオと著者データを含む）
+export const playlistWithVideosSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  authorId: z.string(),
+  createdAt: z.number().or(z.string()).transform(val =>
+    typeof val === 'string' ? new Date(val) : new Date(val)
+  ),
+  updatedAt: z.number().or(z.string()).transform(val =>
+    typeof val === 'string' ? new Date(val) : new Date(val)
+  ),
+  // 著者情報
+  author: authorSchema,
+  // 関連するビデオ（各ビデオには著者情報も含む）
+  videos: z.array(videoWithAuthorSchema),
 });
-
-// 型の抽出
-export type Video = z.infer<typeof VideoSchema>;
-export type VideoCreate = z.infer<typeof VideoCreateSchema>;
 ```
 
-## エラーハンドリング
-
-リポジトリパターンでは、`neverthrow`パッケージを使用して型安全なエラーハンドリングを実装しています。
+### 使用例: プレイリストに関連するビデオと著者データの取得
 
 ```typescript
-import { Result, ok, err } from 'neverthrow';
+// src/repositories/playlists/index.ts
+import { getApiClient } from "@/db/config/client";
+import { playlistResponseSchema } from "@/repositories/types";
+import { createNetworkError, handleHttpError } from "@/repositories/utils";
+import { err, ok } from "neverthrow";
 
-// 使用例
-const result = await videoRepository.getById('123');
+// プレイリストを取得（関連するビデオと著者情報を含む）
+export async function getPlaylistById(id: string) {
+  try {
+    const client = getApiClient();
+    const response = await client.api.playlists[":id"].$get({
+      param: { id },
+    });
 
-if (result.isOk()) {
-  const video = result.value;
-  // ビデオのデータを使用
-} else {
-  const error = result.error;
-  // エラーハンドリング
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = playlistResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    // 型安全に関連データにアクセス可能
+    const playlist = result.data.playlist;
+
+    // videosプロパティには各ビデオの著者情報も含まれている
+    const videos = playlist.videos || [];
+
+    return ok(result.data.playlist);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+```
+
+## 高度なエラーハンドリング
+
+リポジトリパターンでは、`neverthrow`パッケージを使用して型安全なエラーハンドリングを実装しています。エラータイプを詳細に定義することで、より適切なエラー処理が可能になります。
+
+### エラー型の定義
+
+```typescript
+// src/repositories/types.ts
+import { z } from 'zod';
+
+// APIエラーの型定義
+export type ApiError =
+  | { type: "network"; message: string }
+  | { type: "notFound"; message: string }
+  | { type: "badRequest"; message: string }
+  | { type: "serverError"; message: string }
+  | { type: "schema"; message: string };
+
+// ユーティリティ関数
+export function createNetworkError(error: unknown): ApiError {
+  return {
+    type: "network",
+    message: error instanceof Error ? error.message : "ネットワークエラーが発生しました",
+  };
 }
 
-// または
-result.match(
-  (video) => {
-    // 成功時の処理
-  },
-  (error) => {
-    // エラー時の処理
+export function createSchemaError(message: string): ApiError {
+  return {
+    type: "schema",
+    message: `レスポンスの形式が正しくありません: ${message}`,
+  };
+}
+
+// HTTPエラーを処理する関数
+export async function handleHttpError(response: Response) {
+  try {
+    const data = await response.json();
+
+    // ステータスコードに基づいてエラータイプを決定
+    switch (response.status) {
+      case 404:
+        return err<never, ApiError>({
+          type: "notFound",
+          message: data.message || "リソースが見つかりませんでした",
+        });
+      case 400:
+        return err<never, ApiError>({
+          type: "badRequest",
+          message: data.message || "無効なリクエストです",
+        });
+      default:
+        return err<never, ApiError>({
+          type: "serverError",
+          message: data.message || "サーバーエラーが発生しました",
+        });
+    }
+  } catch (error) {
+    return err<never, ApiError>({
+      type: "serverError",
+      message: "レスポンスの処理中にエラーが発生しました",
+    });
   }
-);
+}
+```
+
+### エラー処理の使用例
+
+```typescript
+// コンポーネントでのエラー処理
+const { data, error } = usePlaylist(playlistId);
+
+if (error) {
+  switch (error.type) {
+    case "notFound":
+      return <NotFoundPage message="プレイリストが見つかりませんでした" />;
+    case "network":
+      return <ErrorMessage message="ネットワークエラー: インターネット接続を確認してください" />;
+    case "schema":
+      // 開発者向けのログ
+      console.error("スキーマエラー:", error.message);
+      return <ErrorMessage message="データの形式が正しくありません" />;
+    default:
+      return <ErrorMessage message="エラーが発生しました" />;
+  }
+}
 ```
 
 ## データ検証
@@ -365,6 +494,14 @@ Honoクライアントとリポジトリパターンの実装から得られた�
    - すべてのAPIエンドポイントで一貫したレスポンス形式を維持することが重要です。
    - 型チェックが容易になり、リポジトリ実装が簡潔になります。
 
+5. **関連エンティティのメタデータ**
+   - 関連エンティティのメタデータを含めることで、クライアント側での追加のAPI呼び出しを減らせます。
+   - 例: プレイリストの取得時に関連するビデオと著者情報も一緒に取得する。
+
+6. **詳細なエラータイプ**
+   - より詳細なエラータイプを定義することで、ユーザーに適切なフィードバックを提供できます。
+   - ネットワークエラー、未検出エラー、バリデーションエラーなど、異なるエラータイプに対して異なる処理を実装します。
+
 ## ベストプラクティス
 
 1. **Repository層でのエラーハンドリング**
@@ -382,3 +519,7 @@ Honoクライアントとリポジトリパターンの実装から得られた�
 4. **再利用可能なエラー処理**
    - 共通のエラー処理ロジックを実装します。
    - エラーメッセージの変換や分類など、再利用可能な関数を作成します。
+
+5. **詳細なエラータイプ**
+   - より詳細なエラータイプを定義することで、ユーザーに適切なフィードバックを提供できます。
+   - ネットワークエラー、未検出エラー、バリデーションエラーなど、異なるエラータイプに対して異なる処理を実装します。
