@@ -32,31 +32,31 @@ Kirinuki-Playlistプロジェクトでは、サービス層（ビジネスロジ
 
 ### ディレクトリ構造
 
-テストファイルは対象となるコンポーネントと同じディレクトリに配置し、対象ファイル名に `.test.ts` サフィックスを付けます。または、`__tests__` ディレクトリに配置します。
+テストファイルは各機能ディレクトリ内に配置し、テスト対象のファイル名に関連する名前を付けます。
 
 ```
 src/
 ├── db/
 │   ├── services/
-│   │   ├── authors/
-│   │   │   ├── authors.test.ts
-│   │   │   └── authors.ts
 │   │   ├── videos/
-│   │   │   ├── videos.test.ts
+│   │   │   ├── __tests__/
+│   │   │   │   └── videos.test.ts
 │   │   │   └── videos.ts
-│   │   └── ...
-│   ├── ...
-├── repositories/
-│   ├── test/               # テスト共通機能
-│   │   ├── setup.ts        # テスト共通セットアップ
-│   │   └── utils.ts        # テスト用ユーティリティ
-│   ├── authors/
-│   │   ├── authors.test.ts
+│   │   ├── playlists/
+│   │   │   └── ...
+│   │   └── authors/
+│   │       └── ...
+│   ├── repositories/
+│   │   ├── test/
+│   │   │   └── setup.ts          # テスト共通セットアップ
+│   │   ├── videos/
+│   │   │   ├── __tests__/
+│   │   │   │   └── videos.test.ts
 │   │   ├── index.ts
 │   │   ├── hooks.ts
 │   │   └── types.ts
-│   ├── videos/
-│   │   ├── videos.test.ts
+│   ├── playlists/
+│   │   ├── playlists.test.ts  # ルートに直接テストファイルを配置することも可
 │   │   ├── index.ts
 │   │   ├── hooks.ts
 │   │   └── types.ts
@@ -72,9 +72,9 @@ src/
 データベースのモックには、以下のアプローチを使用します：
 
 ```typescript
-// src/db/services/videos/videos.test.ts
-import { createVideoService } from "./videos";
-import { mockDb } from "../../test/mock-db";
+// src/db/services/videos/__tests__/videos.test.ts
+import { createVideoService } from "../videos";
+import { mockDb } from "../../../../test/mock-db";
 
 // テスト前の共通セットアップ
 let videoService: ReturnType<typeof createVideoService>;
@@ -107,8 +107,12 @@ describe("VideoService", () => {
       ];
 
       // データベースのモック応答を設定
-      mockDatabase.prepare.mockReturnValueOnce({
-        all: jest.fn().mockResolvedValueOnce(mockVideos)
+      mockDatabase.select = jest.fn().mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          innerJoin: jest.fn().mockReturnValue({
+            all: jest.fn().mockResolvedValue(mockVideos)
+          })
+        })
       });
 
       // テスト対象関数の実行
@@ -120,13 +124,17 @@ describe("VideoService", () => {
       expect(result[1].title).toBe("テスト動画2");
 
       // データベースの呼び出しを検証
-      expect(mockDatabase.prepare).toHaveBeenCalledWith(expect.stringContaining("SELECT * FROM videos"));
+      expect(mockDatabase.select).toHaveBeenCalled();
     });
 
     it("エラー発生時に適切に処理されること", async () => {
       // エラーをスローするようにモックを設定
-      mockDatabase.prepare.mockReturnValueOnce({
-        all: jest.fn().mockRejectedValueOnce(new Error("DB error"))
+      mockDatabase.select = jest.fn().mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          innerJoin: jest.fn().mockReturnValue({
+            all: jest.fn().mockRejectedValue(new Error("DB error"))
+          })
+        })
       });
 
       // テスト対象関数の実行とエラーのキャッチ
@@ -134,64 +142,30 @@ describe("VideoService", () => {
     });
   });
 
-  // その他メソッドのテスト...
+  // 他のメソッドのテスト...
 });
 ```
 
 ## リポジトリ層テスト
 
-リポジトリ層は、Honoクライアントを使用してサーバーとの通信を行います。リポジトリ層のテストでは、APIサーバーとの実際の通信を避け、テストの安定性と高速な実行のために統一的な方法でテストを行います。
+### テスト準備
 
-### テスト環境の整備
-
-テスト時は実際のネットワーク通信を行わず、レスポンスを予測可能にするため、テスト用の環境を整備します：
+リポジトリ層のテストでは、`setupTestEnv` 関数を使用してテスト環境をセットアップします：
 
 ```typescript
 // src/repositories/test/setup.ts
-import { DbClient } from "@/db/config/hono";
-import { createDbClient } from "@/db/config/sqlite";
-import { authors } from "@/db/models/authors";
-import { videos } from "@/db/models/videos";
-import { playlists } from "@/db/models/playlists";
-import { playlistVideos } from "@/db/models/playlistVideos";
+import type { DbClient } from "@/db/config/hono";
 
-// テスト環境のセットアップ
 export async function setupTestEnv() {
-  // インメモリデータベースの作成
-  const dbClient = createDbClient(":memory:");
+  // テスト環境のセットアップ
+  const dbClient = await createTestDbClient();
 
-  // テーブルの作成
-  await dbClient.run(`
-    CREATE TABLE IF NOT EXISTS authors (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      iconUrl TEXT NOT NULL,
-      bio TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    )
-  `);
-
-  await dbClient.run(`
-    CREATE TABLE IF NOT EXISTS videos (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      url TEXT NOT NULL,
-      authorId TEXT NOT NULL,
-      start INTEGER,
-      end INTEGER,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL,
-      FOREIGN KEY (authorId) REFERENCES authors (id)
-    )
-  `);
-
-  // その他のテーブル作成...
-
-  return { dbClient };
+  return {
+    dbClient,
+  };
 }
 
-// テストデータの挿入（著者）
+// テストデータの挿入関数
 export async function insertTestAuthors(dbClient: DbClient) {
   // テスト用著者データの挿入
   await dbClient.insert(authors).values([
@@ -199,7 +173,6 @@ export async function insertTestAuthors(dbClient: DbClient) {
       id: "author1",
       name: "テスト著者1",
       iconUrl: "https://example.com/icon1.jpg",
-      bio: "テスト著者1の説明",
       createdAt: new Date(),
       updatedAt: new Date()
     },
@@ -207,47 +180,40 @@ export async function insertTestAuthors(dbClient: DbClient) {
       id: "author2",
       name: "テスト著者2",
       iconUrl: "https://example.com/icon2.jpg",
-      bio: "テスト著者2の説明",
       createdAt: new Date(),
       updatedAt: new Date()
     }
-  ]);
+  ]).run();
+}
+
+// 他のテストデータ挿入関数
+export async function insertTestVideos(dbClient: DbClient) {
+  // ...
+}
+
+export async function insertTestPlaylists(dbClient: DbClient) {
+  // ...
 }
 
 // テストデータのクリーンアップ
 export async function cleanupTestData(dbClient: DbClient) {
-  // データのクリーンアップ
-  await dbClient.delete(playlistVideos);
-  await dbClient.delete(videos);
-  await dbClient.delete(playlists);
-  await dbClient.delete(authors);
+  await dbClient.delete(playlistVideos).run();
+  await dbClient.delete(playlists).run();
+  await dbClient.delete(videos).run();
+  await dbClient.delete(authors).run();
 }
 ```
 
-### リポジトリ層のテスト手法
+### テストケース例（Bunテスト）
 
-リポジトリ層のテストでは、次の2つのアプローチを選択できます：
-
-#### 1. テスト実装を簡略化するための方法
-
-リポジトリの基本的な機能をテストするシンプルなアプローチです。テストの目的が「リポジトリ関数が期待通りの結果を返すか」の確認のみであれば、APIクライアントのモックは不要です。この場合、実装したリポジトリ関数を直接呼び出してテストします。
+Bunテストを使用した例:
 
 ```typescript
 // src/repositories/authors/authors.test.ts
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { DbClient } from "@/db/config/hono";
-import {
-  cleanupTestData,
-  insertTestAuthors,
-  setupTestEnv,
-} from "@/repositories/test/setup";
-import {
-  getAllAuthors,
-  getAuthorById,
-  createAuthor,
-  updateAuthor,
-  deleteAuthor,
-} from "../authors";
+import { cleanupTestData, insertTestAuthors, setupTestEnv } from "@/repositories/test/setup";
+import { createAuthor, deleteAuthor, getAllAuthors, getAuthorById, updateAuthor } from "../authors";
 import type { AuthorInsert, AuthorUpdate } from "./types";
 
 // テスト用の状態を保持する変数
@@ -292,126 +258,71 @@ describe("著者リポジトリのテスト", () => {
     });
   });
 
-  // 他のメソッドのテスト...
-});
-```
-
-このアプローチのメリット：
-- テストコードがシンプルで読みやすい
-- 特別なモック設定が不要で、メンテナンスコストが低い
-- セットアップが容易
-
-デメリット：
-- API通信の詳細な挙動をテストできない
-- 特定のエラーケースをシミュレートしにくい
-
-#### 2. API通信の詳細な挙動をテストする方法
-
-より詳細なテストを行う場合や、特定のエラーケースをシミュレートする必要がある場合は、APIクライアントをモックします：
-
-```typescript
-// src/repositories/test/mock-api-client.ts
-import { setApiClient } from "@/db/config/client";
-import type { ApiClient } from "@/db/config/client";
-
-// モックAPIクライアントのセットアップ
-export function setupMockApiClient() {
-  const mockClient = {
-    api: {
-      authors: {
-        $get: jest.fn(),
-        $post: jest.fn(),
-        [":id"]: {
-          $get: jest.fn(),
-          $patch: jest.fn(),
-          $delete: jest.fn()
-        }
-      },
-      // 他のエンドポイント定義...
-    }
-  };
-
-  setApiClient(mockClient as unknown as ApiClient);
-  return mockClient;
-}
-```
-
-テストファイルでの使用例：
-
-```typescript
-// src/repositories/authors/authors.test.ts
-import { afterEach, beforeEach, describe, expect, it, jest } from "bun:test";
-import { setApiClient } from "@/db/config/client";
-import type { ApiClient } from "@/db/config/client";
-import { setupMockApiClient } from "@/repositories/test/mock-api-client";
-import {
-  getAllAuthors,
-  getAuthorById,
-  createAuthor,
-  updateAuthor,
-  deleteAuthor,
-} from "../authors";
-import type { AuthorInsert, AuthorUpdate } from "./types";
-
-describe("著者リポジトリのテスト", () => {
-  let mockClient: ReturnType<typeof setupMockApiClient>;
-
-  beforeEach(() => {
-    // APIクライアントのモックをセットアップ
-    mockClient = setupMockApiClient();
-  });
-
-  afterEach(() => {
-    // モックをリセット
-    jest.resetAllMocks();
-  });
-
-  describe("getAllAuthors", () => {
-    it("著者一覧を正しく取得できること", async () => {
-      // モックの応答を設定
-      mockClient.api.authors.$get.mockResolvedValueOnce({
-        ok: true,
-        json: jest.fn().mockResolvedValueOnce({
-          success: true,
-          authors: [
-            { id: "author1", name: "テスト著者1", iconUrl: "https://example.com/icon1.jpg" },
-            { id: "author2", name: "テスト著者2", iconUrl: "https://example.com/icon2.jpg" }
-          ]
-        })
-      });
-
+  describe("getAuthorById", () => {
+    it("存在する著者IDで正しく取得できること", async () => {
       // リポジトリ関数を呼び出し
-      const result = await getAllAuthors();
+      const result = await getAuthorById("author1");
 
-      // 結果を検証
+      // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        expect(result.value.length).toBe(2);
-        expect(result.value[0].name).toBe("テスト著者1");
-      }
 
-      // APIクライアントが正しく呼ばれたことを確認
-      expect(mockClient.api.authors.$get).toHaveBeenCalledTimes(1);
+      if (result.isOk()) {
+        const author = result.value;
+
+        // 取得した著者の情報が正しいことを確認
+        expect(author.id).toBe("author1");
+        expect(author.name).toBe("テスト著者1");
+        expect(author.iconUrl).toBe("https://example.com/icon1.jpg");
+      }
     });
 
-    it("APIエラー時にエラー結果を返すこと", async () => {
-      // エラーレスポンスをモック
-      mockClient.api.authors.$get.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: jest.fn().mockResolvedValueOnce({
-          success: false,
-          message: "サーバーエラー"
-        })
-      });
+    it("存在しない著者IDではエラーになること", async () => {
+      // 存在しないIDでリポジトリ関数を呼び出し
+      const result = await getAuthorById("non-existent-id");
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+
+        // 適切なエラータイプであることを確認
+        expect(error.type).toBe("serverError");
+      }
+    });
+  });
+
+  describe("createAuthor", () => {
+    it("著者を正しく作成できること", async () => {
+      // テスト用の著者データ
+      const authorData: AuthorInsert = {
+        name: "新しい著者",
+        iconUrl: "https://example.com/new-icon.jpg",
+        bio: "新しい著者の説明",
+      };
 
       // リポジトリ関数を呼び出し
-      const result = await getAllAuthors();
+      const result = await createAuthor(authorData);
 
-      // エラー結果を検証
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+    });
+
+    it("バリデーションエラーが発生した場合はエラーになること", async () => {
+      // 不正なデータでリポジトリ関数を呼び出し
+      const result = await createAuthor({
+        name: "",
+        iconUrl: "不正なURL",
+      } as AuthorInsert);
+
+      // 結果がエラーであることを確認
       expect(result.isErr()).toBe(true);
+
       if (result.isErr()) {
-        expect(result.error.type).toBe("serverError");
+        const error = result.error;
+
+        // 適切なエラータイプであることを確認
+        expect(error.type).toBe("badRequest");
       }
     });
   });
@@ -420,164 +331,140 @@ describe("著者リポジトリのテスト", () => {
 });
 ```
 
-このアプローチのメリット：
-- API通信の詳細な挙動をテストできる
-- 様々なエラーケースを簡単にシミュレートできる
-- ネットワークエラー、スキーマ検証エラーなどの特殊なケースもテスト可能
+### 関連エンティティテスト例
 
-デメリット：
-- テストコードが複雑になる
-- モックの設定に手間がかかる
-- メンテナンスコストが高い
-
-### テスト方法の選択指針
-
-リポジトリテストのアプローチを選択する際の指針：
-
-1. **基本的な機能テスト**:
-   - 一般的なCRUD操作のテスト
-   - 単純なデータの取得・保存・削除のテスト
-   - ➡️ **シンプルなアプローチ（モックなし）を推奨**
-
-2. **エラーケースのテスト**:
-   - 特定のAPIエラーのシミュレーション
-   - ネットワークエラーやスキーマ検証エラーのテスト
-   - 特殊なエッジケースの検証
-   - ➡️ **詳細なアプローチ（APIクライアントのモック）を推奨**
-
-3. **アプローチの混合**:
-   - 同じリポジトリに対して両方のアプローチを使い分けることも可能
-   - 基本機能は簡略アプローチで、特殊ケースは詳細アプローチでテストする
-
-### テストデータの準備
-
-テストデータは、テスト環境に応じて準備します：
-
-```typescript
-// モックAPIを使う場合のテストデータ例
-const testAuthor = {
-  id: "author1",
-  name: "テスト著者",
-  iconUrl: "https://example.com/icon.jpg",
-  bio: "テスト著者の説明",
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
-};
-
-const testAuthorInsertData: AuthorInsert = {
-  name: "新しい著者",
-  iconUrl: "https://example.com/new-icon.jpg",
-  bio: "新しい著者の説明"
-};
-
-const testAuthorUpdateData: AuthorUpdate = {
-  name: "更新された著者名",
-  bio: "更新された説明"
-};
-```
-
-## 関連エンティティのテスト
-
-複数のエンティティが関連する処理のテスト例：
+プレイリストと動画の関連データをテストする例:
 
 ```typescript
 // src/repositories/playlists/playlists.test.ts
-describe("PlaylistRepository", () => {
-  // モックAPIを使う場合のテスト例
-  describe("getPlaylistWithVideosById", () => {
-    beforeEach(() => {
-      mockClient = setupMockApiClient();
-    });
+describe("プレイリストリポジトリのテスト", () => {
+  // 各テストの前に実行するセットアップ
+  beforeEach(async () => {
+    // テスト環境をセットアップ
+    const env = await setupTestEnv();
+    dbClient = env.dbClient;
 
-    it("プレイリストとそれに含まれる動画を取得できること", async () => {
-      // テスト用のプレイリスト・動画データ
-      const testPlaylist = {
-        id: "playlist1",
-        title: "テストプレイリスト",
-        authorId: "author1",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        videos: [
-          {
-            id: "video1",
-            title: "テスト動画1",
-            url: "https://example.com/video1.mp4",
-            authorId: "author1",
-            author: {
-              id: "author1",
-              name: "テスト著者",
-              iconUrl: "https://example.com/icon.jpg"
-            }
-          },
-          {
-            id: "video2",
-            title: "テスト動画2",
-            url: "https://example.com/video2.mp4",
-            authorId: "author1",
-            author: {
-              id: "author1",
-              name: "テスト著者",
-              iconUrl: "https://example.com/icon.jpg"
-            }
-          }
-        ]
-      };
+    // テストデータを挿入
+    await insertTestAuthors(dbClient);
+    await insertTestVideos(dbClient);
+    await insertTestPlaylists(dbClient);
+    await insertTestPlaylistVideos(dbClient);
+  });
 
-      // モックの応答を設定
-      mockClient.api.playlists[":id"].withVideos.$get.mockImplementationOnce(({ param }) => ({
-        ok: true,
-        json: jest.fn().mockResolvedValueOnce({
-          success: true,
-          playlist: testPlaylist
-        })
-      }));
+  // 各テストの後に実行するクリーンアップ
+  afterEach(async () => {
+    await cleanupTestData(dbClient);
+  });
 
+  describe("getPlaylistById", () => {
+    it("プレイリストに関連する動画と動画の作者情報が正しく取得できること", async () => {
       // リポジトリ関数を呼び出し
-      const result = await getPlaylistWithVideosById("playlist1");
+      const result = await getPlaylistById("playlist1");
 
-      // 結果を検証
+      // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
+
       if (result.isOk()) {
         const playlist = result.value;
+
+        // プレイリスト情報を確認
         expect(playlist.id).toBe("playlist1");
-        expect(playlist.videos.length).toBe(2);
-        expect(playlist.videos[0].author.name).toBe("テスト著者");
+        expect(playlist.title).toBe("テストプレイリスト1");
+
+        // 動画情報があることを確認
+        expect(playlist.videos).toBeDefined();
+        expect(Array.isArray(playlist.videos)).toBe(true);
+        expect(playlist.videos?.length).toBeGreaterThan(0);
+
+        if (playlist.videos) {
+          // 関連する動画の情報を確認
+          const video1 = playlist.videos.find((v) => v.id === "video1");
+          expect(video1).toBeDefined();
+
+          if (video1) {
+            expect(video1.title).toBe("テストビデオ1");
+            expect(video1.url).toBe("https://example.com/video1");
+
+            // 動画の作者情報を確認
+            expect(video1.author).toBeDefined();
+            if (video1.author) {
+              expect(video1.author.id).toBe("author1");
+              expect(video1.author.name).toBe("テスト著者1");
+              expect(video1.author.iconUrl).toBe("https://example.com/icon1.jpg");
+            }
+          }
+        }
       }
     });
-
-    // エラーケースのテスト...
   });
+
+  describe("addVideoToPlaylist", () => {
+    it("プレイリストに動画を正しく追加できること", async () => {
+      // テスト用の動画追加データ
+      const videoData: PlaylistVideoInsert = {
+        videoId: "video2", // playlist1にはvideo1が既に存在するので別の動画を追加
+        order: 2,
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await addVideoToPlaylist("playlist1", videoData);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      // 追加後のプレイリストを取得して動画が追加されていることを確認
+      const getResult = await getPlaylistById("playlist1");
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.videos).toBeDefined();
+
+        if (playlist.videos) {
+          // 追加した動画が存在することを確認
+          const addedVideo = playlist.videos.find((v) => v.id === videoData.videoId);
+          expect(addedVideo).toBeDefined();
+
+          if (addedVideo) {
+            expect(addedVideo.order).toBe(videoData.order);
+          }
+        }
+      }
+    });
+  });
+
+  // 他のテストケース...
 });
 ```
 
 ## React Queryフックのテスト
 
-リポジトリ層のReact Queryフックもテスト対象です：
+リポジトリを使用するReact Queryフックのテストでは、`@testing-library/react-hooks`と`jest.mock`を使用します：
 
 ```typescript
 // src/repositories/authors/hooks.test.ts
-import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useAuthors, useAuthor, useCreateAuthor } from "./hooks";
-import * as authorsRepository from "../authors";
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useAuthors, useAuthor, useCreateAuthor } from './hooks';
+import * as authorsRepository from './index';
 
-// リポジトリをモック
-jest.mock("../authors");
+// リポジトリ関数をモック
+jest.mock('./index');
 
-describe("著者フックテスト", () => {
-  // テスト用のクエリクライアント
+describe('Authors Hooks', () => {
+  // React QueryのQueryClientをセットアップ
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        retry: false
-      }
-    }
+        retry: false,
+        cacheTime: 0,
+      },
+    },
   });
 
-  // モックリポジトリ
-  const mockRepository = authorsRepository as jest.Mocked<typeof authorsRepository>;
+  // モック関数を適切な型にキャスト
+  const mockedAuthorsRepository = authorsRepository as jest.Mocked<typeof authorsRepository>;
 
-  // テスト用のラッパー
   const wrapper = ({ children }) => (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -585,169 +472,636 @@ describe("著者フックテスト", () => {
   );
 
   beforeEach(() => {
+    // テスト前にモックをリセット
     jest.resetAllMocks();
     queryClient.clear();
   });
 
-  describe("useAuthors", () => {
-    it("著者一覧を正しく取得できること", async () => {
-      // リポジトリ関数のモック
-      mockRepository.getAllAuthors.mockResolvedValueOnce({
+  describe('useAuthors', () => {
+    it('著者リストを正しく取得できること', async () => {
+      // テスト用データ
+      const mockAuthors = [
+        { id: 'author1', name: 'テスト著者1', iconUrl: 'https://example.com/1', createdAt: new Date(), updatedAt: new Date() },
+        { id: 'author2', name: 'テスト著者2', iconUrl: 'https://example.com/2', createdAt: new Date(), updatedAt: new Date() },
+      ];
+
+      // モックの戻り値を設定
+      mockedAuthorsRepository.getAllAuthors.mockResolvedValueOnce({
         isOk: () => true,
         isErr: () => false,
-        value: [
-          { id: "1", name: "著者1" },
-          { id: "2", name: "著者2" }
-        ]
+        value: mockAuthors
       } as any);
 
-      // フックを呼び出し
+      // フックをレンダリング
       const { result } = renderHook(() => useAuthors(), { wrapper });
 
-      // 初期状態はロード中
+      // 初期状態ではロード中
       expect(result.current.isLoading).toBe(true);
 
-      // データのロード完了を待つ
+      // データが取得されるまで待機
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      // 結果を検証
-      expect(result.current.data).toHaveLength(2);
-      expect(result.current.data[0].name).toBe("著者1");
-      expect(result.current.data[1].name).toBe("著者2");
+      // データが正しく取得されていることを確認
+      expect(result.current.data).toEqual(mockAuthors);
+      expect(result.current.error).toBeNull();
     });
 
-    it("エラー時に例外をスローすること", async () => {
-      // エラーをスローするようにモック
-      mockRepository.getAllAuthors.mockResolvedValueOnce({
+    it('エラー発生時にエラー状態になること', async () => {
+      // エラーモックの設定
+      const mockError = new Error('テストエラー');
+      mockedAuthorsRepository.getAllAuthors.mockResolvedValueOnce({
         isOk: () => false,
         isErr: () => true,
-        error: { type: "network", message: "ネットワークエラー" }
+        error: { message: 'テストエラー', type: 'network' }
       } as any);
 
-      // コンソールエラーをサプレス（テスト中の意図的なエラー）
-      const originalConsoleError = console.error;
-      console.error = jest.fn();
-
-      // フックを呼び出し
+      // フックをレンダリング
       const { result } = renderHook(() => useAuthors(), { wrapper });
 
-      // エラー状態になるのを待つ
-      await waitFor(() => expect(result.current.isError).toBe(true));
+      // データ取得完了まで待機
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      // エラーメッセージを検証
-      expect(result.current.error).toBeDefined();
-      expect(result.current.error.message).toContain("ネットワークエラー");
-
-      // コンソールを元に戻す
-      console.error = originalConsoleError;
+      // エラー状態になっていることを確認
+      expect(result.current.error).not.toBeNull();
+      expect(result.current.error?.message).toBe('テストエラー');
     });
   });
 
-  // その他のフックのテスト...
+  // 他のフックのテスト...
+});
+```
+
+## プレイリスト・動画管理機能のテスト例
+
+プレイリスト管理機能には、プレイリストの作成・更新・削除に加え、動画の追加・削除・並び替えなどの機能があります。これらの機能をテストする例を以下に示します：
+
+```typescript
+// src/repositories/playlists/playlists.test.ts
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import type { DbClient } from "@/db/config/hono";
+import { cleanupTestData, insertTestAuthors, insertTestVideos, insertTestPlaylists, setupTestEnv } from "@/repositories/test/setup";
+import {
+  createPlaylist,
+  updatePlaylist,
+  deletePlaylist,
+  getPlaylistById,
+  getAllPlaylists,
+  addVideoToPlaylist,
+  removeVideoFromPlaylist,
+  updatePlaylistVideoOrder
+} from "./index";
+import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "./types";
+
+// テスト用の状態を保持する変数
+let dbClient: DbClient;
+
+describe("プレイリストリポジトリのテスト", () => {
+  // 各テストの前に実行するセットアップ
+  beforeEach(async () => {
+    // テスト環境をセットアップ
+    const env = await setupTestEnv();
+    dbClient = env.dbClient;
+
+    // テストデータを挿入
+    await insertTestAuthors(dbClient);
+    await insertTestVideos(dbClient);
+    await insertTestPlaylists(dbClient);
+  });
+
+  // 各テストの後に実行するクリーンアップ
+  afterEach(async () => {
+    await cleanupTestData(dbClient);
+  });
+
+  describe("createPlaylist", () => {
+    it("新しいプレイリストを作成できること", async () => {
+      // テスト用のプレイリストデータ
+      const playlistData: PlaylistInsert = {
+        title: "新しいプレイリスト",
+        description: "テスト用の新しいプレイリストです",
+        authorId: "author1"
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await createPlaylist(playlistData);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const playlistId = result.value;
+
+        // 作成されたプレイリストを取得して検証
+        const getResult = await getPlaylistById(playlistId);
+
+        expect(getResult.isOk()).toBe(true);
+
+        if (getResult.isOk()) {
+          const playlist = getResult.value;
+          expect(playlist.title).toBe(playlistData.title);
+          expect(playlist.description).toBe(playlistData.description);
+          expect(playlist.authorId).toBe(playlistData.authorId);
+        }
+      }
+    });
+
+    it("不正なデータでエラーになること", async () => {
+      // 不正なデータ（タイトルなし）
+      const invalidData: PlaylistInsert = {
+        title: "", // 空のタイトル
+        authorId: "author1"
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await createPlaylist(invalidData);
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        expect(result.error.type).toBe("badRequest");
+      }
+    });
+  });
+
+  describe("updatePlaylist", () => {
+    it("プレイリストを更新できること", async () => {
+      const playlistId = "playlist1";
+
+      // 更新データ
+      const updateData: PlaylistUpdate = {
+        title: "更新されたプレイリスト",
+        description: "更新された説明文"
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await updatePlaylist(playlistId, updateData);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      // 更新されたプレイリストを取得して検証
+      const getResult = await getPlaylistById(playlistId);
+
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.title).toBe(updateData.title);
+        expect(playlist.description).toBe(updateData.description);
+      }
+    });
+
+    it("一部のフィールドのみ更新した場合、他のフィールドは変わらないこと", async () => {
+      const playlistId = "playlist1";
+
+      // 更新前のプレイリストを取得
+      const beforeResult = await getPlaylistById(playlistId);
+      expect(beforeResult.isOk()).toBe(true);
+
+      const originalPlaylist = beforeResult.isOk() ? beforeResult.value : null;
+
+      // タイトルのみ更新
+      const updateData: PlaylistUpdate = {
+        title: "タイトルのみ更新"
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await updatePlaylist(playlistId, updateData);
+      expect(result.isOk()).toBe(true);
+
+      // 更新後のプレイリストを取得
+      const afterResult = await getPlaylistById(playlistId);
+      expect(afterResult.isOk()).toBe(true);
+
+      if (afterResult.isOk() && originalPlaylist) {
+        const updatedPlaylist = afterResult.value;
+
+        // タイトルは更新されている
+        expect(updatedPlaylist.title).toBe(updateData.title);
+
+        // 他のフィールドは変わっていない
+        expect(updatedPlaylist.description).toBe(originalPlaylist.description);
+        expect(updatedPlaylist.authorId).toBe(originalPlaylist.authorId);
+      }
+    });
+  });
+
+  describe("deletePlaylist", () => {
+    it("プレイリストを削除できること", async () => {
+      const playlistId = "playlist1";
+
+      // 削除前に存在確認
+      const beforeResult = await getPlaylistById(playlistId);
+      expect(beforeResult.isOk()).toBe(true);
+
+      // リポジトリ関数を呼び出し
+      const result = await deletePlaylist(playlistId);
+      expect(result.isOk()).toBe(true);
+
+      // 削除後に存在確認
+      const afterResult = await getPlaylistById(playlistId);
+      expect(afterResult.isErr()).toBe(true);
+
+      if (afterResult.isErr()) {
+        expect(afterResult.error.type).toBe("notFound");
+      }
+    });
+  });
+
+  describe("動画管理機能", () => {
+    it("プレイリストに動画を追加できること", async () => {
+      const playlistId = "playlist1";
+      const videoId = "video2";
+
+      // 動画追加データ
+      const videoData: PlaylistVideoInsert = {
+        videoId,
+        order: 1
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await addVideoToPlaylist(playlistId, videoData);
+      expect(result.isOk()).toBe(true);
+
+      // プレイリストを取得して動画が追加されているか確認
+      const getResult = await getPlaylistById(playlistId);
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.videos).toBeDefined();
+
+        if (playlist.videos) {
+          const foundVideo = playlist.videos.find(v => v.id === videoId);
+          expect(foundVideo).toBeDefined();
+          expect(foundVideo?.order).toBe(videoData.order);
+        }
+      }
+    });
+
+    it("プレイリストから動画を削除できること", async () => {
+      const playlistId = "playlist1";
+      const videoId = "video1";
+
+      // 削除前に動画が存在することを確認
+      const beforeResult = await getPlaylistById(playlistId);
+      expect(beforeResult.isOk()).toBe(true);
+
+      if (beforeResult.isOk()) {
+        const playlist = beforeResult.value;
+        expect(playlist.videos).toBeDefined();
+        expect(playlist.videos?.some(v => v.id === videoId)).toBe(true);
+      }
+
+      // リポジトリ関数を呼び出し
+      const result = await removeVideoFromPlaylist(playlistId, videoId);
+      expect(result.isOk()).toBe(true);
+
+      // 削除後に動画が存在しないことを確認
+      const afterResult = await getPlaylistById(playlistId);
+      expect(afterResult.isOk()).toBe(true);
+
+      if (afterResult.isOk()) {
+        const playlist = afterResult.value;
+        expect(playlist.videos?.some(v => v.id === videoId)).toBe(false);
+      }
+    });
+
+    it("プレイリスト内の動画の順序を更新できること", async () => {
+      const playlistId = "playlist1";
+
+      // まず複数の動画を追加
+      await addVideoToPlaylist(playlistId, { videoId: "video1", order: 1 });
+      await addVideoToPlaylist(playlistId, { videoId: "video2", order: 2 });
+      await addVideoToPlaylist(playlistId, { videoId: "video3", order: 3 });
+
+      // 順序を更新
+      const newOrders = [
+        { videoId: "video1", order: 3 }, // 1→3
+        { videoId: "video2", order: 1 }, // 2→1
+        { videoId: "video3", order: 2 }  // 3→2
+      ];
+
+      const result = await updatePlaylistVideoOrder(playlistId, newOrders);
+      expect(result.isOk()).toBe(true);
+
+      // 更新後の順序を確認
+      const getResult = await getPlaylistById(playlistId);
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.videos).toBeDefined();
+
+        if (playlist.videos) {
+          const video1 = playlist.videos.find(v => v.id === "video1");
+          const video2 = playlist.videos.find(v => v.id === "video2");
+          const video3 = playlist.videos.find(v => v.id === "video3");
+
+          expect(video1?.order).toBe(3);
+          expect(video2?.order).toBe(1);
+          expect(video3?.order).toBe(2);
+        }
+      }
+    });
+  });
+});
+```
+
+## 動画リポジトリのテスト例
+
+動画の管理機能（作成、更新、削除）とメタデータ管理、検索機能などをテストする例を以下に示します：
+
+```typescript
+// src/repositories/videos/videos.test.ts
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import type { DbClient } from "@/db/config/hono";
+import { cleanupTestData, insertTestAuthors, insertTestVideos, setupTestEnv } from "@/repositories/test/setup";
+import {
+  createVideo,
+  updateVideo,
+  deleteVideo,
+  getVideoById,
+  getAllVideos,
+  searchVideosByTitle,
+  getVideosByAuthor,
+  updateVideoThumbnail
+} from "./index";
+import type { VideoInsert, VideoUpdate } from "./types";
+
+// テスト用の状態を保持する変数
+let dbClient: DbClient;
+
+describe("動画リポジトリのテスト", () => {
+  // 各テストの前に実行するセットアップ
+  beforeEach(async () => {
+    // テスト環境をセットアップ
+    const env = await setupTestEnv();
+    dbClient = env.dbClient;
+
+    // テストデータを挿入
+    await insertTestAuthors(dbClient);
+    await insertTestVideos(dbClient);
+  });
+
+  // 各テストの後に実行するクリーンアップ
+  afterEach(async () => {
+    await cleanupTestData(dbClient);
+  });
+
+  describe("createVideo", () => {
+    it("新しい動画を作成できること", async () => {
+      // テスト用の動画データ
+      const videoData: VideoInsert = {
+        title: "新しい動画",
+        url: "https://example.com/new-video",
+        thumbnailUrl: "https://example.com/thumbnail.jpg",
+        description: "テスト用の新しい動画です",
+        authorId: "author1"
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await createVideo(videoData);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const videoId = result.value;
+
+        // 作成された動画を取得して検証
+        const getResult = await getVideoById(videoId);
+
+        expect(getResult.isOk()).toBe(true);
+
+        if (getResult.isOk()) {
+          const video = getResult.value;
+          expect(video.title).toBe(videoData.title);
+          expect(video.url).toBe(videoData.url);
+          expect(video.thumbnailUrl).toBe(videoData.thumbnailUrl);
+          expect(video.description).toBe(videoData.description);
+          expect(video.authorId).toBe(videoData.authorId);
+        }
+      }
+    });
+
+    it("不正なURLでエラーになること", async () => {
+      // 不正なデータ（無効なURL）
+      const invalidData: VideoInsert = {
+        title: "不正なURL",
+        url: "invalid-url", // 不正なURL形式
+        authorId: "author1"
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await createVideo(invalidData);
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        expect(result.error.type).toBe("badRequest");
+        expect(result.error.message).toContain("URL");
+      }
+    });
+  });
+
+  describe("動画検索機能", () => {
+    it("タイトルで動画を検索できること", async () => {
+      // 検索キーワード
+      const searchKeyword = "テスト";
+
+      // リポジトリ関数を呼び出し
+      const result = await searchVideosByTitle(searchKeyword);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const videos = result.value;
+
+        // 検索キーワードを含む動画のみが返されることを確認
+        expect(videos.length).toBeGreaterThan(0);
+
+        for (const video of videos) {
+          expect(video.title.toLowerCase()).toContain(searchKeyword.toLowerCase());
+        }
+      }
+    });
+
+    it("作者IDで動画を取得できること", async () => {
+      const authorId = "author1";
+
+      // リポジトリ関数を呼び出し
+      const result = await getVideosByAuthor(authorId);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const videos = result.value;
+
+        // 指定した作者の動画のみが返されることを確認
+        expect(videos.length).toBeGreaterThan(0);
+
+        for (const video of videos) {
+          expect(video.authorId).toBe(authorId);
+
+          // 作者情報が含まれていることを確認
+          expect(video.author).toBeDefined();
+          expect(video.author?.id).toBe(authorId);
+        }
+      }
+    });
+  });
+
+  describe("updateVideoThumbnail", () => {
+    it("動画のサムネイルを更新できること", async () => {
+      const videoId = "video1";
+      const newThumbnailUrl = "https://example.com/new-thumbnail.jpg";
+
+      // リポジトリ関数を呼び出し
+      const result = await updateVideoThumbnail(videoId, newThumbnailUrl);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      // 更新された動画を取得して確認
+      const getResult = await getVideoById(videoId);
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const video = getResult.value;
+        expect(video.thumbnailUrl).toBe(newThumbnailUrl);
+      }
+    });
+  });
+});
+```
+
+## リポジトリフックのミューテーション操作テスト
+
+ミューテーション操作（作成・更新・削除）を行うフックのテスト例：
+
+```typescript
+// src/repositories/playlists/hooks.test.ts
+describe('useCreatePlaylist', () => {
+  it('プレイリストの作成が成功した場合、キャッシュが更新されること', async () => {
+    // 初期データの設定
+    const initialPlaylists = [
+      { id: 'playlist1', title: '既存プレイリスト1' },
+      { id: 'playlist2', title: '既存プレイリスト2' }
+    ];
+
+    // getAllPlaylistsのモック
+    mockedPlaylistsRepository.getAllPlaylists.mockResolvedValue({
+      isOk: () => true,
+      isErr: () => false,
+      value: initialPlaylists
+    } as any);
+
+    // createPlaylistのモック
+    const newPlaylistId = 'new-playlist-id';
+    mockedPlaylistsRepository.createPlaylist.mockResolvedValue({
+      isOk: () => true,
+      isErr: () => false,
+      value: newPlaylistId
+    } as any);
+
+    // プレイリスト一覧を取得するフックをレンダリング
+    const { result: playlistsResult } = renderHook(() => usePlaylists(), { wrapper });
+
+    // データが取得されるまで待機
+    await waitFor(() => expect(playlistsResult.current.isLoading).toBe(false));
+    expect(playlistsResult.current.data).toEqual(initialPlaylists);
+
+    // プレイリスト作成フックをレンダリング
+    const { result: createResult } = renderHook(() => useCreatePlaylist(), { wrapper });
+
+    // 作成フックのミューテーション関数を実行
+    const newPlaylist = { title: '新しいプレイリスト' };
+    await act(async () => {
+      await createResult.current.mutateAsync(newPlaylist);
+    });
+
+    // プレイリスト一覧のデータが更新されたことを確認
+    await waitFor(() => expect(queryClient.getQueryData(['playlists'])).not.toEqual(initialPlaylists));
+
+    // 作成が成功したことを確認
+    expect(createResult.current.isSuccess).toBe(true);
+    expect(createResult.current.data).toEqual(newPlaylistId);
+
+    // モック関数が正しく呼ばれたことを確認
+    expect(mockedPlaylistsRepository.createPlaylist).toHaveBeenCalledWith(newPlaylist);
+  });
+
+  it('エラー発生時にエラー状態になること', async () => {
+    // createPlaylistのモックでエラーを返す
+    mockedPlaylistsRepository.createPlaylist.mockResolvedValue({
+      isOk: () => false,
+      isErr: () => true,
+      error: { type: 'badRequest', message: 'バリデーションエラー' }
+    } as any);
+
+    // フックをレンダリング
+    const { result } = renderHook(() => useCreatePlaylist(), { wrapper });
+
+    // ミューテーション関数を実行
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ title: '新しいプレイリスト' });
+      } catch (error) {
+        // エラーはキャッチするが何もしない
+      }
+    });
+
+    // エラー状態になっていることを確認
+    expect(result.current.isError).toBe(true);
+    expect(result.current.error).toEqual({ type: 'badRequest', message: 'バリデーションエラー' });
+  });
 });
 ```
 
 ## ベストプラクティス
 
-### テスト実装のガイドライン
+### 一般的なベストプラクティス
 
-1. **必要なテスト範囲の見極め**:
-   - すべてのメソッドに対して同じレベルのテストは必要ない
-   - ビジネス的に重要な機能や複雑なロジックに重点を置く
+1. **テストの分離**: 各テストは独立して実行できるようにする
+2. **テストデータの明示**: テストに必要なデータを明示的に定義する
+3. **テスト用ヘルパー関数**: 共通のセットアップや検証ロジックをヘルパー関数として抽出
+4. **エラーケースのテスト**: 正常系だけでなく、エラーケースも必ずテストする
+5. **モックの適切な使用**: 外部依存はモックするが、ビジネスロジック自体はモックしない
 
-2. **テストデータの管理**:
-   - テストデータは明示的に定義し、理解しやすくする
-   - テストデータは再利用可能な形で準備する
-   - データベーステストでは、各テストの独立性を保つためにクリーンアップを確実に行う
+### テスト項目のチェックリスト
 
-3. **モックの適切な使用**:
-   - 外部依存（APIクライアント、データベース）はモックする
-   - モックが複雑になりすぎる場合は、テスト設計を見直す
-   - モックの応答は実際のAPIレスポンスを参考に設計する
+サービス層・リポジトリ層のテストでは、以下の項目を確認します：
 
-4. **テストの読みやすさ**:
-   - テスト名は機能と期待する結果を明確に表現する
-   - AAA（Arrange-Act-Assert）パターンでテストを構造化する
-   - 関連するテストをグループ化する
+- [ ] 基本的なCRUD操作が正しく動作するか
+- [ ] エラーケースが適切に処理されるか
+- [ ] 関連エンティティが正しく取得・結合されるか
+- [ ] バリデーションが正しく機能するか
+- [ ] 期待通りのデータ変換が行われるか
+- [ ] パフォーマンス要件を満たしているか（必要に応じて）
 
-5. **エラーケースのテスト**:
-   - 正常系だけでなく、エラーケースも必ずテストする
-   - 境界値や特殊なケースも考慮する
-   - エラーメッセージの内容も検証する
+### データ型のテスト
 
-### 共通の落とし穴と対策
+1. **型安全性**: 関数の入力と出力が正しい型であることを確認
+2. **バリデーション**: スキーマバリデーションが正しく機能することを確認
+3. **部分的更新**: 部分的更新（Partial Update）が正しく機能することを確認
+4. **型変換**: データ変換（DB型からドメイン型など）が正しく行われることを確認
 
-1. **非同期処理の取り扱い**:
-   - 非同期テストでは `async/await` を適切に使用する
-   - プロミスの解決を確実に待つ
-   - 非同期エラーのテストでは、エラーがスローされることを確認する
+### APIクライアントの使い方
 
-2. **テスト環境の隔離**:
-   - 各テストは独立して実行できるようにする
-   - グローバル状態に依存しない
-   - テスト前後で適切なセットアップとクリーンアップを行う
+1. **エラーハンドリング**: API呼び出しのエラーが適切に処理されることを確認
+2. **リトライ**: 必要に応じてリトライロジックが機能することを確認
+3. **キャッシュ**: キャッシュが正しく動作することを確認（React Queryなど）
+4. **並行リクエスト**: 並行リクエストが正しく処理されることを確認
 
-3. **テストのパフォーマンス**:
-   - 重いリソースの使用を最小限に抑える
-   - 不要なネットワークリクエストを避ける
-   - テストは高速に実行できるようにする
+### テスト実行のベストプラクティス
 
-4. **テストのメンテナンス性**:
-   - リファクタリングに強いテストを書く（実装の詳細ではなく動作をテスト）
-   - 重複コードを減らすためにヘルパー関数を使用する
-   - テストコードもコードレビューの対象とする
-
-## テスト実行とCI/CD統合
-
-テストの実行とCI/CDパイプラインへの統合方法：
-
-```yaml
-# .github/workflows/test.yml
-name: Test
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Run tests
-        run: bun test
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage/lcov.info
-```
-
-### テストカバレッジの測定
-
-テストカバレッジを測定するための設定：
-
-```typescript
-// package.json
-{
-  "scripts": {
-    "test": "bun test",
-    "test:coverage": "bun test --coverage"
-  }
-}
-```
-
-## まとめ
-
-サービス層とリポジトリ層のテストは、アプリケーションの信頼性と保守性を高める重要な要素です。適切なテスト戦略を選択し、効率的なテストを実装することで、品質の高いコードを維持できます。
-
-特に、リポジトリ層のテストでは、テスト目的に応じて適切なアプローチ（シンプルなテストまたは詳細なモックを使用したテスト）を選択し、必要なカバレッジを効率的に達成することが重要です。
+1. **継続的インテグレーション**: CIパイプラインでテストを自動実行する
+2. **高速なテスト実行**: テストは高速に実行できるようにする
+3. **コードカバレッジの測定**: 重要なコードパスがテストされていることを確認
+4. **テスト失敗の迅速な対応**: テストが失敗したら優先的に修正する
+5. **テストコードのレビュー**: 実装コードと同様にテストコードもレビューの対象とする
