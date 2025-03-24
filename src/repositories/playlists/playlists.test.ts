@@ -8,7 +8,16 @@ import {
   insertTestVideos,
   setupTestEnv,
 } from "@/repositories/test/setup";
-import { getAllPlaylists, getPlaylistById } from "../playlists";
+import {
+  addVideoToPlaylist,
+  createPlaylist,
+  deletePlaylist,
+  getAllPlaylists,
+  getPlaylistById,
+  removeVideoFromPlaylist,
+  updatePlaylist,
+} from "../playlists";
+import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "../playlists/types";
 
 // テスト用の状態を保持する変数
 let dbClient: DbClient;
@@ -177,6 +186,249 @@ describe("プレイリストリポジトリのテスト", () => {
             }
           }
         }
+      }
+    });
+  });
+
+  describe("createPlaylist", () => {
+    it("プレイリストを正しく作成できること", async () => {
+      // テスト用のプレイリストデータ
+      const playlistData: PlaylistInsert = {
+        title: "新しいプレイリスト",
+        authorId: "author1",
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await createPlaylist(playlistData);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        // IDが返されていることを確認
+        expect(typeof result.value).toBe("string");
+        expect(result.value.length).toBeGreaterThan(0);
+
+        // 作成したプレイリストが実際に取得できることを確認
+        const getResult = await getPlaylistById(result.value);
+        expect(getResult.isOk()).toBe(true);
+
+        if (getResult.isOk()) {
+          const playlist = getResult.value;
+          expect(playlist.title).toBe(playlistData.title);
+          expect(playlist.authorId).toBe(playlistData.authorId);
+        }
+      }
+    });
+
+    it("バリデーションエラーが発生した場合はエラーになること", async () => {
+      // 不正なデータでリポジトリ関数を呼び出し
+      const result = await createPlaylist({
+        title: "",
+        authorId: "",
+      } as PlaylistInsert);
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+
+        // 適切なエラータイプであることを確認
+        expect(error.type).toBe("badRequest");
+      }
+    });
+  });
+
+  describe("updatePlaylist", () => {
+    it("プレイリストを正しく更新できること", async () => {
+      // テスト用の更新データ
+      const updateData: PlaylistUpdate = {
+        title: "更新されたプレイリストタイトル",
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await updatePlaylist("playlist1", updateData);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      // 更新後のプレイリストを取得して確認
+      const getResult = await getPlaylistById("playlist1");
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.title).toBe("更新されたプレイリストタイトル");
+      }
+    });
+
+    it("存在しないプレイリストIDではエラーになること", async () => {
+      // 存在しないIDでリポジトリ関数を呼び出し
+      const result = await updatePlaylist("non-existent-id", {
+        title: "更新テスト",
+      });
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+
+        // 適切なエラータイプであることを確認
+        expect(error.type).toBe("notFound");
+      }
+    });
+  });
+
+  describe("deletePlaylist", () => {
+    it("プレイリストを正しく削除できること", async () => {
+      // リポジトリ関数を呼び出し
+      const result = await deletePlaylist("playlist1");
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      // 削除後にプレイリストが存在しないことを確認
+      const getResult = await getPlaylistById("playlist1");
+      expect(getResult.isErr()).toBe(true);
+
+      if (getResult.isErr()) {
+        const error = getResult.error;
+        expect(error.type).toBe("notFound");
+      }
+    });
+
+    it("存在しないプレイリストIDではエラーになること", async () => {
+      // 存在しないIDでリポジトリ関数を呼び出し
+      const result = await deletePlaylist("non-existent-id");
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+
+        // 適切なエラータイプであることを確認
+        expect(error.type).toBe("notFound");
+      }
+    });
+  });
+
+  describe("addVideoToPlaylist", () => {
+    it("プレイリストに動画を正しく追加できること", async () => {
+      // テスト用の動画追加データ
+      const videoData: PlaylistVideoInsert = {
+        videoId: "video2", // playlist1にはvideo1が既に存在するので別の動画を追加
+        order: 2,
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await addVideoToPlaylist("playlist1", videoData);
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      // 追加後のプレイリストを取得して動画が追加されていることを確認
+      const getResult = await getPlaylistById("playlist1");
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.videos).toBeDefined();
+
+        if (playlist.videos) {
+          // 追加した動画が存在することを確認
+          const addedVideo = playlist.videos.find((v) => v.id === videoData.videoId);
+          expect(addedVideo).toBeDefined();
+
+          if (addedVideo) {
+            expect(addedVideo.order).toBe(videoData.order);
+          }
+        }
+      }
+    });
+
+    it("存在しないプレイリストIDではエラーになること", async () => {
+      // 存在しないプレイリストIDで動画追加を試みる
+      const result = await addVideoToPlaylist("non-existent-id", {
+        videoId: "video1",
+        order: 1,
+      });
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+        expect(error.type).toBe("notFound");
+      }
+    });
+
+    it("存在しない動画IDではエラーになること", async () => {
+      // 存在しない動画IDでプレイリストへの追加を試みる
+      const result = await addVideoToPlaylist("playlist1", {
+        videoId: "non-existent-video",
+        order: 1,
+      });
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+        // エラータイプが badRequest または notFound のどちらかであることを確認
+        expect(["badRequest", "notFound"]).toContain(error.type);
+      }
+    });
+  });
+
+  describe("removeVideoFromPlaylist", () => {
+    it("プレイリストから動画を正しく削除できること", async () => {
+      // リポジトリ関数を呼び出し
+      const result = await removeVideoFromPlaylist("playlist1", "video1");
+
+      // 結果が成功していることを確認
+      expect(result.isOk()).toBe(true);
+
+      // 削除後のプレイリストを取得して動画が削除されていることを確認
+      const getResult = await getPlaylistById("playlist1");
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.videos).toBeDefined();
+
+        if (playlist.videos) {
+          // 削除した動画が存在しないことを確認
+          const removedVideo = playlist.videos.find((v) => v.id === "video1");
+          expect(removedVideo).toBeUndefined();
+        }
+      }
+    });
+
+    it("存在しないプレイリストまたは動画IDではエラーになること", async () => {
+      // 存在しないプレイリストIDで動画削除を試みる
+      const result = await removeVideoFromPlaylist("non-existent-id", "video1");
+
+      // 結果がエラーであることを確認
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+        expect(error.type).toBe("notFound");
+      }
+
+      // 存在しない動画IDでプレイリストからの削除を試みる
+      const result2 = await removeVideoFromPlaylist("playlist1", "non-existent-video");
+
+      // 結果がエラーであることを確認
+      expect(result2.isErr()).toBe(true);
+
+      if (result2.isErr()) {
+        const error = result2.error;
+        // エラータイプが notFound または badRequest のどちらかであることを確認
+        expect(["notFound", "badRequest"]).toContain(error.type);
       }
     });
   });

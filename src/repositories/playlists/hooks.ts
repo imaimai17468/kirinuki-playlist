@@ -1,5 +1,14 @@
-import { getAllPlaylists, getPlaylistById } from "@/repositories/playlists";
-import { useQuery } from "@tanstack/react-query";
+import {
+  addVideoToPlaylist,
+  createPlaylist,
+  deletePlaylist,
+  getAllPlaylists,
+  getPlaylistById,
+  removeVideoFromPlaylist,
+  updatePlaylist,
+} from "@/repositories/playlists";
+import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "@/repositories/playlists/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // プレイリスト一覧を取得するフック
 export function usePlaylists() {
@@ -28,5 +37,101 @@ export function usePlaylist(id: string) {
     },
     // IDが指定されていない場合はクエリを実行しない
     enabled: !!id,
+  });
+}
+
+// プレイリストを作成するフック
+export function useCreatePlaylist() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: PlaylistInsert) => {
+      const result = await createPlaylist(data);
+      if (result.isErr()) {
+        throw new Error(result.error.message);
+      }
+      return result.value;
+    },
+    onSuccess: () => {
+      // 作成成功後にプレイリスト一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+    },
+  });
+}
+
+// プレイリストを更新するフック
+export function useUpdatePlaylist(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: PlaylistUpdate) => {
+      const result = await updatePlaylist(id, data);
+      if (result.isErr()) {
+        throw new Error(result.error.message);
+      }
+      return result.value;
+    },
+    onSuccess: () => {
+      // 更新成功後に該当プレイリストとプレイリスト一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ["playlists", id] });
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+    },
+  });
+}
+
+// プレイリストを削除するフック
+export function useDeletePlaylist() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const result = await deletePlaylist(id);
+      if (result.isErr()) {
+        throw new Error(result.error.message);
+      }
+      return result.value;
+    },
+    onSuccess: () => {
+      // 削除成功後にプレイリスト一覧を再取得
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+    },
+  });
+}
+
+// プレイリストに動画を追加するフック
+export function useAddVideoToPlaylist(playlistId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: PlaylistVideoInsert) => {
+      const result = await addVideoToPlaylist(playlistId, data);
+      if (result.isErr()) {
+        throw new Error(result.error.message);
+      }
+      return result.value;
+    },
+    onSuccess: () => {
+      // 追加成功後に該当プレイリストを再取得
+      queryClient.invalidateQueries({ queryKey: ["playlists", playlistId] });
+    },
+  });
+}
+
+// プレイリストから動画を削除するフック
+export function useRemoveVideoFromPlaylist(playlistId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (videoId: string) => {
+      const result = await removeVideoFromPlaylist(playlistId, videoId);
+      if (result.isErr()) {
+        throw new Error(result.error.message);
+      }
+      return result.value;
+    },
+    onSuccess: () => {
+      // 削除成功後に該当プレイリストを再取得
+      queryClient.invalidateQueries({ queryKey: ["playlists", playlistId] });
+    },
   });
 }
