@@ -1,6 +1,7 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { playlistInsertSchema, playlistUpdateSchema } from "@/db/models/playlists";
+import { playlistVideoInsertSchema } from "@/db/models/relations";
 import { createPlaylistService } from "@/db/services/playlists/playlists";
 import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "@/db/services/playlists/playlists";
 import { NotFoundError } from "@/db/utils/errors";
@@ -130,9 +131,9 @@ export const playlistsRouter = new Hono<AppEnv>()
   })
 
   // プレイリストに動画を追加
-  .post("/:id/videos", async (c) => {
+  .post("/:id/videos", zValidator("json", playlistVideoInsertSchema), async (c) => {
     const id = c.req.param("id");
-    const data = (await c.req.json()) as PlaylistVideoInsert;
+    const data = c.req.valid("json") as PlaylistVideoInsert;
 
     // DbClientをコンテキストから取得、なければ新規作成
     let dbClient = c.get("dbClient");
