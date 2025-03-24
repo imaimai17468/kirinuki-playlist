@@ -12,126 +12,41 @@ Kirinuki-Playlistプロジェクトでは、APIエラーハンドリングを統
 
 ## カスタムエラークラス
 
-エラーの種類によって適切に分類するために、カスタムエラークラスを定義します：
+エラーの種類によって適切に分類するために、以下のカスタムエラークラスを定義します：
 
-```typescript
-// src/db/utils/errors.ts
-export class NotFoundError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "NotFoundError";
-  }
-}
+- **NotFoundError**: リソースが見つからない場合
+- **DatabaseError**: データベース操作中のエラー
+- **ValidationError**: 入力値の検証エラー
+- **AuthenticationError**: 認証エラー
+- **AuthorizationError**: 認可エラー
+- **UniqueConstraintError**: 一意制約違反
+- **RelationError**: エンティティ間の関連性に関するエラー
 
-export class DatabaseError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DatabaseError";
-  }
-}
-
-export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ValidationError";
-  }
-}
-
-export class AuthenticationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AuthenticationError";
-  }
-}
-
-export class AuthorizationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AuthorizationError";
-  }
-}
-
-export class UniqueConstraintError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UniqueConstraintError";
-  }
-}
-
-export class RelationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "RelationError";
-  }
-}
-```
+各エラークラスはエラーメッセージを受け取り、適切な名前プロパティを設定します。
 
 ## エラーハンドリングミドルウェア
 
-Honoミドルウェアを使用して、一元的にエラーをハンドリングします：
+Honoミドルウェアを使用して、一元的にエラーをハンドリングします。このミドルウェアは：
 
-```typescript
-// src/db/middlewares/error-handler.ts
-import type { MiddlewareHandler } from "hono";
-import {
-  NotFoundError,
-  DatabaseError,
-  ValidationError,
-  AuthenticationError,
-  AuthorizationError,
-  UniqueConstraintError,
-  RelationError
-} from "@/db/utils/errors";
+1. すべてのリクエストで発生するエラーをキャッチ
+2. エラーの種類に応じて適切なステータスコードとレスポンスを返す
+3. エラーログを記録
 
-export const errorHandler: MiddlewareHandler = async (c, next) => {
-  try {
-    await next();
-  } catch (error) {
-    console.error("API Error:", error);
-
-    // エラーの種類によって適切なステータスコードとレスポンスを返す
-    if (error instanceof NotFoundError) {
-      return c.json({ success: false, message: error.message }, 404);
-    }
-
-    if (error instanceof ValidationError) {
-      return c.json({ success: false, message: error.message }, 400);
-    }
-
-    if (error instanceof AuthenticationError) {
-      return c.json({ success: false, message: error.message }, 401);
-    }
-
-    if (error instanceof AuthorizationError) {
-      return c.json({ success: false, message: error.message }, 403);
-    }
-
-    if (error instanceof UniqueConstraintError) {
-      return c.json({ success: false, message: error.message }, 409);
-    }
-
-    if (error instanceof RelationError) {
-      return c.json({ success: false, message: error.message }, 400);
-    }
-
-    if (error instanceof DatabaseError) {
-      return c.json({ success: false, message: error.message }, 500);
-    }
-
-    // その他のエラー
-    return c.json({
-      success: false,
-      message: "予期しないエラーが発生しました",
-    }, 500);
-  }
-};
-```
+各エラータイプに対応するHTTPステータスコードは以下の通りです：
+- NotFoundError: 404
+- ValidationError: 400
+- AuthenticationError: 401
+- AuthorizationError: 403
+- UniqueConstraintError: 409
+- RelationError: 400
+- DatabaseError: 500
+- その他のエラー: 500
 
 ## 責任分離とエラーハンドリングの効率化
 
 ### APIルーターとサービスレイヤー間の責任分離
 
-エラーハンドリングにおいても、APIルーターとサービスレイヤーの間で責任を適切に分離することが重要です：
+エラーハンドリングにおいても、APIルーターとサービスレイヤーの間で責任を適切に分離します：
 
 1. **サービスレイヤー**: リソースの存在チェックとビジネスロジックの検証を行い、適切なエラーをスローする
 2. **APIルーター**: サービスからスローされたエラーをキャッチし、適切なHTTPレスポンスとしてクライアントに返す
@@ -140,131 +55,13 @@ export const errorHandler: MiddlewareHandler = async (c, next) => {
 
 ### 二重チェックの防止
 
-APIルーターとサービスレイヤーの両方で同じ検証を行うと、パフォーマンスが低下し、コードが複雑になります。以下のパターンを避けてください：
-
-```typescript
-// ❌ 避けるべきパターン - 二重チェック
-// APIルーター
-.post("/:id/videos", async (c) => {
-  const id = c.req.param("id");
-  const { videoId } = await c.req.json();
-
-  // APIレベルでの存在チェック
-  const videoService = createVideoService(dbClient);
-  try {
-    await videoService.getVideoById(videoId);
-  } catch (error) {
-    return c.json({ success: false, message: "動画が見つかりません" }, 404);
-  }
-
-  const playlistService = createPlaylistService(dbClient);
-  try {
-    await playlistService.addVideoToPlaylist(id, { videoId }); // ここでも再度チェックする可能性あり
-    return c.json({ success: true });
-  } catch (error) {
-    // ...エラーハンドリング
-  }
-});
-```
-
-代わりに、サービスレイヤーに存在チェックを委譲し、APIルーターではエラーのキャッチと変換のみを行います：
-
-```typescript
-// ✅ 推奨パターン - サービスレイヤーへの委譲
-// APIルーター
-.post("/:id/videos", async (c) => {
-  const id = c.req.param("id");
-  const { videoId } = await c.req.json();
-
-  try {
-    // サービスレイヤーに検証を委譲
-    const playlistService = createPlaylistService(dbClient);
-    await playlistService.addVideoToPlaylist(id, { videoId });
-    return c.json({ success: true });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      return c.json({ success: false, message: error.message }, 404);
-    }
-    if (error instanceof ValidationError) {
-      return c.json({ success: false, message: error.message }, 400);
-    }
-    // その他のエラーハンドリング...
-    return c.json({ success: false, message: "予期しないエラーが発生しました" }, 500);
-  }
-});
-
-// サービスレイヤー
-async addVideoToPlaylist(playlistId: string, { videoId }: { videoId: string }): Promise<void> {
-  // プレイリストの存在チェック
-  const playlist = await this.getPlaylistById(playlistId);
-  if (!playlist) {
-    throw new NotFoundError(`ID: ${playlistId} のプレイリストが見つかりません`);
-  }
-
-  // 動画の存在チェック
-  const video = await this.dbClient.select().from(videos).where(eq(videos.id, videoId)).get();
-  if (!video) {
-    throw new NotFoundError(`ID: ${videoId} の動画が見つかりません`);
-  }
-
-  // 関連付け処理...
-}
-```
+APIルーターとサービスレイヤーの両方で同じ検証を行うと、パフォーマンスが低下し、コードが複雑になります。
+そのため、サービスレイヤーに存在チェックを委譲し、APIルーターではエラーのキャッチと変換のみを行います。
 
 ### 複合リソース操作のエラーハンドリング
 
-複数のリソースが関連する操作では、サービスレイヤー内部でエラーを適切に識別し、具体的な情報を含むエラーをスローします：
-
-```typescript
-// サービスレイヤーでのより詳細なエラーハンドリング
-async addVideoToPlaylist(playlistId: string, { videoId }: { videoId: string }): Promise<void> {
-  try {
-    // プレイリストの存在チェック
-    const playlist = await this.dbClient.select().from(playlists).where(eq(playlists.id, playlistId)).get();
-    if (!playlist) {
-      throw new NotFoundError(`プレイリスト (ID: ${playlistId}) が見つかりません`);
-    }
-
-    // 動画の存在チェック
-    const video = await this.dbClient.select().from(videos).where(eq(videos.id, videoId)).get();
-    if (!video) {
-      throw new NotFoundError(`動画 (ID: ${videoId}) が見つかりません`);
-    }
-
-    // 既に関連付けられているかチェック
-    const existingRelation = await this.dbClient
-      .select()
-      .from(playlistVideos)
-      .where(and(
-        eq(playlistVideos.playlistId, playlistId),
-        eq(playlistVideos.videoId, videoId)
-      ))
-      .get();
-
-    if (existingRelation) {
-      throw new UniqueConstraintError(`この動画 (ID: ${videoId}) はすでにプレイリスト (ID: ${playlistId}) に存在します。重複は許可されていません。`);
-    }
-
-    // 関連付け処理...
-  } catch (error) {
-    // 既知のエラータイプはそのまま上位に伝播
-    if (
-      error instanceof NotFoundError ||
-      error instanceof UniqueConstraintError ||
-      error instanceof ValidationError
-    ) {
-      throw error;
-    }
-
-    // その他のエラーは DatabaseError に変換
-    throw new DatabaseError(
-      `プレイリスト (ID: ${playlistId}) への動画 (ID: ${videoId}) の追加中にエラーが発生しました: ${
-        error instanceof Error ? error.message : "不明なエラー"
-      }`
-    );
-  }
-}
-```
+複数のリソースが関連する操作では、サービスレイヤー内部でエラーを適切に識別し、具体的な情報を含むエラーをスローします。
+例えば、プレイリストに動画を追加する際には、プレイリストと動画の両方の存在を確認し、適切なエラーメッセージを提供します。
 
 ### APIレスポンスの一貫性
 
@@ -274,399 +71,39 @@ async addVideoToPlaylist(playlistId: string, { videoId }: { videoId: string }): 
 2. **明確なエラー理由**: 何が問題だったのかを具体的に説明
 3. **一貫した形式**: すべてのAPIエンドポイントで同じエラーレスポンス形式を使用
 
-```typescript
-// 明確なエラーメッセージの例
-throw new NotFoundError(`動画 (ID: ${videoId}) が見つかりません。別の動画IDを試すか、有効なIDを確認してください。`);
-
-throw new UniqueConstraintError(`この動画 (ID: ${videoId}) はすでにプレイリスト (ID: ${playlistId}) に存在します。重複は許可されていません。`);
-
-throw new ValidationError(`プレイリストのタイトルは必須で、1〜100文字の長さが必要です。`);
-```
-
 ## サービスレイヤーでのエラーハンドリング
 
-サービスレイヤーでは、適切なカスタムエラーをスローします：
-
-```typescript
-// サービスレイヤーのエラーハンドリング例（videos.ts）
-async getVideoById(id: string) {
-  try {
-    const video = await this.dbClient
-      .select()
-      .from(videos)
-      .where(eq(videos.id, id))
-      .get();
-
-    if (!video) {
-      throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
-    }
-
-    return video;
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      throw error; // NotFoundErrorはそのまま上位に伝播
-    }
-    throw new DatabaseError(
-      `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
-    );
-  }
-}
-```
+サービスレイヤーでは、操作中に発生する可能性のあるエラーを適切に捕捉し、カスタムエラーとして再スローします。
+既知のエラータイプ（NotFoundErrorなど）はそのまま上位に伝播し、その他のエラーはDatabaseErrorに変換します。
 
 ## 関連エンティティのエラーハンドリング
 
-プレイリスト、ビデオ、著者などの関連エンティティを扱う場合のエラーハンドリングには特に注意が必要です：
-
-```typescript
-// プレイリストとビデオの関連付けにおけるエラーハンドリング例
-async getPlaylistWithVideosById(id: string) {
-  try {
-    // まずプレイリスト情報を取得
-    const playlist = await this.getPlaylistById(id);
-
-    // 次にこのプレイリストに含まれる動画を取得
-    const playlistVideosResult = await this.dbClient
-      .select()
-      .from(playlistVideos)
-      .innerJoin(videos, eq(playlistVideos.videoId, videos.id))
-      .innerJoin(authors, eq(videos.authorId, authors.id))
-      .where(eq(playlistVideos.playlistId, id))
-      .orderBy(playlistVideos.order)
-      .all();
-
-    // 動画情報をマッピング
-    const videosWithAuthors = playlistVideosResult.map((row) => ({
-      id: row.videos.id,
-      title: row.videos.title,
-      url: row.videos.url,
-      start: row.videos.start,
-      end: row.videos.end,
-      authorId: row.videos.authorId,
-      createdAt: row.videos.createdAt,
-      updatedAt: row.videos.updatedAt,
-      author: {
-        id: row.authors.id,
-        name: row.authors.name,
-        iconUrl: row.authors.iconUrl,
-        bio: row.authors.bio,
-        createdAt: row.authors.createdAt,
-        updatedAt: row.authors.updatedAt,
-      },
-    }));
-
-    // プレイリスト情報と動画情報を組み合わせて返す
-    return {
-      ...playlist,
-      videos: videosWithAuthors,
-    };
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      throw error;
-    }
-    throw new DatabaseError(
-      `プレイリストと動画情報の取得中にエラーが発生しました: ${
-        error instanceof Error ? error.message : "不明なエラー"
-      }`
-    );
-  }
-}
-```
+プレイリスト、ビデオ、著者などの関連エンティティを扱う場合は、各エンティティの存在を確認し、
+関連性や整合性を検証します。特に、複数テーブルにまたがる操作では、より詳細なエラーメッセージを提供します。
 
 ## APIレイヤーでのエラーハンドリング
 
-APIレイヤーでは、サービスからスローされたエラーを適切に処理します：
-
-```typescript
-// APIレイヤーでのエラーハンドリング（playlists.ts）
-.get("/:id", async (c) => {
-  const id = c.req.param("id");
-
-  try {
-    const service = createPlaylistService(c.get("dbClient"));
-    const playlist = await service.getPlaylistById(id);
-    return c.json({ success: true, playlist });
-  } catch (error) {
-    // エラーミドルウェアに処理を委譲
-    throw error;
-  }
-})
-```
-
-## 関連エンティティを含むAPIレスポンスのエラーハンドリング
-
-著者やビデオメタデータを含むプレイリストのAPIレスポンスでは、より詳細なエラーハンドリングを行います：
-
-```typescript
-// プレイリストと関連動画、著者情報を取得するAPIエンドポイント
-.get("/:id/with-videos", async (c) => {
-  const id = c.req.param("id");
-
-  try {
-    const service = createPlaylistService(c.get("dbClient"));
-    const playlist = await service.getPlaylistWithVideosById(id);
-    return c.json({ success: true, playlist });
-  } catch (error) {
-    // 特定のエラー状況に対して詳細なメッセージを提供
-    if (error instanceof NotFoundError) {
-      // NotFoundErrorはそのままミドルウェアに委譲
-      throw error;
-    } else if (error instanceof DatabaseError) {
-      // データベースエラーの詳細をログに記録
-      console.error("プレイリスト取得中のデータベースエラー:", error);
-      throw new DatabaseError("プレイリストと関連データの取得中にエラーが発生しました");
-    } else {
-      // その他のエラー
-      console.error("予期しないエラー:", error);
-      throw error; // ミドルウェアに委譲
-    }
-  }
-})
-```
+APIレイヤーでは、サービスからスローされたエラーをキャッチし、一貫したレスポンス形式で返します。
+原則として、エラーミドルウェアに処理を委譲し、必要に応じて追加の処理（ログ記録など）を行います。
 
 ## リポジトリパターンでのエラーハンドリング
 
 クライアントサイドのリポジトリパターンでは、Result型を使用してエラーを扱います：
 
-```typescript
-// src/repositories/types.ts
-import { z } from "zod";
+### エラー型の定義
 
-// API エラータイプ
-export type ApiError = {
-  type: "network" | "http" | "schema" | "unknown" | "relation" | "notFound";
-  status?: number;
-  message: string;
-  details?: unknown;
-};
+APIエラーは以下のタイプを区別します：
+- network: ネットワーク接続エラー
+- http: HTTPステータスコードに関連するエラー
+- schema: レスポンス検証エラー
+- relation: エンティティ間の関連性に関するエラー
+- notFound: リソースが見つからないエラー
+- unknown: 未分類のエラー
 
-// レスポンススキーマ
-export const baseResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string().optional(),
-});
+### クライアントサイドでのエラーハンドリング
 
-// 著者スキーマ
-export const authorSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  iconUrl: z.string(),
-  bio: z.string().nullable().optional(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-});
-
-// 動画スキーマ
-export const videoSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  url: z.string(),
-  authorId: z.string(),
-  author: authorSchema.optional(),
-  start: z.number().nullable().optional(),
-  end: z.number().nullable().optional(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-});
-
-// 著者情報を含む動画スキーマ
-export const videoWithAuthorSchema = videoSchema.extend({
-  author: authorSchema,
-});
-
-// 動画レスポンススキーマ
-export const videoResponseSchema = baseResponseSchema.extend({
-  video: videoSchema,
-});
-
-// 動画リスポンススキーマ
-export const videosResponseSchema = baseResponseSchema.extend({
-  videos: z.array(videoSchema),
-});
-
-// プレイリストスキーマ
-export const playlistSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  authorId: z.string(),
-  author: authorSchema.optional(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-});
-
-// 著者情報を含むプレイリストスキーマ
-export const playlistWithAuthorSchema = playlistSchema.extend({
-  author: authorSchema,
-});
-
-// 動画を含むプレイリストスキーマ
-export const playlistWithVideosSchema = playlistWithAuthorSchema.extend({
-  videos: z.array(videoWithAuthorSchema),
-});
-
-// プレイリストレスポンススキーマ
-export const playlistResponseSchema = baseResponseSchema.extend({
-  playlist: playlistSchema,
-});
-
-// 動画を含むプレイリストレスポンススキーマ
-export const playlistWithVideosResponseSchema = baseResponseSchema.extend({
-  playlist: playlistWithVideosSchema,
-});
-```
-
-```typescript
-// src/repositories/utils.ts
-import type { ApiError } from "./types";
-import { baseResponseSchema } from "./types";
-import { err } from "neverthrow";
-import type { Result } from "neverthrow";
-import { z } from "zod";
-
-// ネットワークエラーを作成
-export function createNetworkError(error: unknown): ApiError {
-  return {
-    type: "network",
-    message: error instanceof Error ? error.message : "ネットワークエラーが発生しました",
-    details: error,
-  };
-}
-
-// スキーマエラーを作成
-export function createSchemaError(message: string): ApiError {
-  return {
-    type: "schema",
-    message: `レスポンスの形式が正しくありません: ${message}`,
-  };
-}
-
-// HTTPエラーを作成
-export function createHttpError(status: number, message: string): ApiError {
-  return {
-    type: "http",
-    status,
-    message,
-  };
-}
-
-// 関連エンティティエラーを作成
-export function createRelationError(message: string): ApiError {
-  return {
-    type: "relation",
-    message: `エンティティの関連付けに問題があります: ${message}`,
-  };
-}
-
-// 未検出エラーを作成
-export function createNotFoundError(message: string): ApiError {
-  return {
-    type: "notFound",
-    message,
-  };
-}
-
-// HTTPエラーを処理
-export async function handleHttpError(
-  response: Response
-): Promise<Result<never, ApiError>> {
-  try {
-    const data = await response.json();
-    const result = baseResponseSchema.safeParse(data);
-    const message = result.success ? data.message : "エラーが発生しました";
-
-    if (response.status === 404) {
-      return err(createNotFoundError(message));
-    }
-
-    return err(createHttpError(response.status, message));
-  } catch (_) {
-    return err(createHttpError(response.status, "サーバーからのレスポンスの解析に失敗しました"));
-  }
-}
-```
-
-## 関連エンティティのエラーハンドリング実装例
-
-関連エンティティを含むデータの取得時のエラーハンドリング例：
-
-```typescript
-// src/repositories/playlists/index.ts
-export async function getPlaylistWithVideosById(id: string): Promise<Result<PlaylistWithVideos, ApiError>> {
-  try {
-    const client = getApiClient();
-    const response = await client.api.playlists[":id"].withVideos.$get({
-      param: { id },
-    });
-
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
-
-    const data = await response.json();
-    const result = playlistWithVideosResponseSchema.safeParse(data);
-
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
-
-    // 動画配列の有無を確認
-    const playlist = result.data.playlist;
-    if (!Array.isArray(playlist.videos)) {
-      return err(createRelationError("プレイリストに関連付けられた動画情報が正しくありません"));
-    }
-
-    // 各動画の著者情報の有無を確認
-    for (const video of playlist.videos) {
-      if (!video.author) {
-        return err(createRelationError(`動画 ${video.id} の著者情報が不足しています`));
-      }
-    }
-
-    return ok(result.data.playlist);
-  } catch (error) {
-    return err(createNetworkError(error));
-  }
-}
-```
-
-## クライアントサイドでのエラーハンドリング例
-
-拡張されたエラータイプに基づいたクライアントサイドでのエラーハンドリング：
-
-```tsx
-// src/app/playlists/[id]/page.tsx
-'use client';
-
-import { usePlaylistWithVideos } from '@/repositories/playlists/hooks';
-import { useParams } from 'next/navigation';
-import { ErrorView } from '@/components/ErrorView';
-import { PlaylistDetail } from '@/components/PlaylistDetail';
-
-export default function PlaylistPage() {
-  const { id } = useParams();
-  const { data: playlist, error, isLoading } = usePlaylistWithVideos(id);
-
-  if (isLoading) {
-    return <div>読み込み中...</div>;
-  }
-
-  if (error) {
-    switch (error.type) {
-      case 'notFound':
-        return <ErrorView message="プレイリストが見つかりませんでした" statusCode={404} />;
-      case 'relation':
-        return <ErrorView message="プレイリストのデータに問題があります" statusCode={400} />;
-      case 'network':
-        return <ErrorView message="ネットワークエラーが発生しました" />;
-      case 'schema':
-        return <ErrorView message="データの形式に問題があります" />;
-      default:
-        return <ErrorView message={error.message || "エラーが発生しました"} />;
-    }
-  }
-
-  return <PlaylistDetail playlist={playlist} />;
-}
-```
+React コンポーネントでは、エラータイプに基づいて適切なUIを表示します。
+各エラータイプに対して、ユーザーに理解しやすいメッセージと適切なアクションを提示します。
 
 ## エラーハンドリングのベストプラクティス
 
@@ -679,239 +116,20 @@ export default function PlaylistPage() {
 ## エラーログの記録
 
 エラーが発生した場合は、適切なログを記録して後でデバッグできるようにします：
-
-```typescript
-// エラーログの記録例
-try {
-  // 処理
-} catch (error) {
-  // エラーの詳細をログに記録
-  console.error(
-    `Error in getPlaylistWithVideosById: ${error instanceof Error ? error.message : "Unknown error"}`,
-    {
-      playlistId: id,
-      errorType: error.name,
-      stack: error instanceof Error ? error.stack : undefined,
-    }
-  );
-  throw error; // 上位に伝播
-}
-```
-
-このエラーハンドリング規約に従うことで、堅牢でユーザーフレンドリーなAPI実装が可能になります。
-
-## プレイリストと動画のリポジトリテストにおけるエラーハンドリング
-
-リポジトリレイヤーのテストでは、特に関連エンティティを含むデータ取得において、エラーケースを適切に検証することが重要です。以下にプレイリストと動画の関連データのテスト例を示します：
-
-```typescript
-// 失敗ケースのテスト
-describe("エラーハンドリング", () => {
-  it("存在しないプレイリストIDではNotFoundエラーになること", async () => {
-    // 存在しないIDでリポジトリ関数を呼び出し
-    const result = await getPlaylistById("non-existent-id");
-
-    // 結果がエラーであることを確認
-    expect(result.isErr()).toBe(true);
-
-    if (result.isErr()) {
-      const error = result.error;
-
-      // 適切なエラータイプであることを確認
-      expect(error.type).toBe("notFound");
-      expect(error.message).toContain("見つかりません");
-    }
-  });
-
-  it("動画の著者情報が不足している場合はRelationエラーになること", async () => {
-    // モックを使って著者情報がない動画データを返すようにする
-    mockClientApi.api.playlists[":id"].withVideos.$get.mockImplementationOnce(async () => {
-      return {
-        ok: true,
-        json: async () => ({
-          success: true,
-          playlist: {
-            id: "playlist1",
-            title: "テストプレイリスト",
-            videos: [
-              {
-                id: "video1",
-                title: "動画1",
-                url: "https://example.com/video1",
-                // 著者情報が欠落している
-              }
-            ]
-          }
-        })
-      };
-    });
-
-    // テスト対象の関数を呼び出し
-    const result = await getPlaylistWithVideosById("playlist1");
-
-    // エラー結果を確認
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error.type).toBe("relation");
-      expect(result.error.message).toContain("著者情報");
-    }
-  });
-
-  it("ネットワークエラーが発生した場合はNetworkエラーになること", async () => {
-    // ネットワークエラーをシミュレート
-    mockClientApi.api.playlists[":id"].withVideos.$get.mockRejectedValueOnce(
-      new Error("Network error")
-    );
-
-    // テスト対象の関数を呼び出し
-    const result = await getPlaylistWithVideosById("playlist1");
-
-    // エラー結果を確認
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error.type).toBe("network");
-    }
-  });
-
-  it("スキーマ検証に失敗した場合はSchemaエラーになること", async () => {
-    // スキーマ検証に失敗するデータを返すようにモック
-    mockClientApi.api.playlists[":id"].withVideos.$get.mockImplementationOnce(async () => {
-      return {
-        ok: true,
-        json: async () => ({
-          success: true,
-          playlist: {
-            id: "playlist1",
-            // titleフィールドが欠落
-            videos: [] // 空の動画配列
-          }
-        })
-      };
-    });
-
-    // テスト対象の関数を呼び出し
-    const result = await getPlaylistWithVideosById("playlist1");
-
-    // エラー結果を確認
-    expect(result.isErr()).toBe(true);
-    if (result.isErr()) {
-      expect(result.error.type).toBe("schema");
-    }
-  });
-});
-```
-
-## 複合的なエラーシナリオのテスト
-
-より複雑な状況で発生するエラーをテストする例：
-
-```typescript
-// サービスの統合テストにおける複合的なエラーシナリオ
-it("プレイリストと動画の関連付けに失敗した場合は適切なRelationエラーになること", async () => {
-  // プレイリストは存在するが、動画との関連付けに失敗するシナリオ
-  const dbClientMock = {
-    ...createMockDbClient(),
-    select: jest.fn().mockImplementation(() => {
-      // プレイリストのクエリは成功
-      if (currentQuery === 'playlists') {
-        return {
-          from: () => ({
-            where: () => ({
-              get: async () => ({ id: 'playlist1', title: 'テストプレイリスト' })
-            })
-          })
-        };
-      }
-      // 関連付けクエリは空の結果を返す
-      if (currentQuery === 'playlistVideos') {
-        return {
-          from: () => ({
-            innerJoin: () => ({
-              innerJoin: () => ({
-                where: () => ({
-                  orderBy: () => ({
-                    all: async () => []
-                  })
-                })
-              })
-            })
-          })
-        };
-      }
-    })
-  };
-
-  const service = createPlaylistService(dbClientMock);
-
-  try {
-    await service.getPlaylistWithVideosById('playlist1');
-    // エラーがスローされるべきなので、ここに到達したらテスト失敗
-    fail('エラーがスローされませんでした');
-    } catch (error) {
-    expect(error).toBeInstanceOf(RelationError);
-    expect(error.message).toContain('動画が関連付けられていません');
-    }
-  });
-```
+- エラーの詳細（メッセージ、タイプ、スタックトレースなど）
+- 関連するコンテキスト（リソースID、操作タイプなど）
+- タイムスタンプ
 
 ## エラーハンドリングのテストカバレッジ
 
 テストでは、以下のエラーシナリオをカバーすることが重要です：
 
 1. **存在しないリソース**: 指定されたIDのリソースが存在しない場合
-2. **関連エンティティの欠落**: 必要な関連エンティティ（例：動画の著者）が欠落している場合
+2. **関連エンティティの欠落**: 必要な関連エンティティが欠落している場合
 3. **スキーマ検証の失敗**: レスポンスデータがスキーマに適合しない場合
 4. **ネットワークエラー**: API通信中に発生するネットワーク関連のエラー
 5. **認証/認可エラー**: ユーザーの権限不足や認証失敗によるエラー
 6. **一意制約違反**: 一意であるべきデータが重複する場合
 7. **入力検証エラー**: ユーザー入力が検証に失敗する場合
 
-各テストケースでは、エラーの種類（type）だけでなく、エラーメッセージの内容も検証して、デバッグに役立つ情報が含まれていることを確認します。
-
-## テスト用のエラーモックヘルパー関数
-
-テストをシンプルに保つためのヘルパー関数の例：
-
-```typescript
-// テスト用のエラーモックヘルパー
-export function mockHttpError(status: number, message: string) {
-  return {
-    ok: false,
-    status,
-    json: async () => ({
-      success: false,
-      message
-    })
-  };
-}
-
-export function mockNetworkError() {
-  return () => {
-    throw new Error('Network error');
-  };
-}
-
-export function mockSchemaValidationError() {
-  return {
-    ok: true,
-    json: async () => ({
-      success: true,
-      // スキーマ検証に失敗する不完全なデータ
-      data: { incomplete: true }
-    })
-  };
-}
-
-// 使用例
-it('APIがHTTP 404を返した場合はNotFoundエラーになること', async () => {
-  mockClientApi.api.playlists[':id'].$get.mockResolvedValueOnce(
-    mockHttpError(404, 'プレイリストが見つかりません')
-  );
-
-  const result = await getPlaylistById('non-existent');
-  expect(result.isErr()).toBe(true);
-  if (result.isErr()) {
-    expect(result.error.type).toBe('notFound');
-  }
-});
-```
+このエラーハンドリング規約に従うことで、堅牢でユーザーフレンドリーなAPI実装が可能になります。

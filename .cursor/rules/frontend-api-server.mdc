@@ -12,646 +12,139 @@ Kirinuki-PlaylistではNext.jsアプリケーション内でHonoを使用してA
 
 ## APIコードの構成
 
-APIコードは以下のディレクトリ構造に従って整理します：
+APIコードは特定のディレクトリ構造に従って整理し、関心事の適切な分離を維持します。
+主要なディレクトリには以下が含まれます：
 
-```
-src/
-├── app/
-│   └── api/
-│       └── [...route]/
-│           ├── route.ts         # エントリーポイント
-│           ├── videos.ts        # ビデオ関連エンドポイント
-│           ├── playlists.ts     # プレイリスト関連エンドポイント
-│           └── authors.ts       # 著者関連エンドポイント
-├── db/
-│   ├── config/                  # データベース構成
-│   │   ├── database.ts          # DB接続管理
-│   │   ├── client.ts            # APIクライアント
-│   │   └── hono.ts              # Honoアプリ構成
-│   ├── models/                  # データモデル
-│   │   ├── videos.ts
-│   │   ├── playlists.ts
-│   │   └── authors.ts
-│   └── services/                # データアクセスサービス
-│       ├── authors/             # 著者サービス
-│       │   ├── authors.ts       # 著者サービス実装
-│       │   └── authors.test.ts  # 著者サービステスト
-│       ├── videos/              # 動画サービス
-│       │   ├── videos.ts        # 動画サービス実装
-│       │   └── videos.test.ts   # 動画サービステスト
-│       └── playlists/           # プレイリストサービス
-│           ├── playlists.ts     # プレイリストサービス実装
-│           └── playlists.test.ts # プレイリストサービステスト
-├── repositories/                # クライアントサイドリポジトリ
-│   ├── videos/
-│   ├── playlists/
-│   └── authors/
-├── middleware/                  # ミドルウェア
-│   ├── auth.ts
-│   └── error-handler.ts
-└── schemas/                     # スキーマ定義
-    ├── video.ts
-    ├── playlist.ts
-    └── author.ts
-```
+- **app/api/**: APIルートとエンドポイント定義
+- **db/config/**: データベース接続とHono設定
+- **db/models/**: データモデル定義
+- **db/services/**: データアクセスとビジネスロジック
+- **repositories/**: クライアントサイド通信レイヤー
+- **middleware/**: 認証やエラーハンドリングなどのミドルウェア
 
-### 命名規則
+## 基本方針
 
-APIファイルとディレクトリの命名には以下の規則を適用します：
+1. **責任の分離**: APIルーターとサービスレイヤーの間で明確な責任分担を行う
+2. **型安全性**: TypeScriptの型システムを最大限に活用する
+3. **一貫性**: すべてのエンドポイントで一貫した設計パターンを適用する
+4. **テスト可能性**: サービスレイヤーを独立してテスト可能な設計にする
+5. **バリデーション**: すべての入力を検証し、早期に検証エラーを返す
 
-- **APIルートファイル名は複数形**: リソースを表すファイル名には複数形を使用します（例: `videos.ts`, `playlists.ts`, `authors.ts`）
-- **一貫性**: APIルート、モデル、サービス、リポジトリなど、すべての層で同じ命名規則を使用します
-- **モデル名も複数形**: データベースモデルファイル名も同様に複数形を使用します（例: `videos.ts`）
+## APIレイヤーの実装
 
-これらの命名規則により、コードベースの一貫性が保たれ、開発者が直感的に理解できるようになります。
+### Honoアプリケーション構成
 
-## 責任の分離
+Honoアプリケーションは以下の原則に従って構成します：
 
-APIコードは以下の責任に分けて実装します：
+1. **ルーティング分離**: リソースタイプごとに個別のルーターファイルを作成
+2. **ミドルウェアの一貫した適用**: エラーハンドリングや認証などの共通ミドルウェアを適用
+3. **明確なエントリーポイント**: Next.js APIルートとHonoの連携を一か所で管理
 
-1. **ルーター**: HTTP要求の受け付けとレスポンスの返却
-2. **サービスレイヤー**: ビジネスロジックの実装
-3. **データアクセスレイヤー**: データベースアクセスの抽象化
-4. **リポジトリレイヤー**: クライアントサイドからのAPIアクセス抽象化
+### サービスレイヤーとの連携
 
-## APIルーターとサービスレイヤーの責任分離
+APIルーターはリクエストの受け取り、検証、サービスレイヤーへの委譲、レスポンスの構築という責任を持ちます：
 
-### 責任分離の原則
+1. **サービスの注入**: 依存性注入パターンを用いてサービスをルーターに提供
+2. **コンテキスト管理**: リクエストコンテキストを通じてDBクライアントなどの依存関係を提供
+3. **エラーハンドリング**: サービスレイヤーからのエラーを適切なHTTPレスポンスに変換
 
-APIルーターとサービスレイヤーの間で明確な責任分離を行い、二重チェックを避けるための原則を以下に示します：
+## サービスレイヤーの実装
 
-1. **APIルーター層の責任**
-   - リクエストの受け取りとパラメータの抽出
-   - 入力データの基本的なバリデーション（ZodValidatorなどを使用）
-   - 適切なサービスの呼び出し
-   - レスポンスの整形と返却
-   - エラーハンドリングの統一的な処理
+サービスレイヤーは以下の責任を持ちます：
 
-2. **サービスレイヤーの責任**
-   - ビジネスロジックの実装
-   - データの整合性チェック（存在確認や関連チェックなど）
-   - 複数のデータ操作の調整（トランザクション管理など）
-   - データアクセスと変換
-   - ドメイン固有のバリデーション
+1. **ビジネスロジック**: アプリケーションのコアビジネスルールを実装
+2. **データアクセス**: データベースとのやり取りを管理
+3. **データ整合性チェック**: リレーショナルな整合性の検証
+4. **エラー生成**: ビジネスルール違反時に適切なエラーをスロー
 
-### 二重チェック防止の指針
+### サービスレイヤーのパターン
 
-以下のパターンを避け、責任を適切に分離します：
+1. **ファクトリー関数**: サービスインスタンスを作成するファクトリー関数を使用
+2. **依存性注入**: テスト容易性を高めるため、DBクライアントなどの依存関係を外部から注入
+3. **ドメインに特化したインターフェース**: 各サービスはそのドメイン固有の機能を提供するインターフェースを実装
 
-- **❌ 避けるべきパターン**: APIルーターとサービスレイヤーの両方でエンティティの存在チェックを行う
+## データモデルとスキーマ定義
 
-```typescript
-// 避けるべきパターン - 二重チェックの例
-// APIルーター側
-.post("/:id/videos", async (c) => {
-  const id = c.req.param("id");
-  const data = await c.req.json();
+データモデルは以下の原則に従って定義します：
 
-  const videoService = createVideoService(dbClient);
-  // APIルーターでの存在チェック
-  try {
-    await videoService.getVideoById(data.videoId);
-  } catch (_) {
-    return c.json({ success: false, message: `動画が見つかりません` }, 404);
-  }
+1. **Drizzle ORM**: テーブル定義とクエリ構築にDrizzle ORMを使用
+2. **Zod**: リクエスト/レスポンスバリデーションにZodを使用
+3. **型共有**: クライアントとサーバー間で型定義を共有
 
-  const playlistService = createPlaylistService(dbClient);
-  await playlistService.addVideoToPlaylist(id, data);
-  // サービスレイヤーでも同様のチェックが行われる可能性がある
-});
-```
+## エンドポイント設計のベストプラクティス
 
-- **✅ 推奨パターン**: 存在チェックはサービスレイヤーに委譲する
-
-```typescript
-// 推奨パターン - サービスレイヤーに委譲
-// APIルーター側
-.post("/:id/videos", async (c) => {
-  const id = c.req.param("id");
-  const data = await c.req.json();
-
-  try {
-    // サービス層に処理を委譲（存在チェックもサービス層で行う）
-    const playlistService = createPlaylistService(dbClient);
-    await playlistService.addVideoToPlaylist(id, data);
-    return c.json({ success: true });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      return c.json({ success: false, message: error.message }, 404);
-    }
-    // その他のエラーハンドリング
-  }
-});
-
-// サービスレイヤー側
-async addVideoToPlaylist(playlistId: string, videoData: PlaylistVideoInsert): Promise<void> {
-  // プレイリストの存在チェック
-  const playlist = await dbClient.select().from(playlists).where(eq(playlists.id, playlistId)).get();
-  if (!playlist) {
-    throw new NotFoundError(`プレイリストが見つかりません`);
-  }
-
-  // 動画の存在チェック
-  const video = await dbClient.select().from(videos).where(eq(videos.id, videoData.videoId)).get();
-  if (!video) {
-    throw new NotFoundError(`動画が見つかりません`);
-  }
-
-  // 関連付け処理...
-}
-```
-
-### 関連エンティティの処理
-
-複数のリソースが関連するエンドポイント（例：プレイリストに動画を追加する）場合は、以下の原則に従います：
-
-1. **サービスの合成**: 必要に応じて複数のサービスを連携させる場合でも、APIルーターではなくサービスレイヤー内で行う
-2. **単一の責任点**: 関連エンティティの存在確認は、一箇所（通常はメインのサービスメソッド内）で行う
-3. **トランザクション管理**: 複数のリソースを変更する場合は、サービスレイヤーでトランザクションを管理
-
-```typescript
-// サービスレイヤーでの複数リソース処理例
-export function createPlaylistService(dbClient: DbClient) {
-  // 他のサービスへの参照（必要な場合）
-  const videoService = createVideoService(dbClient);
-
-  return {
-    // ...他のメソッド
-
-    async addVideoToPlaylist(playlistId: string, data: PlaylistVideoInsert): Promise<void> {
-      try {
-        // プレイリストの存在確認
-        const playlist = await this.getPlaylistById(playlistId);
-
-        // 動画の存在確認（他のサービスを利用する場合）
-        // このチェックはこのメソッド内でのみ行い、APIルーターでは行わない
-        const video = await videoService.getVideoById(data.videoId);
-
-        // 関連付けの処理
-        await dbClient.insert(playlistVideos).values({
-          // ...関連データ
-        });
-      } catch (error) {
-        // エラーハンドリング...
-        throw error; // 適切に変換して上位に伝播
-      }
-    }
-  };
-}
-```
-
-### パフォーマンスの考慮
-
-サービスレイヤーでの存在チェックとその後の操作は、パフォーマンスにも配慮して設計します：
-
-1. **SELECT FOR UPDATE**: 読み取り後に更新する場合は、可能であればロックを取得
-2. **バッチ処理**: 複数のチェックを1つのクエリにまとめる（可能な場合）
-3. **JOIN操作**: 関連エンティティのチェックに JOIN クエリを使用する
-4. **キャッシュの活用**: 頻繁にアクセスされるエンティティにはキャッシュを検討
-
-## APIルーターの実装
-
-### エントリーポイント (route.ts)
-
-```typescript
-// src/app/api/[...route]/route.ts
-import { createHonoApp } from "@/db/config/hono";
-import { handle } from "hono/vercel";
-
-// Honoアプリケーションの作成
-// 環境に応じたデータベースクライアントが自動的に注入される
-const app = createHonoApp();
-
-// Vercelハンドラー
-export const GET = handle(app);
-export const POST = handle(app);
-export const PUT = handle(app);
-export const PATCH = handle(app);
-export const DELETE = handle(app);
-
-// 型定義をエクスポートして、クライアント側で型安全にAPIを呼び出せるようにする
-export type AppType = typeof app;
-```
-
-### 環境とデータベース接続の管理
-
-Kirinuki-Playlistでは、環境（本番、開発、テスト）に応じたデータベースクライアント管理と依存性注入パターンを実装しています。
-
-```typescript
-// src/db/config/hono.ts
-import { authorsRouter } from "@/app/api/[...route]/author";
-import { playlistsRouter } from "@/app/api/[...route]/playlists";
-import { videosRouter } from "@/app/api/[...route]/videos";
-import type { createDbClient } from "@/db/config/database";
-import { createDevDbClient } from "@/db/config/database";
-import type { createTestDbClient } from "@/db/config/test-database";
-import { errorHandler } from "@/db/middlewares/error-handler";
-import type { Bindings } from "@/db/types/bindings";
-import type { MiddlewareHandler } from "hono";
-import { Hono } from "hono";
-
-// DBクライアント型の定義
-export type DbClient =
-  | ReturnType<typeof createDbClient>
-  | Awaited<ReturnType<typeof createTestDbClient>>
-  | Awaited<ReturnType<typeof createDevDbClient>>;
-
-// 依存性を格納するための型拡張
-type Variables = {
-  dbClient?: DbClient;
-};
-
-// Bindings型にVariablesを追加した合成型
-export type AppEnv = {
-  Bindings: Bindings;
-  Variables: Variables;
-};
-
-/**
- * 環境に応じたHonoアプリケーションを作成する関数
- * 本番環境では実際のD1データベースを使用し、テスト環境ではテスト用DBクライアントを使用
- */
-export function createHonoApp(options?: { dbClient?: DbClient }) {
-  // 依存性をコンテキストに注入するミドルウェア
-  const injectDependencies: MiddlewareHandler<AppEnv> = async (c, next) => {
-    // dbClientが直接提供されている場合はそれを使用
-    if (options?.dbClient) {
-      c.set("dbClient", options.dbClient);
-    } else if (process.env.NODE_ENV === "development") {
-      const client = await createDevDbClient();
-      c.set("dbClient", client);
-    }
-    await next();
-  };
-
-  // Honoアプリケーションの組み立て
-  const app = new Hono<AppEnv>()
-    .basePath("/api")
-    .use("*", errorHandler)
-    .use("*", injectDependencies) // 依存性注入ミドルウェア
-    .route("/authors", authorsRouter)
-    .route("/videos", videosRouter)
-    .route("/playlists", playlistsRouter)
-    .get("/hello", (c) => c.json({ status: "ok" }));
-
-  return app;
-}
-```
-
-### リソース別ルーター
-
-```typescript
-// src/app/api/[...route]/videos.ts
-import { createDbClient } from "@/db/config/database";
-import type { AppEnv } from "@/db/config/hono";
-import { videoInsertSchema, videoUpdateSchema } from "@/db/models/videos";
-import { createVideoService } from "@/db/services/videos/videos";
-import type { VideoInsert, VideoUpdate } from "@/db/services/videos/videos";
-import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
-
-export const videosRouter = new Hono<AppEnv>()
-  // 動画一覧の取得（著者情報を含む）
-  .get("/", async (c) => {
-    // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
-    let dbClient = c.get("dbClient");
-    if (!dbClient) {
-      const { getRequestContext } = await import("@cloudflare/next-on-pages");
-      const { DB } = getRequestContext().env;
-      dbClient = createDbClient(DB);
-    }
-
-    const service = createVideoService(dbClient);
-    const videos = await service.getAllVideos();
-    return c.json({ success: true, videos });
-  })
-  // 動画の詳細取得（著者情報を含む）
-  .get("/:id", async (c) => {
-    const id = c.req.param("id");
-
-    // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
-    let dbClient = c.get("dbClient");
-    if (!dbClient) {
-      const { getRequestContext } = await import("@cloudflare/next-on-pages");
-      const { DB } = getRequestContext().env;
-      dbClient = createDbClient(DB);
-    }
-
-    const service = createVideoService(dbClient);
-    const video = await service.getVideoById(id);
-    return c.json({ success: true, video });
-  })
-  // 動画の追加
-  .post("/", zValidator("json", videoInsertSchema), async (c) => {
-    const input = c.req.valid("json") as VideoInsert;
-
-    // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
-    let dbClient = c.get("dbClient");
-    if (!dbClient) {
-      const { getRequestContext } = await import("@cloudflare/next-on-pages");
-      const { DB } = getRequestContext().env;
-      dbClient = createDbClient(DB);
-    }
-
-    const service = createVideoService(dbClient);
-    const id = await service.createVideo(input);
-
-    // 作成後、著者情報を含めて返す
-    const video = await service.getVideoById(id);
-    return c.json({ success: true, id, video }, 201);
-  })
-  // ...その他のエンドポイント
-```
-
-### getRequestContext の動的インポート
-
-パフォーマンス向上のため、`getRequestContext` 関数は必要な時のみ動的にインポートします：
-
-```typescript
-// 推奨される実装
-let dbClient = c.get("dbClient");
-if (!dbClient) {
-  const { getRequestContext } = await import("@cloudflare/next-on-pages");
-  const { DB } = getRequestContext().env;
-  dbClient = createDbClient(DB);
-}
-```
-
-この実装方法には以下の利点があります：
-
-1. 初期ロード時のパフォーマンス向上
-2. 依存関係の遅延ロード
-3. 必要な場合のみリソースを使用
-
-## 依存性注入パターン
-
-サービスレイヤーでは依存性注入パターンを採用し、テスト容易性と柔軟性を高めています。
-
-```typescript
-// src/db/services/videos/videos.ts
-import type { DbClient } from "@/db/config/hono";
-import { videos } from "@/db/models/videos";
-import { authors } from "@/db/models/authors";
-import { NotFoundError, DatabaseError } from "@/db/utils/errors";
-import { eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
-
-// 型定義
-export type VideoInsert = {
-  title: string;
-  url: string;
-  authorId: string;
-  start?: number;
-  end?: number;
-};
-
-export type VideoUpdate = Partial<VideoInsert>;
-
-/**
- * 動画サービスを作成する関数
- * 依存性注入パターンを使用して、DBクライアントを外部から注入できるようにする
- */
-export function createVideoService(dbClient: DbClient) {
-  return {
-    /**
-     * すべての動画を取得する
-     */
-    async getAllVideos() {
-      try {
-        const result = await dbClient.select().from(videos).all();
-        return result;
-      } catch (error) {
-        throw new DatabaseError(
-          `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
-        );
-      }
-    },
-
-    /**
-     * IDによって動画を取得する
-     */
-    async getVideoById(id: string) {
-      try {
-        const video = await dbClient
-          .select()
-          .from(videos)
-          .where(eq(videos.id, id))
-          .get();
-
-        if (!video) {
-          throw new NotFoundError(`ID: ${id} の動画が見つかりません`);
-        }
-
-        return video;
-      } catch (error) {
-        if (error instanceof NotFoundError) {
-          throw error;
-        }
-        throw new DatabaseError(
-          `動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`
-        );
-      }
-    },
-
-    // その他のメソッド...
-  };
-}
-```
-
-## クライアントサイドリポジトリの実装
-
-サーバーサイドAPIをクライアントサイドから使用するために、リポジトリパターンを実装します。これらのリポジトリは型安全性、エラーハンドリング、レスポンスの検証を提供します。
-
-```typescript
-// src/repositories/video/index.ts
-import { getApiClient } from "@/db/config/client";
-import type { ApiError } from "@/repositories/types";
-import { videoResponseSchema, videosResponseSchema } from "@/repositories/types";
-import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
-import { err, ok } from "neverthrow";
-import type { Result } from "neverthrow";
-import type { z } from "zod";
-
-// ビデオ一覧を取得
-export async function getAllVideos(): Promise<Result<z.infer<typeof videosResponseSchema>["videos"], ApiError>> {
-  try {
-    const client = getApiClient();
-    const response = await client.api.videos.$get();
-
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
-
-    const data = await response.json();
-    const result = videosResponseSchema.safeParse(data);
-
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
-
-    return ok(result.data.videos);
-  } catch (error) {
-    return err(createNetworkError(error));
-  }
-}
-
-// ビデオを取得
-export async function getVideoById(
-  id: string,
-): Promise<Result<z.infer<typeof videoResponseSchema>["video"], ApiError>> {
-  try {
-    const client = getApiClient();
-    const response = await client.api.videos[":id"].$get({
-      param: { id },
-    });
-
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
-
-    const data = await response.json();
-    const result = videoResponseSchema.safeParse(data);
-
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
-
-    return ok(result.data.video);
-  } catch (error) {
-    return err(createNetworkError(error));
-  }
-}
-```
-
-### APIクライアント管理
-
-クライアントサイドでは、シングルトンパターンを使用してAPIクライアントを管理します。これにより、テスト容易性とコード一貫性が向上します：
-
-```typescript
-// src/db/config/client.ts
-import type { AppType } from "@/app/api/[...route]/route";
-import { getBaseURL } from "@/db/config/baseUrl";
-import { hc } from "hono/client";
-
-/**
- * APIクライアントインターフェース
- */
-export type ApiClient = ReturnType<typeof hc<AppType>>;
-
-// シングルトンインスタンス管理
-let currentClient: ApiClient | null = null;
-
-/**
- * 現在のAPIクライアントを取得
- * セットされていない場合は本番用クライアントを作成して返す
- */
-export function getApiClient(): ApiClient {
-  if (!currentClient) {
-    currentClient = hc<AppType>(`${getBaseURL()}/api`);
-  }
-  return currentClient;
-}
-
-/**
- * テスト時などにクライアントを差し替えるための関数
- */
-export function setApiClient(client: ApiClient): void {
-  currentClient = client;
-}
-
-// 従来の実装との互換性のために残しているが、新しいコードでは使用すべきでない
-// 代わりに getApiClient() を使用すること
-export const client = hc<AppType>(`${getBaseURL()}/api`);
-```
+1. **URI構造**: RESTfulなURIパターンを使用（例: `/playlists/:id/videos`）
+2. **メソッド適用**: 適切なHTTPメソッドを使用（GET、POST、PUT、DELETE）
+3. **クエリパラメータ**: フィルタリング、ソート、ページネーションにクエリパラメータを使用
+4. **ステータスコード**: 適切なHTTPステータスコードを返す
 
 ## エラーハンドリング
 
-API実装では一貫したエラーハンドリングパターンを使用して、クライアントに適切なエラーメッセージを返します。
+1. **一貫したエラーフォーマット**: すべてのAPIエラーで同じレスポンス構造を使用
+2. **詳細なエラーメッセージ**: クライアントが理解できる明確なエラーメッセージを提供
+3. **適切なエラータイプ**: 状況に応じた適切なカスタムエラークラスを使用
+4. **一元的なエラーハンドリング**: エラーハンドリングミドルウェアを通じて一貫したエラー処理を実現
 
-```typescript
-// エラーハンドリングの例（PlaylistsRouterから）
-.get("/:id", async (c) => {
-  const id = c.req.param("id");
+## バリデーション
 
-  // DbClientをコンテキストから取得、なければ新規作成
-  let dbClient = c.get("dbClient");
-  if (!dbClient) {
-    const { getRequestContext } = await import("@cloudflare/next-on-pages");
-    const { DB } = getRequestContext().env;
-    dbClient = createDbClient(DB);
-  }
+1. **入力検証**: すべてのクライアント入力をZodスキーマで検証
+2. **早期検証**: ビジネスロジック実行前に入力を検証
+3. **細分化された検証**: 各エンドポイントに特化したスキーマを定義
+4. **型推論**: スキーマから型を推論して型安全性を確保
 
-  try {
-    const service = createPlaylistService(dbClient);
-    const playlist = await service.getPlaylistWithVideosById(id);
-    return c.json({ success: true, playlist });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      return c.json({ success: false, message: error.message }, 404);
-    }
-    console.error("Failed to get playlist:", error);
-    return c.json({ success: false, message: "プレイリストの取得に失敗しました" }, 500);
-  }
-})
-```
+## データベースアクセス
 
-## サーバーサイドとクライアントサイドの連携
+1. **Drizzle ORM**: SQLクエリの構築とデータベースアクセスにDrizzle ORMを使用
+2. **トランザクション**: データ整合性を保つため必要に応じてトランザクションを使用
+3. **エラーハンドリング**: データベースエラーを適切にキャッチし、意味のあるエラーメッセージに変換
+4. **N+1問題の回避**: 関連データを効率的に取得するよう設計
 
-サーバーサイドAPIとクライアントサイドリポジトリは、以下の方法で連携しています：
+## 認証と認可
 
-1. **Honoのタイプセーフなインターフェース**: `AppType` を通じて、API定義の型情報をクライアントと共有
-2. **一貫したレスポンス形式**: すべてのAPIエンドポイントは `{ success: boolean, ... }` 形式で応答
-3. **スキーマ検証**: Zodを使用して、クライアントでもサーバーからのレスポンスを検証
-4. **エラーハンドリング**: クライアント側でもサーバーのエラー応答を適切に処理
+1. **認証ミドルウェア**: 一貫した認証処理を提供するミドルウェアを使用
+2. **認可チェック**: 各エンドポイントでの認可チェックを実装
+3. **コンテキストアクセス**: 認証されたユーザー情報をリクエストコンテキストで利用可能に
 
-### リポジトリとHonoクライアントの移行
+## セキュリティ考慮事項
 
-以前は直接 `client` をインポートしていましたが、シングルトンパターンの導入により `getApiClient()` を使用するように変更されました：
+1. **入力サニタイズ**: すべてのユーザー入力を適切にサニタイズ
+2. **Rate Limiting**: 過剰なリクエストからAPIを保護
+3. **CORS**: 適切なCORS設定を実装
+4. **機密情報の保護**: 機密情報を適切に管理
 
-```typescript
-// 古い実装（非推奨）
-import { client } from "@/db/config/client";
-const response = await client.api.videos.$get();
+## ロギングとモニタリング
 
-// 新しい実装（推奨）
-import { getApiClient } from "@/db/config/client";
-const client = getApiClient();
-const response = await client.api.videos.$get();
-```
+1. **構造化ログ**: 構造化されたログフォーマットを使用
+2. **エラーロギング**: すべてのAPIエラーを適切なコンテキストとともにログに記録
+3. **パフォーマンスモニタリング**: エンドポイントのパフォーマンスを監視
 
-この変更により、テスト時にモッククライアントを注入できるようになり、テスト容易性が向上しました。
+## テスト戦略
 
-## セキュリティ
+1. **単体テスト**: サービスレイヤーの単体テストを実装
+2. **統合テスト**: サービスとデータベースの統合をテスト
+3. **エンドツーエンドテスト**: APIエンドポイントの完全な動作をテスト
+4. **モック**: 外部依存をモックしてテストを分離
 
-APIのセキュリティ対策として以下を実装します：
+## プレイリスト管理
 
-1. **認証**: JWTベースの認証システム
-2. **認可**: ロールベースのアクセス制御
-3. **入力バリデーション**: すべてのリクエストデータのバリデーション
-4. **セキュアヘッダー**: 適切なセキュリティヘッダーの設定
-5. **レート制限**: 大量のリクエストからの保護
+### 動画並び順の管理
 
-## データベース操作
+1. **順序フィールド**: プレイリスト内の動画の並び順を「order」フィールドで管理
+2. **順序の更新**: 動画の順序を変更するための専用エンドポイントを提供
+3. **一括更新**: 複数の動画の順序を一度に更新できる機能を提供
+4. **整合性確保**: 順序の重複や欠落を防ぐための検証を実装
 
-データベース操作はDrizzle ORMを使用して行います。
+## キャッシュ戦略
 
-```typescript
-// src/db/drizzle.ts
-import { drizzle } from 'drizzle-orm/d1';
-import { D1Database } from '@cloudflare/workers-types';
-import * as schema from './models';
+1. **キャッシュヘッダー**: 適切なキャッシュコントロールヘッダーを設定
+2. **条件付きリクエスト**: ETagやLast-Modifiedヘッダーを活用
+3. **キャッシュ無効化**: データ更新時に関連キャッシュを適切に無効化
 
-export function getDb(db: D1Database) {
-  return drizzle(db, { schema });
-}
-```
+## パフォーマンス最適化
 
-## テスト
+1. **クエリ最適化**: 効率的なデータベースクエリを設計
+2. **ページネーション**: 大量のデータを扱う場合はページネーションを実装
+3. **選択的フィールド取得**: 必要なフィールドのみを取得するオプションを提供
+4. **バッチ処理**: 複数操作をバッチ処理する仕組みを提供
 
-APIのテストは以下のアプローチで行います：
-
-1. **単体テスト**: サービスレイヤーの各関数をモックしてテスト
-2. **統合テスト**: 実際のデータベースを使用してAPIエンドポイントをテスト
-3. **E2Eテスト**: フロントエンドからの実際のAPI呼び出しをテスト
-
-詳細なテスト方法については [api-testing.mdc](mdc:api-testing.mdc) を参照してください。
+このガイドラインに従うことで、保守性が高く、拡張性のあるAPI実装を実現できます。

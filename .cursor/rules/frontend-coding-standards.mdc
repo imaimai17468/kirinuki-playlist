@@ -2,7 +2,7 @@
 description: Kirinuki-Playlistプロジェクトのフロントエンド開発コーディング規約
 globs: src/**/*.{ts,tsx}
 ---
-# Kirinuki-Playlist プロジェクトルール
+# Kirinuki-Playlist プロジェクトコーディング規約
 
 ## コードスタイル
 
@@ -50,286 +50,189 @@ globs: src/**/*.{ts,tsx}
 
 ### スタイリング
 
-- スタイリングは Tailwind CSS を使用する
-- クラス名の結合には`cn`ユーティリティを使用する
-- 条件付きクラスには`className={cn()}`パターンを使用する
-- コンポーネントのバリエーションには`class-variance-authority`を使用する
-- 複雑なスタイルはコンポーネント化する
-- レスポンシブデザインはTailwindのブレークポイントを使用する
+- Tailwind CSS を使用する
+- 複雑なスタイリングは CSS Modules または styled-components を使用する
+- コンポーネント特有のスタイルは同じディレクトリに配置する
+- 共通のスタイルは Tailwind の @apply ディレクティブでまとめる
+- レスポンシブデザインは Tailwind のブレークポイントを使用する
+- カラーパレットは Tailwind の設定ファイルで定義する
+- アニメーションは CSS Transitions または Framer Motion を使用する
 
-### リポジトリパターン
+### 状態管理
 
-- APIアクセスはリポジトリパターンを使用して抽象化する
-- リポジトリは`src/repositories/`ディレクトリに配置する
-- 各リソース（ビデオ、プレイリストなど）ごとにディレクトリを作成する
-- リポジトリファイルは`index.ts`として実装する
-- APIクライアントのインポートには`getApiClient()`関数を使用する
-- エラーハンドリングはResult型（neverthrow）を使用して実装する
-- レスポンスのバリデーションにはZodを使用する
-- テストでは適切にAPIクライアントをモック化する
+- ローカル状態には `useState` または `useReducer` を使用する
+- グローバル状態には React Context または Zustand を使用する
+- 複雑な状態管理ロジックはカスタムフックに抽出する
+- API 状態管理には React Query を使用する
+- フォーム管理には React Hook Form を使用する
+- 状態の型定義は明示的に行う
+- イミュータブルな状態更新を行う
 
-#### getApiClient() 関数の使用
+## アプリケーション構造
 
-```typescript
-// 推奨されるAPIクライアントの使用方法
-import { getApiClient } from "@/db/config/client";
+### ディレクトリ構造
 
-export async function getAllVideos() {
-  try {
-    // client変数を直接インポートするのではなく、getApiClient()を使用
-    const client = getApiClient();
-    const response = await client.api.videos.$get();
-    // 以降の処理...
-  } catch (error) {
-    // エラーハンドリング...
-  }
-}
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/                # API ルート
+│   ├── (auth)/             # 認証関連ページ
+│   └── (main)/             # メインコンテンツページ
+├── components/             # コンポーネント
+│   ├── ui/                 # 汎用UIコンポーネント
+│   ├── parts/              # 機能コンポーネント
+│   └── layouts/            # レイアウトコンポーネント
+├── contexts/               # React コンテキスト
+├── hooks/                  # カスタムフック
+├── lib/                    # ユーティリティ関数
+├── repositories/           # API クライアント
+├── db/                     # データベース関連
+│   ├── config/             # DB 設定
+│   ├── models/             # データモデル
+│   └── services/           # サービス層
+└── types/                  # グローバル型定義
 ```
 
-#### リポジトリの標準的な実装パターン
+### ルーティング
 
-```typescript
-// src/repositories/video/index.ts
-import { getApiClient } from "@/db/config/client";
-import type { ApiError } from "@/repositories/types";
-import { videoResponseSchema, videosResponseSchema } from "@/repositories/types";
-import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
-import { err, ok } from "neverthrow";
-import type { Result } from "neverthrow";
-import type { z } from "zod";
+- Next.js の App Router を使用する
+- ページはディレクトリベースのルーティングに従って配置する
+- 動的ルートには適切なセグメントを使用する
+- ネストされたレイアウトを活用する
+- リダイレクトは middleware または redirect 関数を使用する
+- ルート間のナビゲーションには Link コンポーネントを使用する
+- プログラムによるナビゲーションには useRouter フックを使用する
 
-// 型をエクスポートして他のファイルで再利用可能にする
-export type Video = z.infer<typeof videoResponseSchema>["video"];
-export type Videos = z.infer<typeof videosResponseSchema>["videos"];
+### データフェッチ
 
-// リソース一覧を取得する関数
-export async function getAllVideos(): Promise<Result<Videos, ApiError>> {
-  try {
-    const client = getApiClient();
-    const response = await client.api.videos.$get();
+- サーバーコンポーネントでは fetch 関数を使用する
+- クライアントコンポーネントでは React Query を使用する
+- API エンドポイントとの通信はリポジトリ層で抽象化する
+- データフェッチ中の UI 状態を適切に処理する
+- エラーハンドリングを適切に実装する
+- データの型は Zod スキーマで検証する
+- キャッシュ戦略を適切に設定する
 
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
+### エラーハンドリング
 
-    const data = await response.json();
-    const result = videosResponseSchema.safeParse(data);
+- エラーバウンダリを適切に配置する
+- ユーザーに分かりやすいエラーメッセージを表示する
+- サーバーサイドのエラーとクライアントサイドのエラーを適切に処理する
+- ネットワークエラーは専用の UI で処理する
+- フォームのバリデーションエラーはフィールド単位で表示する
+- エラーログは開発環境でのみ詳細に表示する
+- エラー状態からの回復手段を提供する
 
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
+### パフォーマンス最適化
 
-    return ok(result.data.videos);
-  } catch (error) {
-    return err(createNetworkError(error));
-  }
-}
+- コンポーネントのメモ化を適切に行う
+- 大きなリストには仮想化を使用する
+- 画像は Next.js の Image コンポーネントで最適化する
+- バンドルサイズを意識した実装を行う
+- レンダリングパフォーマンスを定期的に計測する
+- サーバーサイド処理とクライアントサイド処理を適切に分ける
+- Suspense と Streaming を活用する
 
-// リソースを取得する関数
-export async function getVideoById(id: string): Promise<Result<Video, ApiError>> {
-  try {
-    const client = getApiClient();
-    const response = await client.api.videos[":id"].$get({
-      param: { id },
-    });
+### アクセシビリティ
 
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
+- セマンティック HTML を使用する
+- キーボードナビゲーションをサポートする
+- ARIA 属性を適切に使用する
+- 適切なコントラスト比を確保する
+- スクリーンリーダーでの読み上げを考慮した実装を行う
+- フォーカス管理を適切に行う
+- アクセシビリティ要件に対するテストを実施する
 
-    const data = await response.json();
-    const result = videoResponseSchema.safeParse(data);
+### コンポーネント設計の原則
 
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
+- コンポーネントは小さく保つ（最大 200 行程度）
+- 単一責任の原則に従う
+- 明確な API を持つ
+- 状態とロジックを適切に分離する
+- 再利用可能なコンポーネントには Storybook を作成する
+- コンポーネントには Jest テストを書く
+- UI コンポーネントはビジネスロジックに依存しない
 
-    return ok(result.data.video);
-  } catch (error) {
-    return err(createNetworkError(error));
-  }
-}
-```
+### テスト
 
-## テスト
+- Jest と React Testing Library を使用する
+- ユニットテストは機能単位で実装する
+- インテグレーションテストは主要なユーザーフローをカバーする
+- E2E テストは Playwright を使用する
+- テストカバレッジは主要な機能で高く保つ
+- スナップショットテストは変更が多い UI には使用しない
+- テストはユーザーが使用する方法に沿った形で書く
 
-### テスト全般
+### ドキュメンテーション
 
-- テストフレームワークは Bun のテストランナーを使用する
-- テストファイルの命名は`*.test.tsx`とする（コンポーネント）、`*.test.ts`とする（非UIコード）
-- 各テストの後に`cleanup()`を実行する
-- テストケースは英語または日本語で記述する（プロジェクトで統一する）
-- テストケースの説明は「〜すべき」「〜が期待される」などの形式で記述する
-- モックは最小限に留め、実際の動作に近い形でテストする
-- テストカバレッジは定期的に確認する
-- 重要なロジックには必ずテストを書く
+- 複雑なコンポーネントには JSDoc コメントを付ける
+- API 仕様は明確に文書化する
+- Storybook でコンポーネントのユースケースを示す
+- README には主要な情報とセットアップ手順を記載する
+- チーム間で共有される関数やコンポーネントは特に丁寧にドキュメント化する
+- コンポーネントの props は型定義で自己文書化する
+- コードコメントは「なぜ」そうしたのかを説明する
 
-### コンポーネントテスト
+## 品質保証
 
-- コンポーネントのレンダリングテストを必ず実装する
-- 状態変化を伴うコンポーネントは、状態変化のテストを実装する
-- ユーザーインタラクションのテストには`fireEvent`を使用する
-- コンテキストを使用するコンポーネントは、テスト時にプロバイダーでラップする
-- モックデータは各テストファイル内で定義する
-- 外部依存（Next.js のルーターなど）はモック化する
-- スナップショットテストは慎重に使用する
-- アクセシビリティテストを実装する
+### Linting と Formatting
 
-### フックのテスト
+- ESLint を使用してコード品質を保つ
+- Prettier を使用して一貫したフォーマットを維持する
+- husky と lint-staged を使用して commit 前にチェックを行う
+- TypeScript の strict モードを有効にする
+- Path エイリアスを使用して相対パスの乱用を避ける
+- import 順は自動整形ツールで統一する
+- 未使用の import やコードは削除する
 
-- フックのテストには`@testing-library/react`の`renderHook`を使用する
-- フックの初期状態が正しく設定されていることを検証する
-- 状態更新関数（トグル関数など）が正しく動作することを検証する
-- 複雑なロジックを持つ関数は個別にテストする
-- 外部依存（プレーヤーなど）はモック化する
-- 状態変更を伴うテストでは`act`関数でラップする
-- エッジケース（空の配列、境界値など）のテストを実装する
-- 複合的な状態変化（ループモードとシャッフルモードの組み合わせなど）をテストする
-- テストデータは実際のデータ構造に準拠させる
-- 参照型の値（ref）を直接変更せず、適切なハンドラー経由で設定する
-- 非同期処理を含むフックは適切に待機処理を実装する
+### CI/CD
 
-### リポジトリのテスト
+- GitHub Actions での自動ビルドとテストを実施する
+- Pull Request 時に静的解析とテストを実行する
+- Vercel での自動デプロイを設定する
+- E2E テストを定期的に実行する
+- バンドルサイズの監視を行う
+- パフォーマンスメトリクスをモニタリングする
+- デプロイ前後での視覚的回帰テストを行う
 
-- リポジトリのテストでは`setApiClient()`関数を使用してAPIクライアントをモック化する
-- APIレスポンスのモックデータは実際のレスポンス形式に準拠する
-- 成功ケースと失敗ケースの両方をテストする
-- ネットワークエラー、HTTPエラー、スキーマエラーの各シナリオをテストする
-- Result型の戻り値が適切に処理されることを確認する
+### セキュリティ
 
-```typescript
-// src/repositories/video/__tests__/index.test.ts
-import { setApiClient } from "@/db/config/client";
-import { getAllVideos } from "@/repositories/video";
+- 環境変数で機密情報を管理する
+- XSS 対策として適切なコンテンツセキュリティポリシーを設定する
+- CSRF 対策を実装する
+- 外部ライブラリの脆弱性を定期的にチェックする
+- ユーザー入力は適切にサニタイズする
+- 認証と認可のロジックを厳密に実装する
+- API レスポンスの型検証を徹底する
 
-describe("videoRepository", () => {
-  beforeEach(() => {
-    // APIクライアントのモック設定
-    const mockClient = {
-      api: {
-        videos: {
-          $get: jest.fn().mockResolvedValue({
-            ok: true,
-            json: jest.fn().mockResolvedValue({
-              success: true,
-              videos: [{ id: "1", title: "テスト動画" }],
-            }),
-          }),
-        },
-      },
-    };
-    setApiClient(mockClient as any);
-  });
+## 特定の機能実装ガイドライン
 
-  it("getAllVideos が成功した場合、動画リストを返すべき", async () => {
-    const result = await getAllVideos();
-    expect(result.isOk()).toBe(true);
+### プレイリスト関連
 
-    result.match(
-      (data) => {
-        expect(data).toHaveLength(1);
-        expect(data[0].title).toBe("テスト動画");
-      },
-      () => {
-        fail("エラーは発生しないはずです");
-      }
-    );
-  });
+- プレイリスト一覧と詳細表示の UI コンポーネントを分離する
+- プレイリスト作成・編集フォームは共通コンポーネントとして実装する
+- 動画の並び替えは drag-and-drop インターフェースで実装する
+- プレイリスト内の動画順序は React Query の optimistic updates で即時反映する
+- プレイリストのクエリキャッシュは適切に無効化する
+- プレイリスト関連の状態変更はサーバーとの同期を確実に行う
+- プレイリスト関連のエラーメッセージはユーザーフレンドリーにする
 
-  // 失敗ケースのテスト...
-});
-```
+### ビデオ再生関連
 
-### テストの構造
+- 動画プレーヤーは React Player を使用する
+- カスタムコントロールは UI コンポーネントとして実装する
+- 再生位置の保存と復元機能を実装する
+- プレイリスト内の自動再生と次の動画への移動をサポートする
+- 再生速度、音量などの設定はローカルストレージに保存する
+- 動画の開始時間と終了時間を指定できるようにする
+- モバイルデバイスでの再生体験を最適化する
 
-- `describe`ブロックでコンポーネント名やフック名をグループ化する
-- `it`ブロックでテストケースを記述する
-- テストケースは明確な動作を説明する形式で記述する
-- 各テストは独立して実行できるようにする
-- `beforeEach`/`afterEach`でテスト環境のセットアップ/クリーンアップを行う
-- 共通のテストデータや設定は変数として抽出する
-- 複雑なテストケースは小さな関数に分割する
-- 関連するテストケースはネストした`describe`でグループ化する
+### ユーザー認証
 
-### モックとスタブ
-
-- `jest.fn()`を使用して関数をモック化する
-- 外部APIや依存関係は適切にモック化する
-- モックオブジェクトは実際のインターフェースに準拠させる
-- 複雑なモックは専用のヘルパー関数として実装する
-- テスト間でモックの状態が漏れないように注意する
-- モックの検証には`toHaveBeenCalled`や`toHaveBeenCalledWith`を使用する
-- 必要に応じて`jest.spyOn`を使用して既存のオブジェクトをスパイする
-
-## プロジェクト固有のルール
-
-### サイドバーコンポーネント
-
-- サイドバー関連のコンポーネントは`src/components/parts/sidebar`ディレクトリに配置する
-- ナビゲーション関連のコンポーネントは`navigation`サブディレクトリに配置する
-- サイドバーのアイテム定義は`consts.ts`に集約する
-- サイドバーコンポーネントは`SidebarProvider`でラップして使用する
-
-### ビデオプレーヤー
-
-- プレーヤー関連のコンポーネントは`src/components/parts/video-player`ディレクトリに配置する
-- プレーヤーの状態管理は`useVideoPlayer`フックを使用する
-- プレーヤーのイベントハンドラーは適切にモック化してテストする
-- シャッフルモードとループモードの組み合わせは適切にテストする
-
-### ブレッドクラム
-
-- パスセグメントに基づいてブレッドクラムを生成する
-- 最後のセグメントは`BreadcrumbPage`として表示する
-- 中間のセグメントは`BreadcrumbLink`として表示する
-
-### ユーザーインターフェース
-
-- ドロップダウンメニューには`@radix-ui/react-dropdown-menu`を使用する
-- アバターには`@radix-ui/react-avatar`を使用する
-- アイコンには`lucide-react`を使用する
-- 折りたたみ可能な要素には`@radix-ui/react-collapsible`を使用する
-
-### APIクライアント
-
-- APIクライアントは`getApiClient()`関数を使用して取得する
-- 直接`client`変数をインポートするのではなく、常に`getApiClient()`を使用する
-- 新しいリポジトリを作成する際は既存のリポジトリのパターンに従う
-- エラーハンドリングはResult型を使用して統一的に実装する
-- 型安全性を確保するためにZodによるレスポンスバリデーションを実装する
-- テスト用モッククライアントの注入には`setApiClient()`関数を使用する
-
-```typescript
-// 非推奨 ❌
-import { client } from "@/db/config/client";
-const response = await client.api.videos.$get();
-
-// 推奨 ✅
-import { getApiClient } from "@/db/config/client";
-const client = getApiClient();
-const response = await client.api.videos.$get();
-```
-
-## コード品質
-
-### リンター・フォーマッター
-
-- Biome を使用してコードの品質を保つ
-- `biome check`でコードをチェックする
-- `biome format`でコードをフォーマットする
-- コミット前に lefthook を使用して自動チェックを行う
-
-### 型チェック
-
-- `tsc --noEmit`で型チェックを行う
-- 型エラーは修正してからコミットする
-- 複雑な型は適切に分割する
-- ジェネリック型は適切に制約を設ける
-
-### テスト実行
-
-- `bun test`でテストを実行する
-- `bun test --watch`で開発中のテスト監視を行う
-- CI では全テストが通過することを確認する
-- テストカバレッジレポートを定期的に確認する
-- 重要なコードパスは必ずテストでカバーする
+- Next.js の middleware を使用して認証状態を確認する
+- セッション管理は Next Auth を使用する
+- 認証状態は React Context で管理する
+- ユーザープロファイル情報は適切にキャッシュする
+- 認証エラーは専用のエラーハンドラーで処理する
+- 認証が必要なページへの未認証アクセスはリダイレクトする
+- ソーシャルログインと Email/Password 認証の両方をサポートする

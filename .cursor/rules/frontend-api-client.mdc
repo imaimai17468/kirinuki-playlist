@@ -16,57 +16,19 @@ Honoクライアントは、サーバーサイドのHonoルーターの型情報
 
 ### シングルトンパターンによるAPIクライアント管理
 
-APIクライアントは以下のようにシングルトンパターンで管理します：
+APIクライアントはシングルトンパターンで管理します。以下の原則に従ってください：
 
-```typescript
-// src/db/config/client.ts
-import type { AppType } from "@/app/api/[...route]/route";
-import { getBaseURL } from "@/db/config/baseUrl";
-import { hc } from "hono/client";
-
-// APIクライアント型定義
-export type ApiClient = ReturnType<typeof hc<AppType>>;
-
-// シングルトンインスタンス
-let currentClient: ApiClient | null = null;
-
-/**
- * 現在のAPIクライアントを取得
- * 未設定の場合は新しいクライアントを作成して返す
- */
-export function getApiClient(): ApiClient {
-  if (!currentClient) {
-    currentClient = hc<AppType>(`${getBaseURL()}/api`);
-  }
-  return currentClient;
-}
-
-/**
- * テスト時などにクライアントを差し替える
- */
-export function setApiClient(client: ApiClient): void {
-  currentClient = client;
-}
-
-// 従来の実装との互換性のために残しているが、新しいコードでは使用すべきでない
-// 代わりに getApiClient() を使用すること
-export const client = hc<AppType>(`${getBaseURL()}/api`);
-```
+1. シングルトンインスタンスを保持する変数を定義
+2. getApiClient()関数を提供し、未初期化の場合はクライアントを新規作成
+3. テスト時用にsetApiClient()関数でクライアント置換機能を提供
+4. 直接clientをインポートする代わりにgetApiClient()関数を使用
 
 ### getApiClient() 関数の使用
 
-新しい実装では、APIクライアントを取得するために`getApiClient()`関数を使用します：
+APIクライアントを取得するためには、`getApiClient()`関数を使用してください：
 
-```typescript
-// 非推奨 ❌
-import { client } from "@/db/config/client";
-const response = await client.api.videos.$get();
-
-// 推奨 ✅
-import { getApiClient } from "@/db/config/client";
-const client = getApiClient();
-const response = await client.api.videos.$get();
-```
+- ✅ 推奨: getApiClient()を呼び出してクライアントを取得
+- ❌ 非推奨: 直接clientインスタンスをインポート
 
 ## リポジトリパターン実装
 
@@ -74,7 +36,7 @@ const response = await client.api.videos.$get();
 
 ### ディレクトリ構造
 
-リポジトリのディレクトリ構造は以下の通りです。各エンティティタイプごとに専用のディレクトリを持ち、その中にタイプ定義や実装を格納します：
+リポジトリは以下のディレクトリ構造に従ってください：
 
 ```
 src/
@@ -83,292 +45,80 @@ src/
 │   ├── utils.ts                # 共通ユーティリティ関数
 │   ├── test/                   # テスト用共有ロジック
 │   │   └── setup.ts            # テスト環境セットアップ
-│   ├── videos/                 # 動画リポジトリ
+│   ├── [エンティティ名]/       # 各エンティティごとのディレクトリ
 │   │   ├── index.ts            # 実装
-│   │   ├── types.ts            # 動画固有の型定義とスキーマ
+│   │   ├── types.ts            # 固有の型定義とスキーマ
+│   │   ├── hooks.ts            # React Queryフック
 │   │   └── __tests__/          # テスト
-│   │       └── videos.test.ts
-│   ├── playlists/              # プレイリストリポジトリ
-│   │   ├── index.ts            # 実装
-│   │   ├── types.ts            # プレイリスト固有の型定義とスキーマ
-│   │   └── __tests__/          # テスト
-│   │       └── playlists.test.ts
-│   └── authors/                # 著者リポジトリ
-│       ├── index.ts            # 実装
-│       ├── types.ts            # 著者固有の型定義とスキーマ
-│       └── __tests__/          # テスト
-│           └── authors.test.ts
 ```
 
-この構造の特徴：
+### 基本実装原則
 
-1. **モジュール化**: 各エンティティが独自のディレクトリを持ち、関連するファイルを論理的にグループ化
-2. **型定義の分離**: 各エンティティ固有の型定義とスキーマは独自の `types.ts` ファイルに配置
-3. **依存関係の明確化**: エンティティ間の依存関係がインポート文で明示的に表現される
-4. **テストの整理**: テストファイルが関連する実装の近くに配置され、テスト対象が明確
+リポジトリの実装には以下の原則を適用してください：
 
-### 基本実装
+1. **型安全性の確保**:
+   - Zodスキーマを使用してレスポンスを検証
+   - 型をエクスポートして他のファイルでの再利用を可能に
 
-リポジトリの標準的な実装パターンは以下の通りです：
+2. **エラーハンドリング**:
+   - Result型（neverthrow）を使用してエラー処理
+   - ネットワークエラー、スキーマエラー、HTTPエラーを適切に区別
 
-```typescript
-// src/repositories/videos/index.ts
-import { getApiClient } from "@/db/config/client";
-import type { ApiError } from "@/repositories/types";
-import { videoResponseSchema, videosResponseSchema } from "@/repositories/videos/types";
-import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
-import { err, ok } from "neverthrow";
-import type { Result } from "neverthrow";
-import type { z } from "zod";
+3. **APIクライアントの使用**:
+   - getApiClient()関数を使用してシングルトンクライアントを取得
+   - Honoクライアントの型安全な呼び出しを活用
 
-// 型をエクスポートして他のファイルで再利用可能にする
-export type Video = z.infer<typeof videoResponseSchema>["video"];
-export type Videos = z.infer<typeof videosResponseSchema>["videos"];
-
-// 動画一覧を取得
-export async function getAllVideos(): Promise<Result<Videos, ApiError>> {
-  try {
-    // getApiClient()を使用してシングルトンクライアントを取得
-    const client = getApiClient();
-    const response = await client.api.videos.$get();
-
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
-
-    const data = await response.json();
-    const result = videosResponseSchema.safeParse(data);
-
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
-
-    return ok(result.data.videos);
-  } catch (error) {
-    return err(createNetworkError(error));
-  }
-}
-
-// 動画を取得
-export async function getVideoById(id: string): Promise<Result<Video, ApiError>> {
-  try {
-    const client = getApiClient();
-    const response = await client.api.videos[":id"].$get({
-      param: { id },
-    });
-
-    if (!response.ok) {
-      return handleHttpError(response);
-    }
-
-    const data = await response.json();
-    const result = videoResponseSchema.safeParse(data);
-
-    if (!result.success) {
-      return err(createSchemaError(result.error.message));
-    }
-
-    return ok(result.data.video);
-  } catch (error) {
-    return err(createNetworkError(error));
-  }
-}
-```
+4. **テスト容易性**:
+   - 依存関係を明示的に表現
+   - モックが容易な構造設計
 
 ## 型の定義と検証
 
 ### エラー型の定義
 
-```typescript
-// src/repositories/types.ts
-import { z } from "zod";
+APIエラーは明確な型定義を持ち、以下のタイプを区別します：
 
-// APIエラーの型定義
-export type ApiError =
-  | { type: "network"; message: string }
-  | { type: "notFound"; message: string }
-  | { type: "badRequest"; message: string }
-  | { type: "serverError"; message: string }
-  | { type: "schema"; message: string };
-
-// 基本レスポンススキーマ
-export const baseResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string().optional(),
-});
-```
+- network: ネットワーク接続エラー
+- notFound: リソースが見つからない（404）
+- badRequest: 無効なリクエスト（400）
+- serverError: サーバーエラー（500など）
+- schema: レスポンス検証エラー
 
 ### 共通ユーティリティ関数
 
-```typescript
-// src/repositories/utils.ts
-import type { ApiError } from "./types";
-import { baseResponseSchema } from "./types";
-import { err } from "neverthrow";
-import type { Result } from "neverthrow";
+以下の共通ユーティリティ関数を提供してください：
 
-// ネットワークエラーを作成
-export function createNetworkError(error: unknown): ApiError {
-  return {
-    type: "network",
-    message: error instanceof Error ? error.message : "ネットワークエラーが発生しました",
-    details: error,
-  };
-}
-
-// スキーマエラーを作成
-export function createSchemaError(message: string): ApiError {
-  return {
-    type: "schema",
-    message: `レスポンスの形式が正しくありません: ${message}`,
-  };
-}
-
-// HTTPエラーを処理する関数
-export async function handleHttpError(response: Response): Promise<Result<never, ApiError>> {
-  try {
-    const data = await response.json();
-
-    // ステータスコードに基づいてエラータイプを決定
-    switch (response.status) {
-      case 404:
-        return err({
-          type: "notFound",
-          message: data.message || "リソースが見つかりませんでした",
-        });
-      case 400:
-        return err({
-          type: "badRequest",
-          message: data.message || "無効なリクエストです",
-        });
-      default:
-        return err({
-          type: "serverError",
-          message: data.message || "サーバーエラーが発生しました",
-        });
-    }
-  } catch (error) {
-    return err({
-      type: "serverError",
-      message: "レスポンスの処理中にエラーが発生しました",
-    });
-  }
-}
-```
+- エラー作成用関数（createNetworkError, createSchemaErrorなど）
+- HTTPエラー処理関数（handleHttpError）
 
 ## React Queryとの統合
 
-リポジトリパターンはReact Queryと簡単に統合できます：
+リポジトリパターンはReact Queryと統合し、以下の方針に従ってください：
 
-```typescript
-// src/repositories/videos/hooks.ts
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAllVideos, getVideoById } from '@/repositories/videos';
-import type { ApiError } from '@/repositories/types';
+1. **フックの命名規則**:
+   - 取得系: use[エンティティ名]s(), use[エンティティ名]()
+   - 変更系: useCreate[エンティティ名](), useUpdate[エンティティ名](), useDelete[エンティティ名]()
 
-// 動画一覧を取得するクエリフック
-export function useVideos() {
-  return useQuery({
-    queryKey: ['videos'],
-    queryFn: async () => {
-      const result = await getAllVideos();
+2. **エラーハンドリング**:
+   - リポジトリから返されたResult型をチェック
+   - エラーの場合は適切に例外をスロー
 
-      if (result.isErr()) {
-        throw result.error;
-      }
-
-      return result.value;
-    }
-  });
-}
-
-// 特定の動画を取得するクエリフック
-export function useVideo(id: string) {
-  return useQuery({
-    queryKey: ['videos', id],
-    queryFn: async () => {
-      const result = await getVideoById(id);
-
-      if (result.isErr()) {
-        throw result.error;
-      }
-
-      return result.value;
-    },
-    enabled: !!id
-  });
-}
-```
+3. **キャッシュ管理**:
+   - 関連するクエリを適切にinvalidate
+   - キャッシュキーを一貫して使用
 
 ## リポジトリテスト
 
-リポジトリのテストでは、`setApiClient()`関数を使用してモッククライアントを注入します：
+リポジトリのテストでは、以下のアプローチを採用してください：
 
-```typescript
-// src/repositories/videos/__tests__/index.test.ts
-import { setApiClient } from "@/db/config/client";
-import { getAllVideos, getVideoById } from "@/repositories/videos";
+1. **モッククライアントの注入**:
+   - setApiClient()関数を使用してモッククライアントを注入
+   - 各テストケース前にモックを設定
 
-describe("videoRepository", () => {
-  beforeEach(() => {
-    // モッククライアントの設定
-    const mockClient = {
-      api: {
-        videos: {
-          $get: jest.fn().mockResolvedValue({
-            ok: true,
-            json: jest.fn().mockResolvedValue({
-              success: true,
-              videos: [{ id: "1", title: "テスト動画" }],
-            }),
-          }),
-          [":id"]: {
-            $get: jest.fn().mockImplementation(({ param }) => ({
-              ok: true,
-              json: jest.fn().mockResolvedValue({
-                success: true,
-                video: { id: param.id, title: `テスト動画 ${param.id}` },
-              }),
-            })),
-          },
-        },
-      },
-    };
-
-    setApiClient(mockClient as any);
-  });
-
-  it("getAllVideos は動画リストを返すべき", async () => {
-    const result = await getAllVideos();
-    expect(result.isOk()).toBe(true);
-
-    result.match(
-      (data) => {
-        expect(data).toHaveLength(1);
-        expect(data[0].title).toBe("テスト動画");
-      },
-      () => {
-        fail("エラーは発生しないはずです");
-      }
-    );
-  });
-
-  it("getVideoById は指定したIDの動画を返すべき", async () => {
-    const result = await getVideoById("123");
-    expect(result.isOk()).toBe(true);
-
-    result.match(
-      (data) => {
-        expect(data.id).toBe("123");
-        expect(data.title).toBe("テスト動画 123");
-      },
-      () => {
-        fail("エラーは発生しないはずです");
-      }
-    );
-  });
-});
-```
+2. **テストパターン**:
+   - 成功ケース: 期待される値が返されることを確認
+   - エラーケース: 適切なエラー型が返されることを確認
+   - パラメータ検証: APIに正しいパラメータが渡されることを確認
 
 ## リポジトリパターンの利点
 

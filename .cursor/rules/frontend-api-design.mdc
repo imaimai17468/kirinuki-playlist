@@ -18,133 +18,68 @@ Kirinuki-Playlistプロジェクトでは、フロントエンドとバックエ
 
 ### エンドポイント設計
 
-RESTful APIの原則に従い、リソース指向のURLパスを使用します。
+RESTful APIの原則に従い、リソース指向のURLパスを使用します：
 
-```
-/api/[リソース名]        # リソースのコレクション（例: /api/videos）
-/api/[リソース名]/:id    # 特定のリソース（例: /api/videos/123）
-```
+- `/api/[リソース名]` - リソースのコレクション
+- `/api/[リソース名]/:id` - 特定のリソース
 
 ### リレーションを含む場合のエンドポイント設計
 
-リソース間のリレーションを表現する場合は、以下のパターンを使用します：
+リソース間のリレーションを表現するために以下のパターンを使用します：
 
-```
-# 関連リソースの取得
-/api/[親リソース]/:id/[子リソース]        # 例: /api/playlists/123/videos
-
-# リレーション操作に特化したエンドポイント
-/api/[親リソース]/:id/[関連操作]          # 例: /api/playlists/123/addVideo
-```
+- `/api/[親リソース]/:id/[子リソース]` - 関連リソースの取得
+- `/api/[親リソース]/:id/[関連操作]` - リレーション操作に特化したエンドポイント
 
 ### ネストされたリソース
 
-深いネストは避け、必要な場合は最大2階層までにします：
-
-```
-/api/playlists/:playlistId/videos/:videoId  # 許容される最大ネスト
-```
-
-複雑なリレーションは、クエリパラメータや専用エンドポイントで表現します：
-
-```
-/api/videos?playlistId=123  # クエリパラメータによるフィルタリング
-/api/playlists/123/videos   # 特定のプレイリストに属する動画一覧
-```
+- 深いネストは避け、最大2階層までにする
+- 複雑なリレーションはクエリパラメータや専用エンドポイントで表現する
 
 ## 命名規則
 
 ### URL
 
 - 複数形の名詞を使用（`/videos`, `/playlists`, `/authors`）
-- 小文字と `-` (ハイフン) を使用（`/api/video-categories`）
+- 小文字と `-` (ハイフン) を使用
 - 動詞は避け、HTTPメソッドで操作を表現
 
 ### リクエスト/レスポンスフィールド
 
-- camelCase形式を使用（`videoTitle`, `authorName`）
+- camelCase形式を使用
 - 一貫した命名パターンを使用（`createdAt`, `updatedAt` など）
-- ブール値のフィールドには、`is`, `has`, `can` などのプレフィックスを使用（`isPublished`, `hasComments`）
+- ブール値のフィールドには、`is`, `has`, `can` などのプレフィックスを使用
 
 ## HTTPメソッド
 
 各操作には適切なHTTPメソッドを使用します：
 
-| メソッド | 用途                     | 例                               |
-|---------|-------------------------|----------------------------------|
-| GET     | リソースの取得           | `GET /api/videos`               |
-| POST    | リソースの作成           | `POST /api/videos`              |
-| PUT     | リソースの完全更新       | `PUT /api/videos/123`           |
-| PATCH   | リソースの部分更新       | `PATCH /api/videos/123`         |
-| DELETE  | リソースの削除           | `DELETE /api/videos/123`        |
+- GET - リソースの取得
+- POST - リソースの作成
+- PUT - リソースの完全更新
+- PATCH - リソースの部分更新
+- DELETE - リソースの削除
 
 ## レスポンス形式
 
 すべてのAPIレスポンスは一貫した形式で返します：
 
-```typescript
-// 成功レスポンス
-type SuccessResponse<T> = {
-  success: true;
-  [key: string]: T;  // リソース名をキーとして使用（例: { success: true, video: {...} }）
-  message?: string;  // 任意のメッセージ
-};
+### 成功レスポンス
 
-// エラーレスポンス
-type ErrorResponse = {
-  success: false;
-  message: string;
-  errors?: Record<string, string[]>;  // バリデーションエラーの場合
-};
+```
+{
+  "success": true,
+  "[リソース名]": データ,
+  "message": "任意のメッセージ" (オプション)
+}
 ```
 
-### レスポンス例
+### エラーレスポンス
 
-```json
-// 成功レスポンス（単一リソース）
-{
-  "success": true,
-  "video": {
-    "id": "123",
-    "title": "サンプル動画",
-    "url": "https://example.com/video.mp4",
-    "authorId": "456",
-    "createdAt": "2023-01-01T00:00:00Z",
-    "updatedAt": "2023-01-02T00:00:00Z"
-  }
-}
-
-// 成功レスポンス（リソースコレクション）
-{
-  "success": true,
-  "videos": [
-    {
-      "id": "123",
-      "title": "サンプル動画1",
-      "url": "https://example.com/video1.mp4",
-      "authorId": "456",
-      "createdAt": "2023-01-01T00:00:00Z",
-      "updatedAt": "2023-01-02T00:00:00Z"
-    },
-    {
-      "id": "124",
-      "title": "サンプル動画2",
-      "url": "https://example.com/video2.mp4",
-      "authorId": "456",
-      "createdAt": "2023-01-03T00:00:00Z",
-      "updatedAt": "2023-01-04T00:00:00Z"
-    }
-  ]
-}
-
-// エラーレスポンス
+```
 {
   "success": false,
-  "message": "バリデーションエラー",
-  "errors": {
-    "title": ["タイトルは必須です"],
-    "url": ["有効なURLを入力してください"]
-  }
+  "message": "エラーメッセージ",
+  "errors": { "フィールド": ["エラー内容"] } (オプション、バリデーションエラーの場合)
 }
 ```
 
@@ -152,48 +87,15 @@ type ErrorResponse = {
 
 ### 関連リソースのインライン展開
 
-関連リソースを含める場合、以下の原則に従います：
+関連リソースを含める場合は以下の原則に従います：
 
-1. **基本リクエストではシンプルに**: 基本リクエストでは、IDのみを返す（`authorId`）
+1. **基本リクエストではシンプルに**: 基本リクエストでは、IDのみを返す
 2. **拡張情報はオプションで**: 詳細情報が必要な場合は、クエリパラメータや特別なエンドポイントを使用
-3. **一貫した命名**: 関連リソースは一貫した命名規則で表現（`author`, `videos`）
-
-```json
-// 関連リソースの展開例
-{
-  "success": true,
-  "playlist": {
-    "id": "123",
-    "title": "お気に入り動画",
-    "authorId": "456",
-    "createdAt": "2023-01-01T00:00:00Z",
-    "updatedAt": "2023-01-02T00:00:00Z",
-    // 関連リソースを展開
-    "author": {
-      "id": "456",
-      "name": "サンプルユーザー",
-      "iconUrl": "https://example.com/icon.jpg"
-    },
-    "videos": [
-      {
-        "id": "789",
-        "title": "サンプル動画",
-        "url": "https://example.com/video.mp4",
-        "authorId": "456",
-        "author": {
-          "id": "456",
-          "name": "サンプルユーザー",
-          "iconUrl": "https://example.com/icon.jpg"
-        }
-      }
-    ]
-  }
-}
-```
+3. **一貫した命名**: 関連リソースは一貫した命名規則で表現
 
 ### クライアントへのヒント
 
-関連リソースの存在をクライアントに示すため、以下のアプローチを使用できます：
+関連リソースの存在をクライアントに示すため、以下のアプローチを使用します：
 
 1. **明示的なクエリパラメータ**: `?include=author,videos`
 2. **特殊なエンドポイント**: `/api/playlists/123/withVideos`
@@ -203,215 +105,53 @@ type ErrorResponse = {
 
 リクエストバリデーションには Zod を使用します：
 
-```typescript
-import { z } from "zod";
+- 各リソースごとに適切なスキーマを定義
+- 入力検証を明示的に行い、適切なエラーメッセージを返す
+- スキーマから型を生成して型安全性を確保
 
-// 動画作成リクエストのバリデーションスキーマ
-export const videoCreateSchema = z.object({
-  title: z.string().min(1, "タイトルは必須です").max(100, "タイトルは100文字以内で入力してください"),
-  url: z.string().url("有効なURLを入力してください"),
-  authorId: z.string().min(1, "著者IDは必須です"),
-  start: z.number().int().min(0).optional(),
-  end: z.number().int().min(0).optional(),
-});
-
-// 動画更新リクエストのバリデーションスキーマ
-export const videoUpdateSchema = videoCreateSchema.partial();
-
-// スキーマから型を生成
-export type VideoCreate = z.infer<typeof videoCreateSchema>;
-export type VideoUpdate = z.infer<typeof videoUpdateSchema>;
-```
-
-### リクエストの検証例
-
-```typescript
-import { Context } from "hono";
-import { videoCreateSchema } from "./schemas";
-
-async function createVideo(c: Context) {
-  const body = await c.req.json();
-  const result = videoCreateSchema.safeParse(body);
-
-  if (!result.success) {
-    return c.json({
-      success: false,
-      message: "バリデーションエラー",
-      errors: formatZodError(result.error)
-    }, 400);
-  }
-
-  // 検証済みデータを使用してビデオを作成
-  const video = await createVideoInDb(result.data);
-
-  return c.json({
-    success: true,
-    video
-  }, 201);
-}
-```
-
-## Zodを使用したスキーマ定義の実例
+## Zodを使用したスキーマ定義
 
 ### 基本的なエンティティスキーマ
 
-```typescript
-// src/repositories/types.ts
-import { z } from "zod";
+各エンティティに対して基本的なスキーマを定義し、共通のルールや型定義を提供します：
 
-// 基本レスポンススキーマ
-export const baseResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string().optional(),
-});
-
-// 著者スキーマ
-export const authorSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  iconUrl: z.string().url().optional(),
-  bio: z.string().optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-// 動画スキーマ
-export const videoSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  url: z.string().url(),
-  authorId: z.string().min(1),
-  start: z.number().int().min(0).optional(),
-  end: z.number().int().min(0).optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-// プレイリストスキーマ
-export const playlistSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  authorId: z.string().min(1),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-```
+- 基本レスポンススキーマ
+- エンティティスキーマ（著者、動画、プレイリストなど）
+- 関連エンティティを含むスキーマ
 
 ### 関連エンティティを含むスキーマ
 
-```typescript
-// 著者情報を含む動画スキーマ
-export const videoWithAuthorSchema = videoSchema.extend({
-  author: authorSchema,
-});
+複合的なデータ構造ではエンティティ間の関係を表現するスキーマを定義します：
 
-// 動画を含むプレイリストスキーマ
-export const playlistWithVideosSchema = playlistSchema.extend({
-  videos: z.array(videoSchema),
-});
-
-// 著者と動画を含むプレイリストスキーマ
-export const playlistWithVideosAndAuthorSchema = playlistSchema.extend({
-  author: authorSchema,
-  videos: z.array(videoWithAuthorSchema),
-});
-```
+- エンティティ拡張スキーマ
+- ネスト構造のスキーマ
+- リレーション用のスキーマ
 
 ### レスポンススキーマ
 
-```typescript
-// 著者レスポンススキーマ
-export const authorResponseSchema = baseResponseSchema.extend({
-  author: authorSchema,
-});
+API応答の構造を定義するスキーマを用意します：
 
-export const authorsResponseSchema = baseResponseSchema.extend({
-  authors: z.array(authorSchema),
-});
-
-// 動画レスポンススキーマ
-export const videoResponseSchema = baseResponseSchema.extend({
-  video: videoSchema,
-});
-
-export const videosResponseSchema = baseResponseSchema.extend({
-  videos: z.array(videoSchema),
-});
-
-// 動画（著者情報付き）レスポンススキーマ
-export const videoWithAuthorResponseSchema = baseResponseSchema.extend({
-  video: videoWithAuthorSchema,
-});
-
-// プレイリストレスポンススキーマ
-export const playlistResponseSchema = baseResponseSchema.extend({
-  playlist: playlistSchema,
-});
-
-export const playlistsResponseSchema = baseResponseSchema.extend({
-  playlists: z.array(playlistSchema),
-});
-
-// プレイリスト（動画情報付き）レスポンススキーマ
-export const playlistWithVideosResponseSchema = baseResponseSchema.extend({
-  playlist: playlistWithVideosSchema,
-});
-
-// プレイリスト（動画と著者情報付き）レスポンススキーマ
-export const playlistWithVideosAndAuthorResponseSchema = baseResponseSchema.extend({
-  playlist: playlistWithVideosAndAuthorSchema,
-});
-```
+- 単一リソースレスポンススキーマ
+- コレクションレスポンススキーマ
+- 拡張情報付きレスポンススキーマ
 
 ### リクエストスキーマ
 
-```typescript
-// 著者作成スキーマ
-export const authorInsertSchema = z.object({
-  name: z.string().min(1, "名前は必須です"),
-  iconUrl: z.string().url("有効なURLを入力してください").optional(),
-  bio: z.string().max(500, "自己紹介は500文字以内で入力してください").optional(),
-});
+クライアントからの入力を検証するスキーマを定義します：
 
-// 著者更新スキーマ
-export const authorUpdateSchema = authorInsertSchema.partial();
-
-// 動画作成スキーマ
-export const videoInsertSchema = z.object({
-  title: z.string().min(1, "タイトルは必須です"),
-  url: z.string().url("有効なURLを入力してください"),
-  authorId: z.string().min(1, "著者IDは必須です"),
-  start: z.number().int().min(0).optional(),
-  end: z.number().int().min(0).optional(),
-});
-
-// 動画更新スキーマ
-export const videoUpdateSchema = videoInsertSchema.partial();
-
-// プレイリスト作成スキーマ
-export const playlistInsertSchema = z.object({
-  title: z.string().min(1, "タイトルは必須です"),
-  authorId: z.string().min(1, "著者IDは必須です"),
-});
-
-// プレイリスト更新スキーマ
-export const playlistUpdateSchema = playlistInsertSchema.partial();
-
-// プレイリストに動画を追加するスキーマ
-export const playlistAddVideoSchema = z.object({
-  videoId: z.string().min(1, "動画IDは必須です"),
-});
-```
+- 作成用スキーマ
+- 更新用スキーマ
+- 関連付け操作用スキーマ
 
 ## エラーハンドリング
 
-エラーハンドリングについては、`frontend-api-error-handling.mdc` を参照してください。
+エラーハンドリングについては、別途 `frontend-api-error-handling.mdc` を参照してください。
 
 ## API実装のベストプラクティス
 
 1. **明確な関心の分離**
-   - ルーティング、バリデーション、ビジネスロジック、データアクセスを明確に分離する
-   - 各コンポーネントが単一の責任を持つようにする
+   - ルーティング、バリデーション、ビジネスロジック、データアクセスを明確に分離
+   - 各コンポーネントが単一の責任を持つように設計
 
 2. **型安全性の確保**
    - スキーマ定義から TypeScript の型を生成
@@ -423,7 +163,7 @@ export const playlistAddVideoSchema = z.object({
 
 4. **効率的なデータ取得**
    - N+1問題を避ける（複数のAPIリクエストが連鎖する問題）
-   - 必要に応じて、関連データをプリフェッチまたはインライン展開する
+   - 必要に応じて、関連データをプリフェッチまたはインライン展開
 
 5. **適切なドキュメント化**
    - 型定義を活用した自己文書化
@@ -433,181 +173,10 @@ export const playlistAddVideoSchema = z.object({
 
 Next.jsでのHonoの実装では、以下のパターンを使用します：
 
-```typescript
-// src/app/api/[...route]/route.ts
-import { Hono } from "hono";
-import { handle } from "hono/vercel";
-import { authorsRouter } from "./authors";
-import { playlistsRouter } from "./playlists";
-import { videosRouter } from "./videos";
-
-// APIルーターの作成
-const app = new Hono().basePath("/api");
-
-// 各リソースのルーターをマウント
-app.route("/authors", authorsRouter);
-app.route("/playlists", playlistsRouter);
-app.route("/videos", videosRouter);
-
-// エクスポートされる型（クライアント側で使用）
-export type AppType = typeof app;
-
-// Vercel用のハンドラー
-export const GET = handle(app);
-export const POST = handle(app);
-export const PUT = handle(app);
-export const PATCH = handle(app);
-export const DELETE = handle(app);
-```
-
-### リソース固有のルーター
-
-```typescript
-// src/app/api/[...route]/videos.ts
-import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { videoInsertSchema, videoUpdateSchema } from "@/repositories/videos/types";
-import {
-  getAllVideos,
-  getVideoById,
-  createVideo,
-  updateVideo,
-  deleteVideo
-} from "@/db/services/videos";
-
-// 動画リソース用のルーター
-export const videosRouter = new Hono()
-
-// 全ての動画を取得
-.get("/", async (c) => {
-  const videos = await getAllVideos();
-  return c.json({ success: true, videos });
-})
-
-// 新しい動画を作成
-.post("/", zValidator("json", videoInsertSchema), async (c) => {
-  const data = c.req.valid("json");
-  const video = await createVideo(data);
-  return c.json({ success: true, video, message: "動画を作成しました" }, 201);
-})
-
-// 特定の動画を取得
-.get("/:id", async (c) => {
-  const id = c.req.param("id");
-  const video = await getVideoById(id);
-
-  if (!video) {
-    return c.json({ success: false, message: "動画が見つかりません" }, 404);
-  }
-
-  return c.json({ success: true, video });
-})
-
-// 動画を更新
-.patch("/:id", zValidator("json", videoUpdateSchema), async (c) => {
-  const id = c.req.param("id");
-  const data = c.req.valid("json");
-
-  const updated = await updateVideo(id, data);
-
-  if (!updated) {
-    return c.json({ success: false, message: "動画が見つかりません" }, 404);
-  }
-
-  return c.json({ success: true, message: "動画を更新しました" });
-})
-
-// 動画を削除
-.delete("/:id", async (c) => {
-  const id = c.req.param("id");
-  const deleted = await deleteVideo(id);
-
-  if (!deleted) {
-    return c.json({ success: false, message: "動画が見つかりません" }, 404);
-  }
-
-  return c.json({ success: true, message: "動画を削除しました" });
-});
-```
-
-## 関連エンティティを含むエンドポイントの実装例
-
-プレイリストと関連する動画、著者情報を取得するエンドポイントの実装例：
-
-```typescript
-// src/app/api/[...route]/playlists.ts
-import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import {
-  getAllPlaylists,
-  getPlaylistById,
-  getPlaylistWithVideosById,
-  addVideoToPlaylist,
-  removeVideoFromPlaylist,
-  // その他の関数
-} from "@/db/services/playlists";
-import { playlistInsertSchema, playlistAddVideoSchema } from "@/repositories/playlists/types";
-
-export const playlistsRouter = new Hono()
-
-// プレイリスト一覧の取得
-.get("/", async (c) => {
-  const playlists = await getAllPlaylists();
-  return c.json({ success: true, playlists });
-})
-
-// 特定のプレイリストを取得（基本情報のみ）
-.get("/:id", async (c) => {
-  const id = c.req.param("id");
-  const playlist = await getPlaylistById(id);
-
-  if (!playlist) {
-    return c.json({ success: false, message: "プレイリストが見つかりません" }, 404);
-  }
-
-  return c.json({ success: true, playlist });
-})
-
-// 特定のプレイリストを動画情報と共に取得
-.get("/:id/withVideos", async (c) => {
-  const id = c.req.param("id");
-  const playlist = await getPlaylistWithVideosById(id);
-
-  if (!playlist) {
-    return c.json({ success: false, message: "プレイリストが見つかりません" }, 404);
-  }
-
-  return c.json({ success: true, playlist });
-})
-
-// プレイリストに動画を追加
-.post("/:id/videos", zValidator("json", playlistAddVideoSchema), async (c) => {
-  const playlistId = c.req.param("id");
-  const { videoId } = c.req.valid("json");
-
-  const result = await addVideoToPlaylist(playlistId, videoId);
-
-  if (!result.success) {
-    return c.json({ success: false, message: result.message }, result.statusCode || 400);
-  }
-
-  return c.json({ success: true, message: "動画をプレイリストに追加しました" });
-})
-
-// プレイリストから動画を削除
-.delete("/:playlistId/videos/:videoId", async (c) => {
-  const playlistId = c.req.param("playlistId");
-  const videoId = c.req.param("videoId");
-
-  const result = await removeVideoFromPlaylist(playlistId, videoId);
-
-  if (!result.success) {
-    return c.json({ success: false, message: result.message }, result.statusCode || 400);
-  }
-
-  return c.json({ success: true, message: "動画をプレイリストから削除しました" });
-});
-```
+1. **ベースアプリケーションの定義**: 共通の設定とルーターをマウント
+2. **リソース別のルーター分割**: 各リソースタイプに専用のルーターを定義
+3. **型のエクスポート**: クライアント側で使用する型情報をエクスポート
+4. **ハンドラー関数のエクスポート**: Vercel/Edgeランタイムでの処理に必要なハンドラーをエクスポート
 
 ## まとめ
 
