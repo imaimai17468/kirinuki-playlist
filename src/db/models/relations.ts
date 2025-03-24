@@ -57,3 +57,11 @@ export const playlistVideoInsertSchema = createInsertSchema(playlistVideos, {
   createdAt: z.undefined(),
   updatedAt: z.undefined(),
 });
+
+// プレイリスト内の動画更新用スキーマ
+// videoIdはパスパラメータから取得するため含めない
+export const playlistVideoUpdateSchema = z.object({
+  order: z.number().int().min(0),
+});
+
+export type PlaylistVideoUpdate = z.infer<typeof playlistVideoUpdateSchema>;

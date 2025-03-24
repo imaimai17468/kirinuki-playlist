@@ -48,6 +48,11 @@ export const playlistVideoInsertSchema = z.object({
   order: z.number().int(),
 });
 
+// プレイリスト動画更新用スキーマ
+export const playlistVideoUpdateSchema = z.object({
+  order: z.number().int().min(0, "順序は0以上の整数である必要があります"),
+});
+
 // プレイリスト作成レスポンススキーマ
 export const playlistCreateResponseSchema = baseResponseSchema.extend({
   id: z.string(),
@@ -64,5 +69,6 @@ export type PlaylistResponse = z.infer<typeof playlistResponseSchema>;
 export type PlaylistInsert = z.infer<typeof playlistInsertSchema>;
 export type PlaylistUpdate = z.infer<typeof playlistUpdateSchema>;
 export type PlaylistVideoInsert = z.infer<typeof playlistVideoInsertSchema>;
+export type PlaylistVideoUpdate = z.infer<typeof playlistVideoUpdateSchema>;
 export type PlaylistCreateResponse = z.infer<typeof playlistCreateResponseSchema>;
 export type PlaylistUpdateDeleteResponse = z.infer<typeof playlistUpdateDeleteResponseSchema>;

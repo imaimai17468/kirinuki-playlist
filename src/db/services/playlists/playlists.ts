@@ -50,6 +50,10 @@ export type PlaylistVideoInsert = {
   order: number;
 };
 
+export type PlaylistVideoUpdate = {
+  order: number;
+};
+
 // 依存性注入パターンを使ったプレイリストサービスの作成関数
 export const createPlaylistService = (dbClient: DbClient) => ({
   async getAllPlaylists(): Promise<PlaylistWithAuthor[]> {
@@ -345,6 +349,62 @@ export const createPlaylistService = (dbClient: DbClient) => ({
 
       if (error instanceof Error) {
         throw new DatabaseError(`プレイリストからの動画削除中にエラーが発生しました: ${error.message}`);
+      }
+
+      throw error;
+    }
+  },
+
+  /**
+   * プレイリスト内の特定の動画情報を更新する
+   * @param playlistId プレイリストID
+   * @param videoId 動画ID
+   * @param data 更新データ（現在はorderのみ）
+   */
+  async updatePlaylistVideo(playlistId: string, videoId: string, data: PlaylistVideoUpdate): Promise<void> {
+    try {
+      // プレイリストの存在確認
+      const playlist = await dbClient.select().from(playlists).where(eq(playlists.id, playlistId)).get();
+      if (!playlist) {
+        throw new NotFoundError(`プレイリスト (ID: ${playlistId}) が見つかりません`);
+      }
+
+      // 動画の存在確認
+      const video = await dbClient.select().from(videos).where(eq(videos.id, videoId)).get();
+      if (!video) {
+        throw new NotFoundError(`動画 (ID: ${videoId}) が見つかりません`);
+      }
+
+      // プレイリストと動画の関連付けの存在確認
+      const relation = await dbClient
+        .select()
+        .from(playlistVideos)
+        .where(and(eq(playlistVideos.playlistId, playlistId), eq(playlistVideos.videoId, videoId)))
+        .get();
+
+      if (!relation) {
+        throw new NotFoundError(`プレイリスト (ID: ${playlistId}) には動画 (ID: ${videoId}) が含まれていません`);
+      }
+
+      // 更新データの準備
+      const updateData = {
+        ...data,
+        updatedAt: new Date(),
+      };
+
+      // 関連付けの更新
+      await dbClient
+        .update(playlistVideos)
+        .set(updateData)
+        .where(and(eq(playlistVideos.playlistId, playlistId), eq(playlistVideos.videoId, videoId)))
+        .run();
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+
+      if (error instanceof Error) {
+        throw new DatabaseError(`プレイリスト内の動画更新中にエラーが発生しました: ${error.message}`);
       }
 
       throw error;

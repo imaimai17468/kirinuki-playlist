@@ -1,9 +1,14 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { playlistInsertSchema, playlistUpdateSchema } from "@/db/models/playlists";
-import { playlistVideoInsertSchema } from "@/db/models/relations";
+import { playlistVideoInsertSchema, playlistVideoUpdateSchema } from "@/db/models/relations";
 import { createPlaylistService } from "@/db/services/playlists/playlists";
-import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "@/db/services/playlists/playlists";
+import type {
+  PlaylistInsert,
+  PlaylistUpdate,
+  PlaylistVideoInsert,
+  PlaylistVideoUpdate,
+} from "@/db/services/playlists/playlists";
 import { NotFoundError } from "@/db/utils/errors";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -180,5 +185,35 @@ export const playlistsRouter = new Hono<AppEnv>()
       }
       console.error("Failed to remove video from playlist:", error);
       return c.json({ success: false, message: "プレイリストからの動画削除に失敗しました" }, 500);
+    }
+  })
+
+  // プレイリスト内の動画を更新
+  .patch("/:playlistId/videos/:videoId", zValidator("json", playlistVideoUpdateSchema), async (c) => {
+    const playlistId = c.req.param("playlistId");
+    const videoId = c.req.param("videoId");
+    const data = c.req.valid("json") as PlaylistVideoUpdate;
+
+    // DbClientをコンテキストから取得、なければ新規作成
+    let dbClient = c.get("dbClient");
+    if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
+      const { DB } = getRequestContext().env;
+      dbClient = createDbClient(DB);
+    }
+
+    try {
+      const service = createPlaylistService(dbClient);
+      await service.updatePlaylistVideo(playlistId, videoId, data);
+      return c.json({
+        success: true,
+        message: "プレイリスト内の動画を更新しました",
+      });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, message: error.message }, 404);
+      }
+      console.error("Failed to update video in playlist:", error);
+      return c.json({ success: false, message: "プレイリスト内の動画更新に失敗しました" }, 500);
     }
   });

@@ -6,8 +6,14 @@ import {
   getPlaylistById,
   removeVideoFromPlaylist,
   updatePlaylist,
+  updatePlaylistVideo,
 } from "@/repositories/playlists";
-import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "@/repositories/playlists/types";
+import type {
+  PlaylistInsert,
+  PlaylistUpdate,
+  PlaylistVideoInsert,
+  PlaylistVideoUpdate,
+} from "@/repositories/playlists/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // プレイリスト一覧を取得するフック
@@ -131,6 +137,31 @@ export function useRemoveVideoFromPlaylist(playlistId: string) {
     },
     onSuccess: () => {
       // 削除成功後に該当プレイリストを再取得
+      queryClient.invalidateQueries({ queryKey: ["playlists", playlistId] });
+    },
+  });
+}
+
+// プレイリスト内の動画を更新するフック
+export function useUpdatePlaylistVideo(playlistId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      videoId,
+      data,
+    }: {
+      videoId: string;
+      data: PlaylistVideoUpdate;
+    }) => {
+      const result = await updatePlaylistVideo(playlistId, videoId, data);
+      if (result.isErr()) {
+        throw new Error(result.error.message);
+      }
+      return result.value;
+    },
+    onSuccess: () => {
+      // 更新成功後に該当プレイリストを再取得
       queryClient.invalidateQueries({ queryKey: ["playlists", playlistId] });
     },
   });
