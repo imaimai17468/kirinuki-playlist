@@ -3,7 +3,6 @@ import type { AppEnv } from "@/db/config/hono";
 import { playlistInsertSchema, playlistUpdateSchema } from "@/db/models/playlists";
 import { createPlaylistService } from "@/db/services/playlists/playlists";
 import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "@/db/services/playlists/playlists";
-import { createVideoService } from "@/db/services/videos/videos";
 import { NotFoundError } from "@/db/utils/errors";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -144,20 +143,7 @@ export const playlistsRouter = new Hono<AppEnv>()
     }
 
     try {
-      // 動画が存在するか確認
-      const videoService = createVideoService(dbClient);
-      try {
-        await videoService.getVideoById(data.videoId);
-      } catch (_) {
-        return c.json(
-          {
-            success: false,
-            message: `ID: ${data.videoId} の動画が見つかりません`,
-          },
-          404,
-        );
-      }
-
+      // サービス層に処理を委譲（存在チェックもサービス層で行う）
       const playlistService = createPlaylistService(dbClient);
       await playlistService.addVideoToPlaylist(id, data);
       return c.json({ success: true });
