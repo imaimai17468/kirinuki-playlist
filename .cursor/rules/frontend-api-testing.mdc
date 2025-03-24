@@ -548,9 +548,10 @@ import {
   getAllPlaylists,
   addVideoToPlaylist,
   removeVideoFromPlaylist,
+  updatePlaylistVideo,
   updatePlaylistVideoOrder
 } from "./index";
-import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert } from "./types";
+import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert, PlaylistVideoUpdate } from "./types";
 
 // テスト用の状態を保持する変数
 let dbClient: DbClient;
@@ -798,6 +799,201 @@ describe("プレイリストリポジトリのテスト", () => {
           const video1 = playlist.videos.find(v => v.id === "video1");
           const video2 = playlist.videos.find(v => v.id === "video2");
           const video3 = playlist.videos.find(v => v.id === "video3");
+
+          expect(video1?.order).toBe(3);
+          expect(video2?.order).toBe(1);
+          expect(video3?.order).toBe(2);
+        }
+      }
+    });
+
+    it("プレイリスト内の単一動画の順序を更新できること", async () => {
+      const playlistId = "playlist1";
+      const videoId = "video1";
+
+      // 新しい順序値
+      const updateData: PlaylistVideoUpdate = {
+        order: 999,
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await updatePlaylistVideo(playlistId, videoId, updateData);
+      expect(result.isOk()).toBe(true);
+
+      // 更新後のプレイリストを取得して確認
+      const getResult = await getPlaylistById(playlistId);
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.videos).toBeDefined();
+
+        if (playlist.videos) {
+          const updatedVideo = playlist.videos.find(v => v.id === videoId);
+          expect(updatedVideo).toBeDefined();
+          expect(updatedVideo?.order).toBe(updateData.order);
+        }
+      }
+    });
+
+    it("プレイリスト内の最小順序値（0）に更新できること", async () => {
+      const playlistId = "playlist1";
+      const videoId = "video1";
+
+      // 最小の順序値
+      const updateData: PlaylistVideoUpdate = {
+        order: 0,
+      };
+
+      // リポジトリ関数を呼び出し
+      const result = await updatePlaylistVideo(playlistId, videoId, updateData);
+      expect(result.isOk()).toBe(true);
+
+      // 更新後のプレイリストを取得して確認
+      const getResult = await getPlaylistById(playlistId);
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        const updatedVideo = playlist.videos?.find(v => v.id === videoId);
+        expect(updatedVideo).toBeDefined();
+        expect(updatedVideo?.order).toBe(0);
+      }
+    });
+
+    it("複数の動画の順序入れ替えが正しく機能すること", async () => {
+      const playlistId = "playlist1";
+
+      // まず複数の動画を追加
+      await addVideoToPlaylist(playlistId, { videoId: "video1", order: 1 });
+      await addVideoToPlaylist(playlistId, { videoId: "video2", order: 2 });
+
+      // 順序を入れ替え
+      await updatePlaylistVideo(playlistId, "video1", { order: 2 });
+      await updatePlaylistVideo(playlistId, "video2", { order: 1 });
+
+      // 更新後の順序を確認
+      const getResult = await getPlaylistById(playlistId);
+      expect(getResult.isOk()).toBe(true);
+
+      if (getResult.isOk()) {
+        const playlist = getResult.value;
+        expect(playlist.videos).toBeDefined();
+
+        if (playlist.videos) {
+          const video1 = playlist.videos.find(v => v.id === "video1");
+          const video2 = playlist.videos.find(v => v.id === "video2");
+
+          expect(video1?.order).toBe(2);
+          expect(video2?.order).toBe(1);
+
+          // 動画がorder値でソートされていることを確認
+          const sortedVideos = [...playlist.videos].sort((a, b) => a.order - b.order);
+          expect(sortedVideos[0].id).toBe("video2");
+          expect(sortedVideos[1].id).toBe("video1");
+        }
+      }
+    });
+
+    it("存在しないプレイリストIDでは動画順序更新がエラーになること", async () => {
+      const nonExistentId = "non-existent-id";
+      const videoId = "video1";
+
+      // リポジトリ関数を呼び出し
+      const result = await updatePlaylistVideo(nonExistentId, videoId, { order: 1 });
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+        expect(error.type).toBe("notFound");
+      }
+    });
+
+    it("存在しない動画IDでは順序更新がエラーになること", async () => {
+      const playlistId = "playlist1";
+      const nonExistentVideoId = "non-existent-video";
+
+      // リポジトリ関数を呼び出し
+      const result = await updatePlaylistVideo(playlistId, nonExistentVideoId, { order: 1 });
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+        // エラータイプが notFound または badRequest のいずれかであることを確認
+        expect(["notFound", "badRequest"]).toContain(error.type);
+      }
+    });
+
+    it("不正な順序値（負の値）では更新がエラーになること", async () => {
+      const playlistId = "playlist1";
+      const videoId = "video1";
+
+      // 負の順序値で更新を試みる
+      const result = await updatePlaylistVideo(playlistId, videoId, { order: -1 });
+      expect(result.isErr()).toBe(true);
+
+      if (result.isErr()) {
+        const error = result.error;
+        expect(error.type).toBe("badRequest");
+        expect(error.message).toContain("順序");
+      }
+    });
+
+    it("プレイリスト内の複数動画の順序を一度に更新できること", async () => {
+      // 注: 仮想的な関数 updatePlaylistVideoOrder を想定しています
+      // 実際の実装がある場合は、その関数を使用してください
+      const playlistId = "playlist1";
+
+      // まず複数の動画を追加
+      await addVideoToPlaylist(playlistId, { videoId: "video1", order: 1 });
+      await addVideoToPlaylist(playlistId, { videoId: "video2", order: 2 });
+      await addVideoToPlaylist(playlistId, { videoId: "video3", order: 3 });
+
+      // 一度に複数の動画の順序を更新
+      const newOrders = [
+        { videoId: "video1", order: 3 }, // 1→3
+        { videoId: "video2", order: 1 }, // 2→1
+        { videoId: "video3", order: 2 }  // 3→2
+      ];
+
+      if (typeof updatePlaylistVideoOrder === 'function') {
+        const result = await updatePlaylistVideoOrder(playlistId, newOrders);
+        expect(result.isOk()).toBe(true);
+
+        // 更新後の順序を確認
+        const getResult = await getPlaylistById(playlistId);
+        expect(getResult.isOk()).toBe(true);
+
+        if (getResult.isOk()) {
+          const playlist = getResult.value;
+          expect(playlist.videos).toBeDefined();
+
+          if (playlist.videos) {
+            const video1 = playlist.videos.find(v => v.id === "video1");
+            const video2 = playlist.videos.find(v => v.id === "video2");
+            const video3 = playlist.videos.find(v => v.id === "video3");
+
+            expect(video1?.order).toBe(3);
+            expect(video2?.order).toBe(1);
+            expect(video3?.order).toBe(2);
+          }
+        }
+      } else {
+        // 一括更新関数がない場合は、個別に更新する
+        for (const item of newOrders) {
+          const result = await updatePlaylistVideo(playlistId, item.videoId, { order: item.order });
+          expect(result.isOk()).toBe(true);
+        }
+
+        // 更新後の順序を確認
+        const getResult = await getPlaylistById(playlistId);
+        expect(getResult.isOk()).toBe(true);
+
+        if (getResult.isOk()) {
+          const playlist = getResult.value;
+          const video1 = playlist.videos?.find(v => v.id === "video1");
+          const video2 = playlist.videos?.find(v => v.id === "video2");
+          const video3 = playlist.videos?.find(v => v.id === "video3");
 
           expect(video1?.order).toBe(3);
           expect(video2?.order).toBe(1);
@@ -1105,3 +1301,124 @@ describe('useCreatePlaylist', () => {
 3. **コードカバレッジの測定**: 重要なコードパスがテストされていることを確認
 4. **テスト失敗の迅速な対応**: テストが失敗したら優先的に修正する
 5. **テストコードのレビュー**: 実装コードと同様にテストコードもレビューの対象とする
+
+### React Queryを使用した動画順序更新フック
+
+動画の順序更新操作のためのReact Queryフックの実装例：
+
+```typescript
+// src/repositories/playlists/hooks.ts
+import {
+  useQuery,
+  useMutation,
+  useQueryClient
+} from '@tanstack/react-query';
+import { updatePlaylistVideo } from './index';
+import type { PlaylistVideoUpdate } from './types';
+
+// プレイリスト内の動画を更新するフック
+export function useUpdatePlaylistVideo(playlistId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      videoId,
+      data,
+    }: {
+      videoId: string;
+      data: PlaylistVideoUpdate;
+    }) => {
+      const result = await updatePlaylistVideo(playlistId, videoId, data);
+      if (result.isErr()) {
+        throw result.error;
+      }
+      return result.value;
+    },
+    onSuccess: () => {
+      // 更新成功後に該当プレイリストを再取得
+      queryClient.invalidateQueries({ queryKey: ['playlists', playlistId] });
+    },
+  });
+}
+
+// このフックのテスト例
+// src/repositories/playlists/hooks.test.ts
+describe('useUpdatePlaylistVideo', () => {
+  it('動画の順序を更新し、キャッシュが正しく更新されること', async () => {
+    // updatePlaylistVideoのモック
+    mockedPlaylistsRepository.updatePlaylistVideo.mockResolvedValue({
+      isOk: () => true,
+      isErr: () => false,
+      value: undefined
+    } as any);
+
+    // プレイリストIDと動画ID
+    const playlistId = 'playlist1';
+    const videoId = 'video1';
+
+    // 更新データ
+    const updateData: PlaylistVideoUpdate = {
+      order: 999,
+    };
+
+    // フックをレンダリング
+    const { result } = renderHook(() => useUpdatePlaylistVideo(playlistId), { wrapper });
+
+    // ミューテーション関数を実行
+    await act(async () => {
+      await result.current.mutateAsync({
+        videoId,
+        data: updateData,
+      });
+    });
+
+    // 成功したことを確認
+    expect(result.current.isSuccess).toBe(true);
+
+    // モック関数が正しく呼ばれたことを確認
+    expect(mockedPlaylistsRepository.updatePlaylistVideo).toHaveBeenCalledWith(
+      playlistId,
+      videoId,
+      updateData
+    );
+
+    // キャッシュが無効化されたことを確認
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['playlists', playlistId]
+    });
+  });
+
+  it('エラー発生時にエラー状態になること', async () => {
+    // updatePlaylistVideoのモックでエラーを返す
+    mockedPlaylistsRepository.updatePlaylistVideo.mockResolvedValue({
+      isOk: () => false,
+      isErr: () => true,
+      error: {
+        type: 'badRequest',
+        message: '順序は0以上の整数である必要があります'
+      }
+    } as any);
+
+    // フックをレンダリング
+    const { result } = renderHook(() => useUpdatePlaylistVideo('playlist1'), { wrapper });
+
+    // ミューテーション関数を実行
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({
+          videoId: 'video1',
+          data: { order: -1 } // 不正な値
+        });
+      } catch (error) {
+        // エラーはキャッチするが何もしない
+      }
+    });
+
+    // エラー状態になっていることを確認
+    expect(result.current.isError).toBe(true);
+    expect(result.current.error).toEqual({
+      type: 'badRequest',
+      message: '順序は0以上の整数である必要があります'
+    });
+  });
+});
