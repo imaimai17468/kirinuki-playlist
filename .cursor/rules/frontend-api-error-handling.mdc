@@ -127,6 +127,162 @@ export const errorHandler: MiddlewareHandler = async (c, next) => {
 };
 ```
 
+## 責任分離とエラーハンドリングの効率化
+
+### APIルーターとサービスレイヤー間の責任分離
+
+エラーハンドリングにおいても、APIルーターとサービスレイヤーの間で責任を適切に分離することが重要です：
+
+1. **サービスレイヤー**: リソースの存在チェックとビジネスロジックの検証を行い、適切なエラーをスローする
+2. **APIルーター**: サービスからスローされたエラーをキャッチし、適切なHTTPレスポンスとしてクライアントに返す
+
+この責任分離により、コードの重複を避け、エラーハンドリングの一貫性を確保します。
+
+### 二重チェックの防止
+
+APIルーターとサービスレイヤーの両方で同じ検証を行うと、パフォーマンスが低下し、コードが複雑になります。以下のパターンを避けてください：
+
+```typescript
+// ❌ 避けるべきパターン - 二重チェック
+// APIルーター
+.post("/:id/videos", async (c) => {
+  const id = c.req.param("id");
+  const { videoId } = await c.req.json();
+
+  // APIレベルでの存在チェック
+  const videoService = createVideoService(dbClient);
+  try {
+    await videoService.getVideoById(videoId);
+  } catch (error) {
+    return c.json({ success: false, message: "動画が見つかりません" }, 404);
+  }
+
+  const playlistService = createPlaylistService(dbClient);
+  try {
+    await playlistService.addVideoToPlaylist(id, { videoId }); // ここでも再度チェックする可能性あり
+    return c.json({ success: true });
+  } catch (error) {
+    // ...エラーハンドリング
+  }
+});
+```
+
+代わりに、サービスレイヤーに存在チェックを委譲し、APIルーターではエラーのキャッチと変換のみを行います：
+
+```typescript
+// ✅ 推奨パターン - サービスレイヤーへの委譲
+// APIルーター
+.post("/:id/videos", async (c) => {
+  const id = c.req.param("id");
+  const { videoId } = await c.req.json();
+
+  try {
+    // サービスレイヤーに検証を委譲
+    const playlistService = createPlaylistService(dbClient);
+    await playlistService.addVideoToPlaylist(id, { videoId });
+    return c.json({ success: true });
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return c.json({ success: false, message: error.message }, 404);
+    }
+    if (error instanceof ValidationError) {
+      return c.json({ success: false, message: error.message }, 400);
+    }
+    // その他のエラーハンドリング...
+    return c.json({ success: false, message: "予期しないエラーが発生しました" }, 500);
+  }
+});
+
+// サービスレイヤー
+async addVideoToPlaylist(playlistId: string, { videoId }: { videoId: string }): Promise<void> {
+  // プレイリストの存在チェック
+  const playlist = await this.getPlaylistById(playlistId);
+  if (!playlist) {
+    throw new NotFoundError(`ID: ${playlistId} のプレイリストが見つかりません`);
+  }
+
+  // 動画の存在チェック
+  const video = await this.dbClient.select().from(videos).where(eq(videos.id, videoId)).get();
+  if (!video) {
+    throw new NotFoundError(`ID: ${videoId} の動画が見つかりません`);
+  }
+
+  // 関連付け処理...
+}
+```
+
+### 複合リソース操作のエラーハンドリング
+
+複数のリソースが関連する操作では、サービスレイヤー内部でエラーを適切に識別し、具体的な情報を含むエラーをスローします：
+
+```typescript
+// サービスレイヤーでのより詳細なエラーハンドリング
+async addVideoToPlaylist(playlistId: string, { videoId }: { videoId: string }): Promise<void> {
+  try {
+    // プレイリストの存在チェック
+    const playlist = await this.dbClient.select().from(playlists).where(eq(playlists.id, playlistId)).get();
+    if (!playlist) {
+      throw new NotFoundError(`プレイリスト (ID: ${playlistId}) が見つかりません`);
+    }
+
+    // 動画の存在チェック
+    const video = await this.dbClient.select().from(videos).where(eq(videos.id, videoId)).get();
+    if (!video) {
+      throw new NotFoundError(`動画 (ID: ${videoId}) が見つかりません`);
+    }
+
+    // 既に関連付けられているかチェック
+    const existingRelation = await this.dbClient
+      .select()
+      .from(playlistVideos)
+      .where(and(
+        eq(playlistVideos.playlistId, playlistId),
+        eq(playlistVideos.videoId, videoId)
+      ))
+      .get();
+
+    if (existingRelation) {
+      throw new UniqueConstraintError(`この動画 (ID: ${videoId}) はすでにプレイリスト (ID: ${playlistId}) に存在します。重複は許可されていません。`);
+    }
+
+    // 関連付け処理...
+  } catch (error) {
+    // 既知のエラータイプはそのまま上位に伝播
+    if (
+      error instanceof NotFoundError ||
+      error instanceof UniqueConstraintError ||
+      error instanceof ValidationError
+    ) {
+      throw error;
+    }
+
+    // その他のエラーは DatabaseError に変換
+    throw new DatabaseError(
+      `プレイリスト (ID: ${playlistId}) への動画 (ID: ${videoId}) の追加中にエラーが発生しました: ${
+        error instanceof Error ? error.message : "不明なエラー"
+      }`
+    );
+  }
+}
+```
+
+### APIレスポンスの一貫性
+
+エラーメッセージには、問題の原因と可能な解決策に関する情報を含めるようにします：
+
+1. **具体的なリソース識別子**: エラーに関連するリソースのIDを含める
+2. **明確なエラー理由**: 何が問題だったのかを具体的に説明
+3. **一貫した形式**: すべてのAPIエンドポイントで同じエラーレスポンス形式を使用
+
+```typescript
+// 明確なエラーメッセージの例
+throw new NotFoundError(`動画 (ID: ${videoId}) が見つかりません。別の動画IDを試すか、有効なIDを確認してください。`);
+
+throw new UniqueConstraintError(`この動画 (ID: ${videoId}) はすでにプレイリスト (ID: ${playlistId}) に存在します。重複は許可されていません。`);
+
+throw new ValidationError(`プレイリストのタイトルは必須で、1〜100文字の長さが必要です。`);
+```
+
 ## サービスレイヤーでのエラーハンドリング
 
 サービスレイヤーでは、適切なカスタムエラーをスローします：

@@ -74,6 +74,141 @@ APIコードは以下の責任に分けて実装します：
 3. **データアクセスレイヤー**: データベースアクセスの抽象化
 4. **リポジトリレイヤー**: クライアントサイドからのAPIアクセス抽象化
 
+## APIルーターとサービスレイヤーの責任分離
+
+### 責任分離の原則
+
+APIルーターとサービスレイヤーの間で明確な責任分離を行い、二重チェックを避けるための原則を以下に示します：
+
+1. **APIルーター層の責任**
+   - リクエストの受け取りとパラメータの抽出
+   - 入力データの基本的なバリデーション（ZodValidatorなどを使用）
+   - 適切なサービスの呼び出し
+   - レスポンスの整形と返却
+   - エラーハンドリングの統一的な処理
+
+2. **サービスレイヤーの責任**
+   - ビジネスロジックの実装
+   - データの整合性チェック（存在確認や関連チェックなど）
+   - 複数のデータ操作の調整（トランザクション管理など）
+   - データアクセスと変換
+   - ドメイン固有のバリデーション
+
+### 二重チェック防止の指針
+
+以下のパターンを避け、責任を適切に分離します：
+
+- **❌ 避けるべきパターン**: APIルーターとサービスレイヤーの両方でエンティティの存在チェックを行う
+
+```typescript
+// 避けるべきパターン - 二重チェックの例
+// APIルーター側
+.post("/:id/videos", async (c) => {
+  const id = c.req.param("id");
+  const data = await c.req.json();
+
+  const videoService = createVideoService(dbClient);
+  // APIルーターでの存在チェック
+  try {
+    await videoService.getVideoById(data.videoId);
+  } catch (_) {
+    return c.json({ success: false, message: `動画が見つかりません` }, 404);
+  }
+
+  const playlistService = createPlaylistService(dbClient);
+  await playlistService.addVideoToPlaylist(id, data);
+  // サービスレイヤーでも同様のチェックが行われる可能性がある
+});
+```
+
+- **✅ 推奨パターン**: 存在チェックはサービスレイヤーに委譲する
+
+```typescript
+// 推奨パターン - サービスレイヤーに委譲
+// APIルーター側
+.post("/:id/videos", async (c) => {
+  const id = c.req.param("id");
+  const data = await c.req.json();
+
+  try {
+    // サービス層に処理を委譲（存在チェックもサービス層で行う）
+    const playlistService = createPlaylistService(dbClient);
+    await playlistService.addVideoToPlaylist(id, data);
+    return c.json({ success: true });
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return c.json({ success: false, message: error.message }, 404);
+    }
+    // その他のエラーハンドリング
+  }
+});
+
+// サービスレイヤー側
+async addVideoToPlaylist(playlistId: string, videoData: PlaylistVideoInsert): Promise<void> {
+  // プレイリストの存在チェック
+  const playlist = await dbClient.select().from(playlists).where(eq(playlists.id, playlistId)).get();
+  if (!playlist) {
+    throw new NotFoundError(`プレイリストが見つかりません`);
+  }
+
+  // 動画の存在チェック
+  const video = await dbClient.select().from(videos).where(eq(videos.id, videoData.videoId)).get();
+  if (!video) {
+    throw new NotFoundError(`動画が見つかりません`);
+  }
+
+  // 関連付け処理...
+}
+```
+
+### 関連エンティティの処理
+
+複数のリソースが関連するエンドポイント（例：プレイリストに動画を追加する）場合は、以下の原則に従います：
+
+1. **サービスの合成**: 必要に応じて複数のサービスを連携させる場合でも、APIルーターではなくサービスレイヤー内で行う
+2. **単一の責任点**: 関連エンティティの存在確認は、一箇所（通常はメインのサービスメソッド内）で行う
+3. **トランザクション管理**: 複数のリソースを変更する場合は、サービスレイヤーでトランザクションを管理
+
+```typescript
+// サービスレイヤーでの複数リソース処理例
+export function createPlaylistService(dbClient: DbClient) {
+  // 他のサービスへの参照（必要な場合）
+  const videoService = createVideoService(dbClient);
+
+  return {
+    // ...他のメソッド
+
+    async addVideoToPlaylist(playlistId: string, data: PlaylistVideoInsert): Promise<void> {
+      try {
+        // プレイリストの存在確認
+        const playlist = await this.getPlaylistById(playlistId);
+
+        // 動画の存在確認（他のサービスを利用する場合）
+        // このチェックはこのメソッド内でのみ行い、APIルーターでは行わない
+        const video = await videoService.getVideoById(data.videoId);
+
+        // 関連付けの処理
+        await dbClient.insert(playlistVideos).values({
+          // ...関連データ
+        });
+      } catch (error) {
+        // エラーハンドリング...
+        throw error; // 適切に変換して上位に伝播
+      }
+    }
+  };
+}
+```
+
+### パフォーマンスの考慮
+
+サービスレイヤーでの存在チェックとその後の操作は、パフォーマンスにも配慮して設計します：
+
+1. **SELECT FOR UPDATE**: 読み取り後に更新する場合は、可能であればロックを取得
+2. **バッチ処理**: 複数のチェックを1つのクエリにまとめる（可能な場合）
+3. **JOIN操作**: 関連エンティティのチェックに JOIN クエリを使用する
+4. **キャッシュの活用**: 頻繁にアクセスされるエンティティにはキャッシュを検討
+
 ## APIルーターの実装
 
 ### エントリーポイント (route.ts)
