@@ -17,7 +17,7 @@ let currentClient: ApiClient | null = null;
  * @returns 実際のAPIに接続するクライアント
  */
 export function createProdClient(): ApiClient {
-  return hc<AppType>(`${getBaseURL()}/api`);
+  return hc<AppType>(`${getBaseURL()}`);
 }
 
 /**

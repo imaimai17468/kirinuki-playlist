@@ -3,6 +3,7 @@ import "./globals.css";
 import { MainLayout } from "@/components/layout/main-layout";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Root } from "@/components/parts/video-player";
+import { TanstackProvider } from "@/components/providers/tanstack-provider";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -17,12 +18,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <MainLayout>
-            <Root />
-            {children}
-          </MainLayout>
-        </ThemeProvider>
+        <TanstackProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <MainLayout>
+              <Root />
+              {children}
+            </MainLayout>
+          </ThemeProvider>
+        </TanstackProvider>
       </body>
     </html>
   );
