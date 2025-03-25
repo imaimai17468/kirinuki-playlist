@@ -7,9 +7,3 @@ export const getPlayerOpts = (start: number, end: number) => ({
     end,
   },
 });
-
-export const extractVideoId = (url: string) => {
-  const regExp = /(?:\?v=|\/embed\/|\.be\/)([^&#]+)/;
-  const match = url.match(regExp);
-  return match ? match[1] : null;
-};

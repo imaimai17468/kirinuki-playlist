@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/libs/utils";
+import { getYoutubeId } from "@/utils/youtube";
 import {
   ListMusic,
   PanelBottomClose,
@@ -19,7 +20,7 @@ import Link from "next/link";
 import YouTube from "react-youtube";
 import type { PlayerHandlers, PlayerState } from "../types";
 import type { Playlist } from "../types";
-import { extractVideoId, getPlayerOpts } from "./utils";
+import { getPlayerOpts } from "./utils";
 
 type MultiVideoPlayerProps = {
   state: PlayerState;
@@ -30,7 +31,7 @@ type MultiVideoPlayerProps = {
 
 export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({ state, handlers, playlist, handlePlayerClose }) => {
   const currentVideo = playlist.videos[state.currentIndex];
-  const videoId = extractVideoId(currentVideo.url);
+  const videoId = getYoutubeId(currentVideo.url);
   const opts = getPlayerOpts(currentVideo.start, currentVideo.end);
 
   return (
