@@ -1,10 +1,11 @@
-import { TestButton } from "./button";
+import { ClipsContent } from "@/components/features/clips/clips-content";
+// import { TestButton } from "./button";
 
-export default async function Library() {
+export default async function Clips() {
   return (
     <div>
-      <h1>Library</h1>
-      <TestButton />
+      <ClipsContent />
+      {/* <TestButton /> */}
     </div>
   );
 }
