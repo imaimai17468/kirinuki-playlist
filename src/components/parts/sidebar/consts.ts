@@ -1,4 +1,4 @@
-import { ListMusic, Scissors, Settings2, Star, Tag, Tv } from "lucide-react";
+import { ListMusic, Scissors, Settings2, Star, Tag } from "lucide-react";
 
 export const SIDEBAR_ITEMS = {
   user: {
@@ -27,11 +27,6 @@ export const SIDEBAR_ITEMS = {
         title: "Tags",
         url: "/tags",
         icon: Tag,
-      },
-      {
-        title: "Channels",
-        url: "/channels",
-        icon: Tv,
       },
     ],
     collapsibleItems: [
