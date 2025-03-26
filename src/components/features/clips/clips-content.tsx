@@ -1,5 +1,6 @@
 "use client";
 
+import { ContentLayout } from "@/components/layout/content-layout";
 import { getDetailPath } from "@/consts/clientpath";
 import { CLIENT_PATH } from "@/consts/clientpath";
 import { useVideos } from "@/repositories/videos/hooks";
@@ -11,7 +12,7 @@ export const ClipsContent = () => {
   const { data: videos, isLoading } = useVideos();
 
   return (
-    <div>
+    <ContentLayout>
       {isLoading ? (
         <div>Loading...</div>
       ) : (
@@ -62,6 +63,6 @@ export const ClipsContent = () => {
           ))}
         </div>
       )}
-    </div>
+    </ContentLayout>
   );
 };
