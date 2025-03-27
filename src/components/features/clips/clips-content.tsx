@@ -6,6 +6,7 @@ import { CLIENT_PATH } from "@/consts/clientpath";
 import { useVideos } from "@/repositories/videos/hooks";
 import { formatDate } from "@/utils/date";
 import { formatDuration, getYoutubeId } from "@/utils/youtube";
+import { Clapperboard } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -23,7 +24,7 @@ export const ClipsContent = () => {
               <div className="relative">
                 <Link
                   href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)}
-                  className="hover:opacity-80 transition-opacity duration-300"
+                  className="hover:opacity-80 transition-opacity duration-300 relative block"
                 >
                   <Image
                     src={`https://img.youtube.com/vi/${getYoutubeId(video.url)}/0.jpg`}
@@ -32,11 +33,14 @@ export const ClipsContent = () => {
                     height={180}
                     className="rounded-md w-full aspect-video object-cover"
                   />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-md">
+                    <Clapperboard className="text-white w-12 h-12" />
+                  </div>
                 </Link>
-                <p className="absolute bottom-2 right-2 rounded-md bg-black/50 text-white px-2 py-1 text-xs">
+                <p className="absolute bottom-2 right-2 rounded-md bg-black/50 text-white px-2 py-1 text-xs z-10">
                   {formatDate(video.createdAt)}
                 </p>
-                <p className="absolute bottom-2 left-2 rounded-md bg-black/50 text-white px-2 py-1 text-xs">
+                <p className="absolute bottom-2 left-2 rounded-md bg-black/50 text-white px-2 py-1 text-xs z-10">
                   {formatDuration(video.start, video.end)}
                 </p>
               </div>
