@@ -4,6 +4,7 @@ import { ContentLayout } from "@/components/layout/content-layout";
 import { getDetailPath } from "@/consts/clientpath";
 import { CLIENT_PATH } from "@/consts/clientpath";
 import { useVideos } from "@/repositories/videos/hooks";
+import { formatDate } from "@/utils/date";
 import { formatDuration, getYoutubeId } from "@/utils/youtube";
 import Image from "next/image";
 import Link from "next/link";
@@ -33,30 +34,24 @@ export const ClipsContent = () => {
                   />
                 </Link>
                 <p className="absolute bottom-2 right-2 rounded-md bg-black/50 text-white px-2 py-1 text-xs">
-                  {video.createdAt.toLocaleDateString("ja-JP", {
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                  })}
+                  {formatDate(video.createdAt)}
                 </p>
                 <p className="absolute bottom-2 left-2 rounded-md bg-black/50 text-white px-2 py-1 text-xs">
                   {formatDuration(video.start, video.end)}
                 </p>
               </div>
               <div className="flex flex-col">
-                <Link
-                  href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)}
-                  className="hover:underline w-fit line-clamp-1"
-                  title={video.title}
-                >
-                  <p className="text-sm font-bold">{video.title}</p>
+                <Link href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)} className="w-fit" title={video.title}>
+                  <p className="text-sm font-bold hover:text-green-600 transition-colors line-clamp-1">{video.title}</p>
                 </Link>
                 <Link
                   href={getDetailPath(CLIENT_PATH.AUTHOR_DETAIL, video.authorId)}
-                  className="hover:underline w-fit line-clamp-1"
+                  className=" w-fit"
                   title={video.author?.name}
                 >
-                  <p className="text-xs text-gray-500 dark:text-gray-400">作成者: {video.author?.name} さん</p>
+                  <p className="text-xs hover:text-green-600 transition-colors line-clamp-1">
+                    作成者: {video.author?.name} さん
+                  </p>
                 </Link>
               </div>
             </div>
