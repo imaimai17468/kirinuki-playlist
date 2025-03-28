@@ -84,4 +84,77 @@ describe("AppBreadcrumb", () => {
     expect(pageElement).toBeDefined();
     expect(pageElement.textContent).toBe("edit");
   });
+
+  it("endItemが指定された場合、最後のアイテムがendItemのラベルで表示される", () => {
+    // usePathnameのモックを設定
+    mockedUsePathname.mockImplementation(() => "/clips");
+
+    const endItem = {
+      id: "custom-id",
+      label: "カスタムラベル",
+    };
+
+    render(<AppBreadcrumb endItem={endItem} />);
+
+    // 最後のアイテムがendItemのラベルとして表示されることを確認
+    const pageElement = screen.getByRole("link", { current: "page" });
+    expect(pageElement).toBeDefined();
+    expect(pageElement.textContent).toBe("カスタムラベル");
+  });
+
+  it("isLoadingがtrueの場合、Skeletonコンポーネントが表示される", () => {
+    // usePathnameのモックを設定
+    mockedUsePathname.mockImplementation(() => "/clips");
+
+    const endItem = {
+      id: "custom-id",
+      label: "カスタムラベル",
+    };
+
+    render(<AppBreadcrumb endItem={endItem} isLoading={true} />);
+
+    // Skeletonコンポーネントが存在することを確認
+    const skeletonElement = document.querySelector(".skeleton");
+    expect(skeletonElement).toBeDefined();
+  });
+
+  it("endItemが指定され、isLoadingがfalseの場合、endItemのラベルが表示される", () => {
+    // usePathnameのモックを設定
+    mockedUsePathname.mockImplementation(() => "/clips");
+
+    const endItem = {
+      id: "custom-id",
+      label: "カスタムラベル",
+    };
+
+    render(<AppBreadcrumb endItem={endItem} isLoading={false} />);
+
+    // 最後のアイテムがendItemのラベルとして表示されることを確認
+    const pageElement = screen.getByRole("link", { current: "page" });
+    expect(pageElement).toBeDefined();
+    expect(pageElement.textContent).toBe("カスタムラベル");
+  });
+
+  it("パスが複数のセグメントで、endItemが指定された場合、適切なURLが生成される", () => {
+    // usePathnameのモックを設定
+    mockedUsePathname.mockImplementation(() => "/clips/category");
+
+    const endItem = {
+      id: "item-123",
+      label: "特定のクリップ",
+    };
+
+    render(<AppBreadcrumb endItem={endItem} />);
+
+    // 最初のアイテムがリンクとして表示されることを確認
+    const links = screen.getAllByRole("link").filter((link) => !link.getAttribute("aria-current"));
+    expect(links.length).toBe(1);
+    expect(links[0].textContent).toContain("clips");
+    expect(links[0].getAttribute("href")).toBe("/clips");
+
+    // 最後のアイテムがendItemのラベルとして表示されることを確認
+    const pageElement = screen.getByRole("link", { current: "page" });
+    expect(pageElement).toBeDefined();
+    expect(pageElement.textContent).toBe("特定のクリップ");
+  });
 });
