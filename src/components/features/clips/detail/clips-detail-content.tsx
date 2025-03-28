@@ -2,6 +2,7 @@
 
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
+import { DataLoading } from "@/components/parts/data-loading";
 import { CLIENT_PATH, getDetailPath } from "@/consts/clientpath";
 import { useVideo } from "@/repositories/videos/hooks";
 import { formatDate } from "@/utils/date";
@@ -18,7 +19,7 @@ export const ClipsDetailContent = () => {
   return (
     <ContentLayout endItem={{ id: id as string, label: video?.title ?? "" }} isLoading={isLoading}>
       {isLoading ? (
-        <div>Loading...</div>
+        <DataLoading />
       ) : !video ? (
         <DataError />
       ) : (

@@ -2,6 +2,7 @@
 
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
+import { DataLoading } from "@/components/parts/data-loading";
 import { getDetailPath } from "@/consts/clientpath";
 import { CLIENT_PATH } from "@/consts/clientpath";
 import { useVideos } from "@/repositories/videos/hooks";
@@ -17,7 +18,7 @@ export const ClipsContent = () => {
   return (
     <ContentLayout>
       {isLoading ? (
-        <div>Loading...</div>
+        <DataLoading />
       ) : videos && videos.length > 0 ? (
         <div className="grid grid-cols-3 gap-y-8 gap-x-4">
           {videos.map((video) => (
