@@ -17,8 +17,7 @@ export const videoSchema = z.object({
     .number()
     .or(z.string())
     .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
-  // 関連するauthorフィールドがAPIから返される場合は以下を追加
-  author: authorSchema.optional(),
+  author: authorSchema,
 });
 
 // 動画作成用スキーマ
