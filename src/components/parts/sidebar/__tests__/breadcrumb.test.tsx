@@ -77,7 +77,7 @@ describe("AppBreadcrumb", () => {
     expect(links[0].textContent).toContain("clips");
     expect(links[0].getAttribute("href")).toBe("/clips");
     expect(links[1].textContent).toContain("123");
-    expect(links[1].getAttribute("href")).toBe("/123");
+    expect(links[1].getAttribute("href")).toBe("/clips/123");
 
     // 最後のアイテムがページとして表示されることを確認
     const pageElement = screen.getByRole("link", { current: "page" });
