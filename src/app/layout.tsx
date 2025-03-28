@@ -15,14 +15,15 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://kirinukist.com"),
   title: "Kirinukist - YouTube Clip Platform",
-  description:
-    "お気に入りのYouTubeクリップを収集、整理、共有できるプラットフォーム。Kirinuki Playlist（切り抜きプレイリスト）で最高の動画体験を。",
-  keywords: ["YouTube", "切り抜き", "クリップ", "プレイリスト", "動画共有", "Kirinukist", "Kirinuki"],
+  description: "お気に入りのYouTubeクリップを収集、整理、共有できるプラットフォーム。Kirinukistで最高の動画体験を。",
+  keywords: ["YouTube", "切り抜き", "クリップ", "プレイリスト", "動画共有", "Kirinukist", "Kirinuki", "clip"],
+
   authors: [{ name: "imaimai17468" }],
   openGraph: {
     title: "Kirinukist - YouTube Clip Platform",
-    description: "お気に入りのYouTubeクリップを収集、整理、共有できるプラットフォーム。",
+    description: "お気に入りのYouTubeクリップを収集、整理、共有できるプラットフォーム。Kirinukistで最高の動画体験を。",
     url: "https://kirinukist.com",
     siteName: "Kirinukist",
     images: [
@@ -39,7 +40,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Kirinukist - YouTube Clip Platform",
-    description: "お気に入りのYouTubeクリップを収集、整理、共有できるプラットフォーム。",
+    description: "お気に入りのYouTubeクリップを収集、整理、共有できるプラットフォーム。Kirinukistで最高の動画体験を。",
     images: ["/twitter-image.png"],
   },
   robots: "index, follow",
