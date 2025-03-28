@@ -1,6 +1,7 @@
 "use client";
 
 import { ContentLayout } from "@/components/layout/content-layout";
+import { DataError } from "@/components/parts/data-error";
 import { getDetailPath } from "@/consts/clientpath";
 import { CLIENT_PATH } from "@/consts/clientpath";
 import { useVideos } from "@/repositories/videos/hooks";
@@ -17,9 +18,9 @@ export const ClipsContent = () => {
     <ContentLayout>
       {isLoading ? (
         <div>Loading...</div>
-      ) : (
+      ) : videos && videos.length > 0 ? (
         <div className="grid grid-cols-3 gap-y-8 gap-x-4">
-          {videos?.map((video) => (
+          {videos.map((video) => (
             <div key={video.id} className="flex flex-col gap-2">
               <div className="relative">
                 <Link
@@ -61,6 +62,8 @@ export const ClipsContent = () => {
             </div>
           ))}
         </div>
+      ) : (
+        <DataError />
       )}
     </ContentLayout>
   );
