@@ -10,7 +10,7 @@ type Props = {
   id: string;
 };
 
-export const ClipsDetailContent = async ({ id }: Props) => {
+export const ClipDetailContent = async ({ id }: Props) => {
   const result = await getVideoById(id);
 
   if (result.isErr()) {
