@@ -23,19 +23,16 @@ export const ClipsContent = async () => {
       <div className="grid grid-cols-3 gap-y-8 gap-x-4">
         {videos.map((video) => (
           <div key={video.id} className="flex flex-col gap-2">
-            <div className="relative">
-              <Link
-                href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)}
-                className="hover:opacity-80 transition-opacity duration-300 relative block"
-              >
+            <div className="relative group">
+              <Link href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)} className="relative block">
                 <Image
                   src={`https://img.youtube.com/vi/${getYoutubeId(video.url)}/0.jpg`}
                   alt={video.title}
                   width={320}
                   height={180}
-                  className="rounded-md w-full aspect-video object-cover"
+                  className="rounded-md w-full aspect-video object-cover transition-transform duration-300 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-md">
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 rounded-md">
                   <Clapperboard className="text-white w-12 h-12" />
                 </div>
               </Link>
@@ -47,12 +44,12 @@ export const ClipsContent = async () => {
               </p>
             </div>
             <div className="flex flex-col">
-              <Link href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)} className="w-fit" title={video.title}>
+              <Link href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)} className="w-fit peer" title={video.title}>
                 <p className="text-sm font-bold hover:text-green-600 transition-colors line-clamp-1">{video.title}</p>
               </Link>
               <Link
                 href={getDetailPath(CLIENT_PATH.USERS_DETAIL, video.authorId)}
-                className=" w-fit"
+                className="w-fit"
                 title={video.author?.name}
               >
                 <p className="text-xs hover:text-green-600 transition-colors line-clamp-1">
