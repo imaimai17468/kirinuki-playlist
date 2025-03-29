@@ -1,12 +1,12 @@
 const DETAIL_PATH = {
   CLIP_DETAIL: "/clips/:id",
-  AUTHOR_DETAIL: "/authors/:id",
+  USERS_DETAIL: "/users/:id",
 } as const;
 
 export const CLIENT_PATH = {
   HOME: "/",
   CLIPS: "/clips",
-  AUTHORS: "/authors",
+  USERS: "/users",
   ...DETAIL_PATH,
 } as const;
 
