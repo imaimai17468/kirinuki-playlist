@@ -51,7 +51,7 @@ export const ClipsContent = async () => {
                 <p className="text-sm font-bold hover:text-green-600 transition-colors line-clamp-1">{video.title}</p>
               </Link>
               <Link
-                href={getDetailPath(CLIENT_PATH.AUTHOR_DETAIL, video.authorId)}
+                href={getDetailPath(CLIENT_PATH.USERS_DETAIL, video.authorId)}
                 className=" w-fit"
                 title={video.author?.name}
               >

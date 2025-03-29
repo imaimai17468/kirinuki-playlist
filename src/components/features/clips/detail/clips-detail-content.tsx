@@ -29,7 +29,7 @@ export const ClipsDetailContent = async ({ id }: Props) => {
           <p className="text-sm text-gray-500">{formatDate(video.createdAt)}</p>
           <h1 className="text-2xl font-bold">{video.title}</h1>
           <div className="flex items-center gap-1 text-sm">
-            <Link href={getDetailPath(CLIENT_PATH.AUTHOR_DETAIL, video.author.id)}>
+            <Link href={getDetailPath(CLIENT_PATH.USERS_DETAIL, video.author.id)}>
               <p className="text-green-500 underline hover:text-green-600 transition-colors">{video.author.name}</p>
             </Link>
             <p className="text-gray-500"> さんが切り抜き</p>
