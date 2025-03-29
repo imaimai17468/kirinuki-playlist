@@ -16,7 +16,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </p>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain navItems={SIDEBAR_ITEMS.navMain.navItems} collapsibleItems={SIDEBAR_ITEMS.navMain.collapsibleItems} />
+        <NavMain
+          navItems={SIDEBAR_ITEMS.navMain.navItems}
+          myPageNavItems={SIDEBAR_ITEMS.navMain.myPageNavItems}
+          collapsibleItems={SIDEBAR_ITEMS.navMain.collapsibleItems}
+        />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={SIDEBAR_ITEMS.user} />

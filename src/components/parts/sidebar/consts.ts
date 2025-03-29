@@ -1,4 +1,4 @@
-import { ListMusic, Scissors, Settings2, Star, Tag } from "lucide-react";
+import { ListMusic, Scissors, Settings2, Star, Tag, User, UserSearch, Users } from "lucide-react";
 
 export const SIDEBAR_ITEMS = {
   user: {
@@ -19,14 +19,31 @@ export const SIDEBAR_ITEMS = {
         icon: ListMusic,
       },
       {
+        title: "Tags",
+        url: "/tags",
+        icon: Tag,
+      },
+      {
+        title: "Users",
+        url: "/users",
+        icon: UserSearch,
+      },
+    ],
+    myPageNavItems: [
+      {
         title: "Favorites",
         url: "/favorites",
         icon: Star,
       },
       {
-        title: "Tags",
-        url: "/tags",
-        icon: Tag,
+        title: "Following",
+        url: "/following",
+        icon: Users,
+      },
+      {
+        title: "My Clips",
+        url: "/my-clips",
+        icon: User,
       },
     ],
     collapsibleItems: [

@@ -5,17 +5,24 @@ import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 
 type NavMainProps = {
   navItems: {
+    title: string;
+    url: string;
+    icon: LucideIcon;
+  }[];
+  myPageNavItems: {
     title: string;
     url: string;
     icon: LucideIcon;
@@ -32,11 +39,23 @@ type NavMainProps = {
   }[];
 };
 
-export function NavMain({ navItems, collapsibleItems }: NavMainProps) {
+export function NavMain({ navItems, collapsibleItems, myPageNavItems }: NavMainProps) {
   return (
     <SidebarGroup>
       <SidebarMenu>
         {navItems.map((item) => (
+          <SidebarMenuItem key={item.title}>
+            <SidebarMenuButton tooltip={item.title} asChild>
+              <Link href={item.url}>
+                {item.icon && <item.icon />}
+                <span>{item.title}</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+        <SidebarSeparator />
+        <SidebarGroupLabel>My Space</SidebarGroupLabel>
+        {myPageNavItems.map((item) => (
           <SidebarMenuItem key={item.title}>
             <SidebarMenuButton tooltip={item.title} asChild>
               <Link href={item.url}>
