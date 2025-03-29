@@ -14,7 +14,7 @@ type Props = {
 
 export const ContentLayout: React.FC<Props> = ({ children, endItem, isLoading }) => {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col mb-16">
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
         <div className="flex justify-between w-full pr-4">
           <div className="flex items-center gap-2 px-4">
