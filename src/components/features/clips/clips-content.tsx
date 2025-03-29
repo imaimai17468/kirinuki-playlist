@@ -1,5 +1,6 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getDetailPath } from "@/consts/clientpath";
 import { CLIENT_PATH } from "@/consts/clientpath";
 import { getAllVideos } from "@/repositories/videos";
@@ -22,7 +23,7 @@ export const ClipsContent = async () => {
     <ContentLayout>
       <div className="grid grid-cols-3 gap-y-8 gap-x-4">
         {videos.map((video) => (
-          <div key={video.id} className="flex flex-col gap-2">
+          <div key={video.id} className="flex flex-col gap-3">
             <div className="relative group">
               <Link href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)} className="relative block">
                 <Image
@@ -43,19 +44,37 @@ export const ClipsContent = async () => {
                 {formatDuration(video.start, video.end)}
               </p>
             </div>
-            <div className="flex flex-col">
-              <Link href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)} className="w-fit peer" title={video.title}>
-                <p className="text-sm font-bold hover:text-green-600 transition-colors line-clamp-1">{video.title}</p>
+
+            <div className="flex gap-3 items-center">
+              {/* アバター */}
+              <Link href={getDetailPath(CLIENT_PATH.USERS_DETAIL, video.authorId)} className="flex-shrink-0">
+                <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity duration-300">
+                  <AvatarImage src={video.author?.iconUrl || ""} alt={video.author?.name} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                    {video.author?.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
               </Link>
-              <Link
-                href={getDetailPath(CLIENT_PATH.USERS_DETAIL, video.authorId)}
-                className="w-fit"
-                title={video.author?.name}
-              >
-                <p className="text-xs hover:text-green-600 transition-colors line-clamp-1">
-                  作成者: {video.author?.name} さん
-                </p>
-              </Link>
+
+              <div className="flex flex-col min-w-0">
+                <Link href={getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)} className="group" title={video.title}>
+                  <h3 className="text-sm font-medium line-clamp-2 group-hover:text-green-600 transition-colors">
+                    {video.title}
+                  </h3>
+                </Link>
+
+                <div className="flex items-center gap-1 mt-1">
+                  <Link
+                    href={getDetailPath(CLIENT_PATH.USERS_DETAIL, video.authorId)}
+                    className="hover:text-green-600 transition-colors"
+                    title={video.author?.name}
+                  >
+                    <p className="text-xs text-muted-foreground truncate hover:text-green-600 transition-colors">
+                      {video.author?.name}
+                    </p>
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         ))}
