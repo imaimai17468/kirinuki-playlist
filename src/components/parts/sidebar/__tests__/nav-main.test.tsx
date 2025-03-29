@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { Clapperboard, ListMusic, Settings } from "lucide-react";
+import { Clapperboard, ListMusic, Settings, User } from "lucide-react";
 import { NavMain } from "../navigation/nav-main";
 
 // モックデータ
@@ -15,6 +15,14 @@ const mockNavItems = [
     title: "Playlists",
     url: "/playlists",
     icon: ListMusic,
+  },
+];
+
+const mockMyPageNavItems = [
+  {
+    title: "プロフィール",
+    url: "/profile",
+    icon: User,
   },
 ];
 
@@ -46,7 +54,7 @@ describe("NavMain", () => {
   it("通常のナビゲーション項目が正しくレンダリングされる", () => {
     const { container } = render(
       <SidebarProvider>
-        <NavMain navItems={mockNavItems} collapsibleItems={[]} />
+        <NavMain navItems={mockNavItems} collapsibleItems={[]} myPageNavItems={mockMyPageNavItems} />
       </SidebarProvider>,
     );
 
@@ -66,17 +74,31 @@ describe("NavMain", () => {
     expect(playlistsElement?.getAttribute("href")).toBe("/playlists");
   });
 
+  it("マイページのナビゲーション項目が正しくレンダリングされる", () => {
+    const { container } = render(
+      <SidebarProvider>
+        <NavMain navItems={[]} collapsibleItems={[]} myPageNavItems={mockMyPageNavItems} />
+      </SidebarProvider>,
+    );
+
+    // プロフィールリンクが表示されていることを確認
+    const profileElement = container.querySelector('a[href="/profile"]');
+    expect(profileElement).toBeDefined();
+    expect(profileElement?.textContent).toContain("プロフィール");
+  });
+
   it("折りたたみ可能な項目が正しくレンダリングされる", () => {
     const { container } = render(
       <SidebarProvider>
-        <NavMain navItems={[]} collapsibleItems={mockCollapsibleItems} />
+        <NavMain navItems={[]} collapsibleItems={mockCollapsibleItems} myPageNavItems={mockMyPageNavItems} />
       </SidebarProvider>,
     );
 
     // "Settings"が表示されていることを確認
-    const settingsElement = container.querySelector('[data-state="closed"]');
+    const settingsElement = container.querySelector(".group\\/collapsible");
     expect(settingsElement).toBeDefined();
-    expect(settingsElement?.textContent).toContain("Settings");
+    const settingsButton = settingsElement?.querySelector("button");
+    expect(settingsButton?.textContent).toContain("Settings");
 
     // 初期状態では子項目は表示されていないことを確認
     const generalElement = container.querySelector('a[href="/settings/general"]');
@@ -90,12 +112,13 @@ describe("NavMain", () => {
   it("折りたたみ可能な項目をクリックすると子項目が表示される", () => {
     const { container } = render(
       <SidebarProvider>
-        <NavMain navItems={[]} collapsibleItems={mockCollapsibleItems} />
+        <NavMain navItems={[]} collapsibleItems={mockCollapsibleItems} myPageNavItems={mockMyPageNavItems} />
       </SidebarProvider>,
     );
 
     // "Settings"ボタンを見つけてクリック
-    const settingsButton = container.querySelector('[data-state="closed"] button');
+    const settingsElement = container.querySelector(".group\\/collapsible");
+    const settingsButton = settingsElement?.querySelector("button");
     expect(settingsButton).toBeDefined();
 
     if (settingsButton) {
@@ -128,7 +151,7 @@ describe("NavMain", () => {
 
     const { container } = render(
       <SidebarProvider>
-        <NavMain navItems={[]} collapsibleItems={activeCollapsibleItems} />
+        <NavMain navItems={[]} collapsibleItems={activeCollapsibleItems} myPageNavItems={mockMyPageNavItems} />
       </SidebarProvider>,
     );
 
@@ -147,19 +170,20 @@ describe("NavMain", () => {
   it("すべての項目が正しくレンダリングされる", () => {
     const { container } = render(
       <SidebarProvider>
-        <NavMain navItems={mockNavItems} collapsibleItems={mockCollapsibleItems} />
+        <NavMain navItems={mockNavItems} collapsibleItems={mockCollapsibleItems} myPageNavItems={mockMyPageNavItems} />
       </SidebarProvider>,
     );
 
     // 通常のナビゲーション項目が表示されていることを確認
     const clipsElement = container.querySelector('a[href="/clips"]');
     const playlistsElement = container.querySelector('a[href="/playlists"]');
+    const profileElement = container.querySelector('a[href="/profile"]');
 
     expect(clipsElement).toBeDefined();
     expect(playlistsElement).toBeDefined();
+    expect(profileElement).toBeDefined();
 
     // 折りたたみ可能な項目が表示されていることを確認
-    // より具体的なセレクタを使用
     const settingsElement = container.querySelector(".group\\/collapsible");
     expect(settingsElement).toBeDefined();
 
