@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "bun:test";
+import type { Video } from "@/repositories/videos/types";
 import { act, renderHook } from "@testing-library/react";
 import { useVideoPlayer } from "../hooks";
-import type { VideoItem } from "../types";
 
 describe("useVideoPlayer", () => {
   it("stateが全て正しく返される", () => {
@@ -112,30 +112,57 @@ describe("useVideoPlayer", () => {
   });
 
   it("複数の動画がある場合、handleNextTrackで次の動画に進む", () => {
-    const videoList: VideoItem[] = [
+    const videoList: Video[] = [
       {
+        id: "video1",
         url: "url1",
         start: 0,
         end: 60,
         title: "Video 1",
-        movieTitle: "Movie 1",
-        channelName: "Channel 1",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
+        id: "video2",
         url: "url2",
         start: 0,
         end: 60,
         title: "Video 2",
-        movieTitle: "Movie 2",
-        channelName: "Channel 2",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
+        id: "video3",
         url: "url3",
         start: 0,
         end: 60,
         title: "Video 3",
-        movieTitle: "Movie 3",
-        channelName: "Channel 3",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     ];
 
@@ -149,30 +176,57 @@ describe("useVideoPlayer", () => {
   });
 
   it("複数の動画がある場合、handlePreviousTrackで前の動画に戻る", () => {
-    const videoList: VideoItem[] = [
+    const videoList: Video[] = [
       {
+        id: "video1",
         url: "url1",
         start: 0,
         end: 60,
         title: "Video 1",
-        movieTitle: "Movie 1",
-        channelName: "Channel 1",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
+        id: "video2",
         url: "url2",
         start: 0,
         end: 60,
         title: "Video 2",
-        movieTitle: "Movie 2",
-        channelName: "Channel 2",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
+        id: "video3",
         url: "url3",
         start: 0,
         end: 60,
         title: "Video 3",
-        movieTitle: "Movie 3",
-        channelName: "Channel 3",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     ];
 
@@ -194,22 +248,40 @@ describe("useVideoPlayer", () => {
   });
 
   it("onEndイベントで次の動画に進む", () => {
-    const videoList: VideoItem[] = [
+    const videoList: Video[] = [
       {
+        id: "video1",
         url: "url1",
         start: 0,
         end: 60,
         title: "Video 1",
-        movieTitle: "Movie 1",
-        channelName: "Channel 1",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
+        id: "video2",
         url: "url2",
         start: 0,
         end: 60,
         title: "Video 2",
-        movieTitle: "Movie 2",
-        channelName: "Channel 2",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     ];
 
@@ -223,22 +295,40 @@ describe("useVideoPlayer", () => {
   });
 
   it("ループモードがオンの場合、最後の動画の後は最初に戻る", () => {
-    const videoList: VideoItem[] = [
+    const videoList: Video[] = [
       {
+        id: "video1",
         url: "url1",
         start: 0,
         end: 60,
         title: "Video 1",
-        movieTitle: "Movie 1",
-        channelName: "Channel 1",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
+        id: "video2",
         url: "url2",
         start: 0,
         end: 60,
         title: "Video 2",
-        movieTitle: "Movie 2",
-        channelName: "Channel 2",
+        author: {
+          id: "author1",
+          name: "Author 1",
+          iconUrl: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        authorId: "author1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     ];
 
