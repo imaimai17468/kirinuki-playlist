@@ -33,6 +33,14 @@ const mockVideoList: PlaylistVideo[] = [
     createdAt: new Date(),
     updatedAt: new Date(),
     order: 0,
+    tags: [
+      {
+        id: "tag-1",
+        name: "テストタグ1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
   },
   {
     id: "video-2",
@@ -51,6 +59,14 @@ const mockVideoList: PlaylistVideo[] = [
     createdAt: new Date(),
     updatedAt: new Date(),
     order: 1,
+    tags: [
+      {
+        id: "tag-1",
+        name: "テストタグ1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
   },
 ];
 

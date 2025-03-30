@@ -6,8 +6,14 @@ import { baseResponseSchema } from "../types";
 export const tagSchema = z.object({
   id: z.string(),
   name: z.string(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z
+    .number()
+    .or(z.string())
+    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
+  updatedAt: z
+    .number()
+    .or(z.string())
+    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
 });
 
 export const videoSchema = z.object({
@@ -17,8 +23,14 @@ export const videoSchema = z.object({
   start: z.number(),
   end: z.number(),
   authorId: z.string(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z
+    .number()
+    .or(z.string())
+    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
+  updatedAt: z
+    .number()
+    .or(z.string())
+    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
   author: authorSchema,
   tags: z.array(tagSchema),
 });

@@ -33,6 +33,20 @@ const mockVideoList: Video[] = [
     authorId: "author-1",
     createdAt: new Date(),
     updatedAt: new Date(),
+    tags: [
+      {
+        id: "tag-1",
+        name: "テストタグ1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "tag-2",
+        name: "テストタグ2",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
   },
   {
     id: "video-2",
@@ -47,6 +61,14 @@ const mockVideoList: Video[] = [
       createdAt: new Date(),
       updatedAt: new Date(),
     },
+    tags: [
+      {
+        id: "tag-1",
+        name: "テストタグ1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
     authorId: "author-1",
     createdAt: new Date(),
     updatedAt: new Date(),

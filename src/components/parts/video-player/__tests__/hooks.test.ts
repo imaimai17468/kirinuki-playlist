@@ -3,6 +3,84 @@ import type { Video } from "@/repositories/videos/types";
 import { act, renderHook } from "@testing-library/react";
 import { useVideoPlayer } from "../hooks";
 
+const videoList: Video[] = [
+  {
+    id: "video1",
+    url: "url1",
+    start: 0,
+    end: 60,
+    title: "Video 1",
+    author: {
+      id: "author1",
+      name: "Author 1",
+      iconUrl: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    authorId: "author1",
+    tags: [
+      {
+        id: "tag-1",
+        name: "テストタグ1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: "video2",
+    url: "url2",
+    start: 0,
+    end: 60,
+    title: "Video 2",
+    author: {
+      id: "author1",
+      name: "Author 1",
+      iconUrl: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    authorId: "author1",
+    tags: [
+      {
+        id: "tag-1",
+        name: "テストタグ1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: "video3",
+    url: "url3",
+    start: 0,
+    end: 60,
+    title: "Video 3",
+    author: {
+      id: "author1",
+      name: "Author 1",
+      iconUrl: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    authorId: "author1",
+    tags: [
+      {
+        id: "tag-1",
+        name: "テストタグ1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
+
 describe("useVideoPlayer", () => {
   it("stateが全て正しく返される", () => {
     const { result } = renderHook(() => useVideoPlayer({ videoList: [] }));
@@ -112,60 +190,6 @@ describe("useVideoPlayer", () => {
   });
 
   it("複数の動画がある場合、handleNextTrackで次の動画に進む", () => {
-    const videoList: Video[] = [
-      {
-        id: "video1",
-        url: "url1",
-        start: 0,
-        end: 60,
-        title: "Video 1",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: "video2",
-        url: "url2",
-        start: 0,
-        end: 60,
-        title: "Video 2",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: "video3",
-        url: "url3",
-        start: 0,
-        end: 60,
-        title: "Video 3",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
-
     const { result } = renderHook(() => useVideoPlayer({ videoList }));
 
     act(() => {
@@ -176,60 +200,6 @@ describe("useVideoPlayer", () => {
   });
 
   it("複数の動画がある場合、handlePreviousTrackで前の動画に戻る", () => {
-    const videoList: Video[] = [
-      {
-        id: "video1",
-        url: "url1",
-        start: 0,
-        end: 60,
-        title: "Video 1",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: "video2",
-        url: "url2",
-        start: 0,
-        end: 60,
-        title: "Video 2",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: "video3",
-        url: "url3",
-        start: 0,
-        end: 60,
-        title: "Video 3",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
-
     const { result } = renderHook(() => useVideoPlayer({ videoList }));
 
     // まず現在のインデックスを1に設定
@@ -248,43 +218,6 @@ describe("useVideoPlayer", () => {
   });
 
   it("onEndイベントで次の動画に進む", () => {
-    const videoList: Video[] = [
-      {
-        id: "video1",
-        url: "url1",
-        start: 0,
-        end: 60,
-        title: "Video 1",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: "video2",
-        url: "url2",
-        start: 0,
-        end: 60,
-        title: "Video 2",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
-
     const { result } = renderHook(() => useVideoPlayer({ videoList }));
 
     act(() => {
@@ -295,43 +228,6 @@ describe("useVideoPlayer", () => {
   });
 
   it("ループモードがオンの場合、最後の動画の後は最初に戻る", () => {
-    const videoList: Video[] = [
-      {
-        id: "video1",
-        url: "url1",
-        start: 0,
-        end: 60,
-        title: "Video 1",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: "video2",
-        url: "url2",
-        start: 0,
-        end: 60,
-        title: "Video 2",
-        author: {
-          id: "author1",
-          name: "Author 1",
-          iconUrl: "",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        authorId: "author1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
-
     const { result } = renderHook(() => useVideoPlayer({ videoList }));
 
     // ループモードをオンにする
