@@ -4,7 +4,8 @@ import type { InferInsertModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authors } from "../../models/authors";
 import { type Playlist, playlists } from "../../models/playlists";
-import { playlistVideos } from "../../models/relations";
+import { playlistVideos, videoTags } from "../../models/relations";
+import { tags } from "../../models/tags";
 import { videos } from "../../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
 
@@ -38,6 +39,12 @@ export type PlaylistWithAuthorAndVideos = PlaylistWithAuthor & {
       createdAt: Date;
       updatedAt: Date;
     };
+    tags: {
+      id: string;
+      name: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }[];
   }[];
 };
 
@@ -141,26 +148,40 @@ export const createPlaylistService = (dbClient: DbClient) => ({
         .orderBy(playlistVideos.order)
         .all();
 
-      // 動画情報をマッピング
-      const videosWithAuthors = playlistVideosResult.map((row) => ({
-        id: row.videos.id,
-        title: row.videos.title,
-        url: row.videos.url,
-        start: row.videos.start,
-        end: row.videos.end,
-        authorId: row.videos.authorId,
-        order: row.playlist_videos.order,
-        createdAt: row.videos.createdAt,
-        updatedAt: row.videos.updatedAt,
-        author: {
-          id: row.authors.id,
-          name: row.authors.name,
-          iconUrl: row.authors.iconUrl,
-          bio: row.authors.bio,
-          createdAt: row.authors.createdAt,
-          updatedAt: row.authors.updatedAt,
-        },
-      }));
+      // 動画情報をマッピング - まず基本情報を抽出
+      const videosWithAuthors = await Promise.all(
+        playlistVideosResult.map(async (row) => {
+          // 各動画のタグ情報を取得
+          const videoTagsResult = await dbClient
+            .select()
+            .from(videoTags)
+            .innerJoin(tags, eq(videoTags.tagId, tags.id))
+            .where(eq(videoTags.videoId, row.videos.id))
+            .all();
+
+          return {
+            id: row.videos.id,
+            title: row.videos.title,
+            url: row.videos.url,
+            start: row.videos.start,
+            end: row.videos.end,
+            authorId: row.videos.authorId,
+            order: row.playlist_videos.order,
+            createdAt: row.videos.createdAt,
+            updatedAt: row.videos.updatedAt,
+            author: {
+              id: row.authors.id,
+              name: row.authors.name,
+              iconUrl: row.authors.iconUrl,
+              bio: row.authors.bio,
+              createdAt: row.authors.createdAt,
+              updatedAt: row.authors.updatedAt,
+            },
+            // タグ情報を追加
+            tags: videoTagsResult.map((tagRow) => tagRow.tags),
+          };
+        }),
+      );
 
       // プレイリスト情報と動画情報を組み合わせて返す
       return {
