@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/libs/utils";
+import type { Playlist } from "@/repositories/playlists/types";
+import type { Video } from "@/repositories/videos/types";
 import { getYoutubeId } from "@/utils/youtube";
 import {
   ListMusic,
@@ -19,18 +21,24 @@ import {
 import Link from "next/link";
 import YouTube from "react-youtube";
 import type { PlayerHandlers, PlayerState } from "../types";
-import type { Playlist } from "../types";
 import { getPlayerOpts } from "./utils";
 
 type MultiVideoPlayerProps = {
   state: PlayerState;
   handlers: PlayerHandlers;
   playlist: Playlist;
+  videoList: Video[];
   handlePlayerClose: () => void;
 };
 
-export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({ state, handlers, playlist, handlePlayerClose }) => {
-  const currentVideo = playlist.videos[state.currentIndex];
+export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({
+  state,
+  handlers,
+  playlist,
+  videoList,
+  handlePlayerClose,
+}) => {
+  const currentVideo = videoList[state.currentIndex];
   const videoId = getYoutubeId(currentVideo.url);
   const opts = getPlayerOpts(currentVideo.start, currentVideo.end);
 
@@ -72,18 +80,6 @@ export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({ state, handl
         <YouTube videoId={videoId} opts={opts} onReady={handlers.onReady} onEnd={handlers.onEnd} />
         <div className="flex flex-col gap-2">
           <p className="self-center text-sm font-bold">{currentVideo.title}</p>
-          <div className="overflow-hidden relative">
-            <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-card to-transparent z-10" />
-            <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card to-transparent z-10" />
-            <div className="flex whitespace-nowrap">
-              <p className="text-sm text-gray-500 animate-marquee pr-4">
-                {`${currentVideo.movieTitle} - ${currentVideo.channelName}`}
-              </p>
-              <p className="text-sm text-gray-500 animate-marquee pr-4">
-                {`${currentVideo.movieTitle} - ${currentVideo.channelName}`}
-              </p>
-            </div>
-          </div>
         </div>
         <div className="flex justify-between items-center">
           <Button
@@ -115,7 +111,7 @@ export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({ state, handl
           </Button>
         </div>
         <div className="flex flex-col max-h-48 overflow-y-auto">
-          {playlist.videos.map((video, index) => (
+          {playlist.videos?.map((video, index) => (
             <button
               type="button"
               key={video.url}

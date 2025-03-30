@@ -4,19 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/libs/utils";
+import type { Video } from "@/repositories/videos/types";
 import { PanelBottomClose, Pause, Play, SkipBack, SkipForward, SquareX } from "lucide-react";
-import type { PlayerHandlers, PlayerState, Playlist } from "../types";
+import type { PlayerHandlers, PlayerState } from "../types";
 
 type VideoPlayerBarProps = {
   state: PlayerState;
   handlers: PlayerHandlers;
-  playlist: Playlist;
+  videoList: Video[];
   handlePlayerClose: () => void;
 };
 
-export const VideoPlayerBar: React.FC<VideoPlayerBarProps> = ({ state, handlers, playlist, handlePlayerClose }) => {
+export const VideoPlayerBar: React.FC<VideoPlayerBarProps> = ({ state, handlers, videoList, handlePlayerClose }) => {
   const { state: sidebarState } = useSidebar();
-  const currentVideo = playlist.videos[state.currentIndex];
+  const currentVideo = videoList[state.currentIndex];
 
   return (
     <div
@@ -42,7 +43,6 @@ export const VideoPlayerBar: React.FC<VideoPlayerBarProps> = ({ state, handlers,
           <Separator orientation="vertical" className="h-6 mr-2" />
           <div className="flex flex-col">
             <p className="font-bold text-sm">{currentVideo.title}</p>
-            <p className="text-xs text-gray-500">{currentVideo.movieTitle}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

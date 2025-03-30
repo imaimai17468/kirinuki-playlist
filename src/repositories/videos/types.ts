@@ -52,6 +52,7 @@ export const videoUpdateDeleteResponseSchema = baseResponseSchema.extend({
   message: z.string().optional(),
 });
 
+export type Video = z.infer<typeof videoSchema>;
 export type VideosResponse = z.infer<typeof videosResponseSchema>;
 export type VideoResponse = z.infer<typeof videoResponseSchema>;
 export type VideoInsert = z.infer<typeof videoInsertSchema>;

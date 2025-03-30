@@ -64,6 +64,7 @@ export const playlistUpdateDeleteResponseSchema = baseResponseSchema.extend({
   message: z.string().optional(),
 });
 
+export type Playlist = z.infer<typeof playlistSchema>;
 export type PlaylistsResponse = z.infer<typeof playlistsResponseSchema>;
 export type PlaylistResponse = z.infer<typeof playlistResponseSchema>;
 export type PlaylistInsert = z.infer<typeof playlistInsertSchema>;

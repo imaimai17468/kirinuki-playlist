@@ -1,10 +1,10 @@
+import type { Video } from "@/repositories/videos/types";
 import { useRef, useState } from "react";
 import type { YouTubePlayer } from "react-youtube";
-import type { VideoItem } from "./types";
 import type { PlayerHandlers, PlayerState } from "./types";
 
 type UseVideoPlayerProps = {
-  videoList: VideoItem[];
+  videoList: Video[];
 };
 
 type UseVideoPlayerReturn = {
