@@ -22,7 +22,7 @@ export const VideoPlayerBar: React.FC<VideoPlayerBarProps> = ({ state, handlers,
   return (
     <div
       className={cn(
-        "fixed bottom-0 right-0 border-t bg-white duration-200 transition-[width,transform] ease-linear p-3",
+        "fixed bottom-0 right-0 border-t bg-white duration-200 transition-[width,transform] ease-linear p-3 z-50",
         sidebarState === "collapsed"
           ? "w-[calc(100%-var(--sidebar-width-icon))]"
           : "w-[calc(100%-var(--sidebar-width))]",

@@ -45,8 +45,8 @@ export const MultiVideoPlayer: React.FC<MultiVideoPlayerProps> = ({
   return (
     <Card
       className={cn(
-        "pt-6 w-96 fixed bottom-4 right-4 transition-transform duration-200 ease-in-out",
-        state.isPlayerBarMode && "translate-y-full",
+        "pt-6 w-96 fixed bottom-4 right-4 transition-transform duration-200 ease-in-out z-50",
+        state.isPlayerBarMode && "translate-y-[calc(100%+1rem)]",
       )}
     >
       <CardContent className="flex flex-col gap-4">
