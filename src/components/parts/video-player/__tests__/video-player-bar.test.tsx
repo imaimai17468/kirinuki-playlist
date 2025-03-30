@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, jest } from "bun:test";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import type { Video } from "@/repositories/videos/types";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import type { PlayerHandlers, PlayerState, Playlist } from "../types";
+import type { PlayerHandlers, PlayerState } from "../types";
 import { VideoPlayerBar } from "../video-player-bar";
 
 // モックデータ
@@ -14,33 +15,43 @@ const mockState: PlayerState = {
   isPlayerBarMode: true,
 };
 
-const mockPlaylist: Playlist = {
-  id: "playlist-1",
-  title: "テストプレイリスト",
-  author: {
-    id: "author-1",
-    name: "テスト作者",
-    iconUrl: "https://example.com/icon.png",
+// VideoPlayerBarはVideoのリストを受け取るようになったため、Video[]のモックを作成
+const mockVideoList: Video[] = [
+  {
+    id: "video-1",
+    title: "テスト動画1",
+    url: "https://example.com/video1",
+    start: 0,
+    end: 60,
+    author: {
+      id: "author-1",
+      name: "テスト作者",
+      iconUrl: "https://example.com/icon.png",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    authorId: "author-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
-  videos: [
-    {
-      url: "https://example.com/video1",
-      start: 0,
-      end: 60,
-      title: "テスト動画1",
-      movieTitle: "テスト映画1",
-      channelName: "テストチャンネル",
+  {
+    id: "video-2",
+    title: "テスト動画2",
+    url: "https://example.com/video2",
+    start: 0,
+    end: 60,
+    author: {
+      id: "author-1",
+      name: "テスト作者",
+      iconUrl: "https://example.com/icon.png",
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
-    {
-      url: "https://example.com/video2",
-      start: 0,
-      end: 60,
-      title: "テスト動画2",
-      movieTitle: "テスト映画2",
-      channelName: "テストチャンネル",
-    },
-  ],
-};
+    authorId: "author-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
 
 describe("VideoPlayerBar", () => {
   // 各テスト後にクリーンアップ
@@ -69,15 +80,14 @@ describe("VideoPlayerBar", () => {
         <VideoPlayerBar
           state={mockState}
           handlers={mockHandlers}
-          playlist={mockPlaylist}
+          videoList={mockVideoList}
           handlePlayerClose={mockHandlePlayerClose}
         />
       </SidebarProvider>,
     );
 
-    // 現在の動画のタイトルと映画タイトルが表示されていることを確認
+    // 現在の動画のタイトルが表示されていることを確認
     expect(container.textContent).toContain("テスト動画1");
-    expect(container.textContent).toContain("テスト映画1");
 
     // 各ボタンが存在することを確認
     const togglePlayerModeButton = container.querySelector('button[aria-label="player-bar-close (video-player-open)"]');
@@ -113,7 +123,7 @@ describe("VideoPlayerBar", () => {
         <VideoPlayerBar
           state={{ ...mockState, isPlayerBarMode: false }}
           handlers={mockHandlers}
-          playlist={mockPlaylist}
+          videoList={mockVideoList}
           handlePlayerClose={mockHandlePlayerClose}
         />
       </SidebarProvider>,
@@ -144,7 +154,7 @@ describe("VideoPlayerBar", () => {
         <VideoPlayerBar
           state={{ ...mockState, isPlaying: true }}
           handlers={mockHandlers}
-          playlist={mockPlaylist}
+          videoList={mockVideoList}
           handlePlayerClose={mockHandlePlayerClose}
         />
       </SidebarProvider>,
@@ -175,7 +185,7 @@ describe("VideoPlayerBar", () => {
         <VideoPlayerBar
           state={{ ...mockState, isPlaying: false }}
           handlers={mockHandlers}
-          playlist={mockPlaylist}
+          videoList={mockVideoList}
           handlePlayerClose={mockHandlePlayerClose}
         />
       </SidebarProvider>,
@@ -206,7 +216,7 @@ describe("VideoPlayerBar", () => {
         <VideoPlayerBar
           state={mockState}
           handlers={mockHandlers}
-          playlist={mockPlaylist}
+          videoList={mockVideoList}
           handlePlayerClose={mockHandlePlayerClose}
         />
       </SidebarProvider>,

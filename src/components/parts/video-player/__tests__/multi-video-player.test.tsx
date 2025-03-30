@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, jest } from "bun:test";
+import type { Playlist, PlaylistVideo } from "@/repositories/playlists/types";
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { MultiVideoPlayer } from "../multi-video-player";
-import type { PlayerHandlers, PlayerState, Playlist } from "../types";
+import type { PlayerHandlers, PlayerState } from "../types";
 
 // モックデータ
 const mockState: PlayerState = {
@@ -13,6 +14,47 @@ const mockState: PlayerState = {
   isPlayerBarMode: false,
 };
 
+// Video型のモックデータを作成
+const mockVideoList: PlaylistVideo[] = [
+  {
+    id: "video-1",
+    title: "テスト動画1",
+    url: "https://www.youtube.com/watch?v=video1",
+    start: 0,
+    end: 60,
+    author: {
+      id: "author-1",
+      name: "テスト作者",
+      iconUrl: "https://example.com/icon.png",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    authorId: "author-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    order: 0,
+  },
+  {
+    id: "video-2",
+    title: "テスト動画2",
+    url: "https://www.youtube.com/watch?v=video2",
+    start: 0,
+    end: 60,
+    author: {
+      id: "author-1",
+      name: "テスト作者",
+      iconUrl: "https://example.com/icon.png",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    authorId: "author-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    order: 1,
+  },
+];
+
+// Playlistのモックも更新
 const mockPlaylist: Playlist = {
   id: "playlist-1",
   title: "テストプレイリスト",
@@ -20,25 +62,13 @@ const mockPlaylist: Playlist = {
     id: "author-1",
     name: "テスト作者",
     iconUrl: "https://example.com/icon.png",
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
-  videos: [
-    {
-      url: "https://www.youtube.com/watch?v=video1",
-      start: 0,
-      end: 60,
-      title: "テスト動画1",
-      movieTitle: "テスト映画1",
-      channelName: "テストチャンネル",
-    },
-    {
-      url: "https://www.youtube.com/watch?v=video2",
-      start: 0,
-      end: 60,
-      title: "テスト動画2",
-      movieTitle: "テスト映画2",
-      channelName: "テストチャンネル",
-    },
-  ],
+  authorId: "author-1",
+  videos: mockVideoList,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 // 共通のモックハンドラー
@@ -71,6 +101,7 @@ describe("MultiVideoPlayer", () => {
         state={mockState}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
@@ -98,13 +129,14 @@ describe("MultiVideoPlayer", () => {
         state={{ ...mockState, isPlayerBarMode: true }}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
 
     // プレーヤーバーモードの場合、特定のスタイルが適用されていることを確認
     // 実際のクラス名は異なる可能性があるため、コンテナ全体のクラス名を確認
-    expect(container.innerHTML).toContain("translate-y-full");
+    expect(container.innerHTML).toContain("translate-y-[calc(100%+1rem)]");
 
     // 通常モードの場合（表示）
     rerender(
@@ -112,12 +144,13 @@ describe("MultiVideoPlayer", () => {
         state={{ ...mockState, isPlayerBarMode: false }}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
 
     // 通常モードの場合、特定のスタイルが適用されていないことを確認
-    expect(container.innerHTML).not.toContain("translate-y-full");
+    expect(container.innerHTML).not.toContain("translate-y-[calc(100%+1rem)]");
   });
 
   it("再生状態に応じて適切なアイコンが表示される", () => {
@@ -130,6 +163,7 @@ describe("MultiVideoPlayer", () => {
         state={{ ...mockState, isPlaying: true }}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
@@ -144,6 +178,7 @@ describe("MultiVideoPlayer", () => {
         state={{ ...mockState, isPlaying: false }}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
@@ -163,6 +198,7 @@ describe("MultiVideoPlayer", () => {
         state={mockState}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
@@ -179,6 +215,7 @@ describe("MultiVideoPlayer", () => {
         state={{ ...mockState, isShuffleMode: true }}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
@@ -193,6 +230,7 @@ describe("MultiVideoPlayer", () => {
         state={{ ...mockState, isShuffleMode: false, isLoopMode: true }}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
@@ -211,6 +249,7 @@ describe("MultiVideoPlayer", () => {
         state={mockState}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
@@ -263,6 +302,7 @@ describe("MultiVideoPlayer", () => {
         state={mockState}
         handlers={mockHandlers}
         playlist={mockPlaylist}
+        videoList={mockVideoList}
         handlePlayerClose={mockHandlePlayerClose}
       />,
     );
