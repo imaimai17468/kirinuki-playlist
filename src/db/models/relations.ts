@@ -1,9 +1,10 @@
 import { relations } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { authors } from "./authors";
 import { playlists } from "./playlists";
+import { tags } from "./tags";
 import { videos } from "./videos";
 
 export const playlistVideos = sqliteTable(
@@ -19,12 +20,30 @@ export const playlistVideos = sqliteTable(
   () => [],
 );
 
+export const videoTags = sqliteTable(
+  "video_tags",
+  {
+    videoId: text("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.videoId, table.tagId] }),
+  }),
+);
+
 export const videosRelations = relations(videos, ({ one, many }) => ({
   author: one(authors, {
     fields: [videos.authorId],
     references: [authors.id],
   }),
   playlistVideos: many(playlistVideos),
+  videoTags: many(videoTags),
 }));
 
 export const authorsRelations = relations(authors, ({ many }) => ({
@@ -51,6 +70,21 @@ export const playlistVideosRelations = relations(playlistVideos, ({ one }) => ({
   }),
 }));
 
+export const tagsRelations = relations(tags, ({ many }) => ({
+  videoTags: many(videoTags),
+}));
+
+export const videoTagsRelations = relations(videoTags, ({ one }) => ({
+  video: one(videos, {
+    fields: [videoTags.videoId],
+    references: [videos.id],
+  }),
+  tag: one(tags, {
+    fields: [videoTags.tagId],
+    references: [tags.id],
+  }),
+}));
+
 export const playlistVideoInsertSchema = createInsertSchema(playlistVideos, {
   id: z.undefined(),
   playlistId: z.undefined(),
@@ -65,3 +99,8 @@ export const playlistVideoUpdateSchema = z.object({
 });
 
 export type PlaylistVideoUpdate = z.infer<typeof playlistVideoUpdateSchema>;
+
+export const videoTagInsertSchema = createInsertSchema(videoTags, {
+  createdAt: z.undefined(),
+  updatedAt: z.undefined(),
+});

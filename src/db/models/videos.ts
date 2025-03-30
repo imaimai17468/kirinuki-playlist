@@ -1,6 +1,7 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-zod";
 import { z } from "zod";
+import type { Tag } from "./tags";
 
 export const videos = sqliteTable(
   "videos",
@@ -18,6 +19,7 @@ export const videos = sqliteTable(
 );
 
 export type Video = typeof videos.$inferSelect;
+export type VideoWithTags = Video & { tags: Tag[] };
 
 export const videoSelectSchema = createSelectSchema(videos);
 export const videoInsertSchema = createInsertSchema(videos, {
@@ -31,3 +33,10 @@ export const videoInsertSchema = createInsertSchema(videos, {
   updatedAt: z.undefined(),
 });
 export const videoUpdateSchema = createUpdateSchema(videos);
+
+// タグIDの配列を含むスキーマ
+export const videoWithTagsSchema = videoInsertSchema.extend({
+  tags: z.array(z.string()).optional(),
+});
+
+export type VideoInsertWithTags = z.infer<typeof videoWithTagsSchema>;
