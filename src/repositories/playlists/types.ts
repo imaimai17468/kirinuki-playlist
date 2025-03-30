@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { authorSchema } from "../authors/types";
 import { baseResponseSchema } from "../types";
-import { videoSchema } from "../videos/types";
+import { tagSchema, videoSchema } from "../videos/types";
 
 export const playlistVideoSchema = videoSchema.extend({
   order: z.number(),
+  // videoSchemaからtagsが継承されるが、念のため明示的に定義
+  tags: z.array(tagSchema),
 });
 
 export const playlistSchema = z.object({
