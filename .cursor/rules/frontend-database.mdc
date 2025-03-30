@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description:
+globs:
 ---
 # Cloudflare D1データベース管理ガイド
 
@@ -629,3 +629,205 @@ export class UniqueConstraintError extends Error {
   ```
 
 - **開発サーバーの起動エラー**：LibSQLサーバーが動作していない場合は、`bun run db:server`を実行してDockerでlibsqlサーバーを起動してください。
+
+## タグ機能とリレーションの実装
+
+Kirinuki-Playlistプロジェクトでは、ビデオコンテンツにタグを付けて分類できる機能を実装しています。この機能により、ユーザーは関連するコンテンツを簡単に見つけることができます。
+
+### テーブル構造
+
+タグ機能は以下の2つのテーブルで構成されています：
+
+1. `tags` テーブル - タグ情報を保存
+2. `video_tags` テーブル - 動画とタグの多対多リレーションを管理する中間テーブル
+
+```sql
+-- tagsテーブル
+CREATE TABLE `tags` (
+  `id` text PRIMARY KEY NOT NULL,
+  `name` text NOT NULL,
+  `created_at` integer NOT NULL,
+  `updated_at` integer NOT NULL
+);
+CREATE UNIQUE INDEX `tags_name_unique` ON `tags` (`name`);
+
+-- video_tagsテーブル
+CREATE TABLE `video_tags` (
+  `video_id` text NOT NULL,
+  `tag_id` text NOT NULL,
+  `created_at` integer NOT NULL,
+  `updated_at` integer NOT NULL,
+  PRIMARY KEY(`video_id`, `tag_id`),
+  FOREIGN KEY (`video_id`) REFERENCES `videos`(`id`) ON UPDATE no action ON DELETE cascade,
+  FOREIGN KEY (`tag_id`) REFERENCES `tags`(`id`) ON UPDATE no action ON DELETE cascade
+);
+```
+
+### Drizzleでのスキーマ定義
+
+```typescript
+// src/db/models/tags.ts
+import { sql } from "drizzle-orm";
+import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+
+export const tags = sqliteTable("tags", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = typeof tags.$inferInsert;
+
+// src/db/models/relations.ts
+// 動画とタグの多対多リレーション
+export const videoTags = sqliteTable(
+  "video_tags",
+  {
+    videoId: text("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.videoId, table.tagId] }),
+  })
+);
+```
+
+### サービス層での実装
+
+動画サービスでタグ関連の機能を統合することで、タグ付き動画の操作が簡単に行えるようになっています：
+
+```typescript
+export type VideoWithAuthorAndTags = VideoWithAuthor & {
+  tags: {
+    id: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
+};
+
+// ビデオサービスにタグ関連機能を統合
+export const createVideoService = (dbClient: DbClient) => ({
+  // 既存のメソッド...
+
+  // タグ付き動画の取得
+  async getVideoWithTagsById(id: string): Promise<VideoWithAuthorAndTags> {
+    try {
+      const video = await this.getVideoById(id);
+
+      // タグ情報も取得
+      const videoTagsResult = await dbClient
+        .select()
+        .from(videoTags)
+        .innerJoin(tags, eq(videoTags.tagId, tags.id))
+        .where(eq(videoTags.videoId, id))
+        .all();
+
+      const tagList = videoTagsResult.map((row) => ({
+        id: row.tags.id,
+        name: row.tags.name,
+        createdAt: row.tags.createdAt,
+        updatedAt: row.tags.updatedAt,
+      }));
+
+      return {
+        ...video,
+        tags: tagList,
+      };
+    } catch (error) {
+      // エラーハンドリング
+    }
+  },
+
+  // タグ付き動画の作成
+  async createVideoWithTags(data: InsertVideo, tagNames: string[]): Promise<VideoWithAuthorAndTags> {
+    try {
+      // トランザクション内で処理
+      // 1. 動画の作成
+      // 2. 既存タグの検索または新規タグの作成
+      // 3. 動画とタグのリレーション作成
+      // 4. 完成した動画とタグ情報の返却
+    } catch (error) {
+      // エラーハンドリング
+    }
+  }
+});
+```
+
+### インデックスでのエクスポート
+
+モデルをプロジェクト全体で利用できるようにするため、`index.ts`で適切にエクスポートすることが重要です：
+
+```typescript
+// src/db/models/index.ts
+export * from "./videos";
+export * from "./authors";
+export * from "./playlists";
+export * from "./tags"; // タグモデルのエクスポート
+export * from "./relations"; // リレーションのエクスポート
+```
+
+### マイグレーション管理
+
+新しいテーブルやリレーションを追加する際には、Drizzle Kitを使用してマイグレーションファイルを生成し、適用します：
+
+```bash
+# マイグレーションファイルの生成
+drizzle-kit generate
+
+# マイグレーションの適用
+bun migrate
+```
+
+### テスト環境でのマイグレーション
+
+テスト環境では、テスト実行時にインメモリデータベースに最新のマイグレーションを適用することが重要です：
+
+```typescript
+// src/db/config/test-database.ts
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import Database from "bun:sqlite";
+import { drizzle as drizzleSqlite } from "drizzle-orm/bun-sqlite";
+import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+
+/**
+ * テスト環境用のデータベースクライアントを作成します
+ * インメモリSQLiteデータベースを使用し、マイグレーションを適用します
+ */
+export const createTestDbClient = async () => {
+  const client = new Database(":memory:");
+  const db = drizzleSqlite(client);
+
+  // 正確なマイグレーションパスの構築
+  const currentFilePath = fileURLToPath(import.meta.url);
+  const projectRoot = dirname(dirname(dirname(dirname(currentFilePath))));
+  const migrationsPath = join(projectRoot, "drizzle");
+
+  try {
+    // マイグレーションの適用
+    await migrate(db, { migrationsFolder: migrationsPath });
+    console.log("テストデータベースのマイグレーションが成功しました");
+  } catch (error) {
+    console.error("テストデータベースのマイグレーションに失敗しました:", error);
+  }
+
+  return db;
+};
+```
