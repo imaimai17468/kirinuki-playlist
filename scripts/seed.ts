@@ -98,6 +98,18 @@ async function seedDatabase(url: string) {
           createdAt: now,
           updatedAt: now,
         },
+        {
+          id: nanoid(),
+          name: "エンターテイメント",
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: nanoid(),
+          name: "教育",
+          createdAt: now,
+          updatedAt: now,
+        },
       ])
       .returning({ id: tags.id });
 
@@ -136,6 +148,26 @@ async function seedDatabase(url: string) {
           createdAt: now,
           updatedAt: now,
         },
+        {
+          id: nanoid(),
+          title: "タグなし動画",
+          url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          start: 90,
+          end: 120,
+          authorId: authorIds[0].id,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: nanoid(),
+          title: "多数タグ動画",
+          url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          start: 120,
+          end: 150,
+          authorId: authorIds[1].id,
+          createdAt: now,
+          updatedAt: now,
+        },
       ])
       .returning({ id: videos.id });
 
@@ -163,6 +195,31 @@ async function seedDatabase(url: string) {
       {
         videoId: videoIds[2].id,
         tagId: tagIds[2].id,
+        createdAt: now,
+        updatedAt: now,
+      },
+      // 多数タグ動画のタグ関連付け
+      {
+        videoId: videoIds[4].id,
+        tagId: tagIds[0].id, // 音楽
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        videoId: videoIds[4].id,
+        tagId: tagIds[1].id, // プログラミング
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        videoId: videoIds[4].id,
+        tagId: tagIds[2].id, // ゲーム
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        videoId: videoIds[4].id,
+        tagId: tagIds[3].id, // エンターテイメント
         createdAt: now,
         updatedAt: now,
       },
