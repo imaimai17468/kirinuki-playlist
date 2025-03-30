@@ -2,7 +2,7 @@ import { TriangleAlertIcon } from "lucide-react";
 
 export const DataError = () => {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4">
+    <div className="h-screen flex flex-col items-center justify-center py-16 px-4">
       <div className="bg-red-50 rounded-full p-5 mb-6">
         <TriangleAlertIcon className="h-12 w-12 text-red-400" />
       </div>

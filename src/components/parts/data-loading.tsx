@@ -2,7 +2,7 @@ import { Loader2 } from "lucide-react";
 
 export const DataLoading = () => {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4">
+    <div className="h-screen flex flex-col items-center justify-center py-16 px-4">
       <div className="relative">
         <Loader2 className="h-16 w-16 text-indigo-500 animate-spin" />
         <div className="absolute inset-0 flex items-center justify-center">
