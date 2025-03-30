@@ -20,7 +20,7 @@ export const playlistSchema = z.object({
     .or(z.string())
     .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
   // 関連するauthorフィールドがAPIから返される場合は以下を追加
-  author: authorSchema.optional(),
+  author: authorSchema,
   // 関連するvideoフィールドがAPIから返される場合は以下を追加
   videos: z.array(playlistVideoSchema).optional(),
 });

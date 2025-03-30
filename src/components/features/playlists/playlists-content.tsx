@@ -87,9 +87,9 @@ export const PlaylistsContent = async () => {
                 {/* 作成者アバター */}
                 <Link href={getDetailPath(CLIENT_PATH.USERS_DETAIL, playlist.authorId)} className="flex-shrink-0">
                   <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity duration-300">
-                    <AvatarImage src={playlist.author?.iconUrl || ""} alt={playlist.author?.name} />
+                    <AvatarImage src={playlist.author.iconUrl || ""} alt={playlist.author.name} />
                     <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                      {playlist.author?.name?.slice(0, 2).toUpperCase() || "PL"}
+                      {playlist.author.name.slice(0, 2).toUpperCase() || "PL"}
                     </AvatarFallback>
                   </Avatar>
                 </Link>
@@ -109,11 +109,9 @@ export const PlaylistsContent = async () => {
                     <Link
                       href={getDetailPath(CLIENT_PATH.USERS_DETAIL, playlist.authorId)}
                       className="hover:text-green-600 transition-colors"
-                      title={playlist.author?.name}
+                      title={playlist.author.name}
                     >
-                      <p className="text-xs text-muted-foreground truncate">
-                        {playlist.author?.name || "不明な作成者"}
-                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{playlist.author.name || "不明な作成者"}</p>
                     </Link>
                   </div>
                 </div>
