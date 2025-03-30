@@ -1,13 +1,14 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CLIENT_PATH, getDetailPath } from "@/consts/clientpath";
 import { getVideoById } from "@/repositories/videos";
 import { formatDate } from "@/utils/date";
 import { convertSecondsToTimeFormat } from "@/utils/youtube";
-import { CalendarDays, Clock } from "lucide-react";
+import { CalendarDays, Clock, Tag } from "lucide-react";
 import Link from "next/link";
 import { YoutubePlayer } from "./youtube-player";
 
@@ -80,6 +81,35 @@ export const ClipDetailContent = async ({ id }: Props) => {
                   </a>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* タグ情報カード */}
+          <Card id="tags">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-medium flex items-center">
+                <Tag className="h-5 w-5 mr-2" />
+                タグ
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {video.tags && video.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {video.tags.map((tag) => (
+                    <Badge key={tag.id} variant="outline" className="px-3 py-1">
+                      <Link
+                        href={getDetailPath(CLIENT_PATH.TAG_DETAIL, tag.id)}
+                        className="hover:text-green-600 transition-colors flex items-center"
+                      >
+                        <Tag className="h-3 w-3 mr-1" />
+                        {tag.name}
+                      </Link>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">タグがありません</p>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -1,12 +1,13 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { getDetailPath } from "@/consts/clientpath";
 import { CLIENT_PATH } from "@/consts/clientpath";
 import { getAllVideos } from "@/repositories/videos";
 import { formatDate } from "@/utils/date";
 import { formatDuration, getYoutubeId } from "@/utils/youtube";
-import { Clapperboard } from "lucide-react";
+import { Clapperboard, Tag } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -45,7 +46,7 @@ export const ClipsContent = async () => {
               </p>
             </div>
 
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-3 items-start">
               {/* アバター */}
               <Link href={getDetailPath(CLIENT_PATH.USERS_DETAIL, video.authorId)} className="flex-shrink-0">
                 <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity duration-300">
@@ -74,6 +75,34 @@ export const ClipsContent = async () => {
                     </p>
                   </Link>
                 </div>
+
+                {/* タグ */}
+                {video.tags && video.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {video.tags.slice(0, 3).map((tag) => (
+                      <Badge key={tag.id} variant="outline" className="px-2 py-0 text-xs cursor-pointer">
+                        <Link
+                          href={getDetailPath(CLIENT_PATH.TAG_DETAIL, tag.id)}
+                          className="hover:text-green-600 transition-colors flex items-center"
+                        >
+                          <Tag className="h-3 w-3 mr-1" />
+                          {tag.name}
+                        </Link>
+                      </Badge>
+                    ))}
+                    {video.tags.length > 3 && (
+                      <Badge variant="outline" className="px-2 py-0 text-xs cursor-pointer">
+                        <Link
+                          href={`${getDetailPath(CLIENT_PATH.CLIP_DETAIL, video.id)}#tags`}
+                          title="すべてのタグを表示"
+                          className="hover:text-green-600 transition-colors"
+                        >
+                          +{video.tags.length - 3}
+                        </Link>
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
