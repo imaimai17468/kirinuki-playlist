@@ -23,3 +23,8 @@ export const tagInsertSchema = createInsertSchema(tags, {
   updatedAt: z.undefined(),
 });
 export const tagUpdateSchema = createUpdateSchema(tags);
+
+// タグIDのみのスキーマ（API用）
+export const tagIdSchema = z.object({
+  tagId: z.string(),
+});

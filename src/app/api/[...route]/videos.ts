@@ -1,5 +1,6 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
+import { tagIdSchema } from "@/db/models/tags";
 import { videoInsertSchema, videoUpdateSchema } from "@/db/models/videos";
 import { createVideoService } from "@/db/services/videos/videos";
 import type { VideoInsert, VideoUpdate } from "@/db/services/videos/videos";
@@ -91,4 +92,38 @@ export const videosRouter = new Hono<AppEnv>()
     const service = createVideoService(dbClient);
     await service.deleteVideo(id);
     return c.json({ success: true });
+  })
+  // 動画にタグを追加
+  .post("/:id/tags", zValidator("json", tagIdSchema), async (c) => {
+    const videoId = c.req.param("id");
+    const { tagId } = c.req.valid("json");
+
+    // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+    let dbClient = c.get("dbClient");
+    if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
+      const { DB } = getRequestContext().env;
+      dbClient = createDbClient(DB);
+    }
+
+    const service = createVideoService(dbClient);
+    await service.updateVideoTags(videoId, [tagId]);
+    return c.json({ success: true, message: "タグを追加しました" });
+  })
+  // 動画からタグを削除
+  .delete("/:id/tags/:tagId", async (c) => {
+    const videoId = c.req.param("id");
+    const tagId = c.req.param("tagId");
+
+    // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+    let dbClient = c.get("dbClient");
+    if (!dbClient) {
+      const { getRequestContext } = await import("@cloudflare/next-on-pages");
+      const { DB } = getRequestContext().env;
+      dbClient = createDbClient(DB);
+    }
+
+    const service = createVideoService(dbClient);
+    await service.removeTagFromVideo(videoId, tagId);
+    return c.json({ success: true, message: "タグを削除しました" });
   });
