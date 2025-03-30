@@ -4,7 +4,8 @@ import type { DbClient } from "@/db/config/hono";
 import { createTestDbClient } from "@/db/config/test-database";
 import { authors } from "@/db/models/authors";
 import { playlists } from "@/db/models/playlists";
-import { playlistVideos } from "@/db/models/relations";
+import { playlistVideos, videoTags } from "@/db/models/relations";
+import { tags } from "@/db/models/tags";
 import { videos } from "@/db/models/videos";
 import { testClient } from "hono/testing";
 import { nanoid } from "nanoid";
@@ -28,9 +29,11 @@ export async function setupTestEnv() {
   const client = testClient(app);
 
   // 全てのテストデータをクリア
+  await dbClient.delete(videoTags).run();
   await dbClient.delete(playlistVideos).run();
   await dbClient.delete(playlists).run();
   await dbClient.delete(videos).run();
+  await dbClient.delete(tags).run();
   await dbClient.delete(authors).run();
 
   // APIクライアントを設定
@@ -41,6 +44,33 @@ export async function setupTestEnv() {
     app,
     client,
   };
+}
+
+// Honoモックレスポンス用に拡張されたビデオと著者の型
+interface ExtendedVideo {
+  id: string;
+  title: string;
+  url: string;
+  start: number;
+  end: number;
+  authorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  // モックレスポンス用の追加プロパティ
+  author?: {
+    id: string;
+    name: string;
+    iconUrl: string;
+    bio: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  tags?: {
+    id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+  }[];
 }
 
 /**
@@ -80,7 +110,7 @@ export async function insertTestAuthors(dbClient: DbClient) {
  */
 export async function insertTestVideos(dbClient: DbClient) {
   // テストビデオデータ
-  const testVideos = [
+  const testVideos: ExtendedVideo[] = [
     {
       id: "video1",
       title: "テストビデオ1",
@@ -90,6 +120,8 @@ export async function insertTestVideos(dbClient: DbClient) {
       authorId: "author1",
       createdAt: new Date(),
       updatedAt: new Date(),
+      // モックレスポンス用の空の配列を追加
+      tags: [],
     },
     {
       id: "video2",
@@ -100,12 +132,15 @@ export async function insertTestVideos(dbClient: DbClient) {
       authorId: "author2",
       createdAt: new Date(),
       updatedAt: new Date(),
+      // モックレスポンス用の空の配列を追加
+      tags: [],
     },
   ];
 
-  // ビデオデータを挿入
+  // ビデオデータを挿入 (tagsフィールドは挿入時に除外)
   for (const video of testVideos) {
-    await dbClient.insert(videos).values(video);
+    const { tags, ...videoData } = video;
+    await dbClient.insert(videos).values(videoData);
   }
 
   return testVideos;
@@ -182,29 +217,97 @@ export async function insertTestPlaylistVideos(dbClient: DbClient) {
 }
 
 /**
+ * テスト用のタグデータを挿入する
+ */
+export async function insertTestTags(dbClient: DbClient) {
+  // テストタグデータ
+  const testTags = [
+    {
+      id: "tag1",
+      name: "テストタグ1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "tag2",
+      name: "テストタグ2",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  // タグデータを挿入
+  for (const tag of testTags) {
+    await dbClient.insert(tags).values(tag);
+  }
+
+  return testTags;
+}
+
+/**
+ * テスト用の動画-タグ関連付けデータを挿入する
+ */
+export async function insertTestVideoTags(dbClient: DbClient) {
+  // テスト動画-タグ関連付けデータ
+  const testVideoTags = [
+    {
+      videoId: "video1",
+      tagId: "tag1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      videoId: "video1",
+      tagId: "tag2",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      videoId: "video2",
+      tagId: "tag1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  // 動画-タグ関連付けデータを挿入
+  for (const relation of testVideoTags) {
+    await dbClient.insert(videoTags).values(relation);
+  }
+
+  return testVideoTags;
+}
+
+/**
  * テスト実行後のクリーンアップ
  */
 export async function cleanupTestData(dbClient: DbClient) {
+  await dbClient.delete(videoTags).run();
   await dbClient.delete(playlistVideos).run();
   await dbClient.delete(playlists).run();
   await dbClient.delete(videos).run();
+  await dbClient.delete(tags).run();
   await dbClient.delete(authors).run();
 }
 
 /**
  * 全テストデータをセットアップする
- * - 著者、動画、プレイリスト、関連付けの順に挿入
+ * - 著者、タグ、動画、プレイリスト、関連付けの順に挿入
  */
 export async function insertAllTestData(dbClient: DbClient) {
   const authors = await insertTestAuthors(dbClient);
+  const tagsData = await insertTestTags(dbClient);
   const videos = await insertTestVideos(dbClient);
   const playlists = await insertTestPlaylists(dbClient);
-  const relations = await insertTestPlaylistVideos(dbClient);
+  const playlistVideoRelations = await insertTestPlaylistVideos(dbClient);
+  const videoTagRelations = await insertTestVideoTags(dbClient);
 
   return {
     authors,
+    tags: tagsData,
     videos,
     playlists,
-    relations,
+    playlistVideoRelations,
+    videoTagRelations,
   };
 }
