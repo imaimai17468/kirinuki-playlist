@@ -239,7 +239,7 @@ describe("useVideoPlayer", () => {
     act(() => {
       result.current.handlers.setState((prev) => ({
         ...prev,
-        currentIndex: 1,
+        currentIndex: 2,
       }));
     });
 
