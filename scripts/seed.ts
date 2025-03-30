@@ -4,7 +4,36 @@ import { nanoid } from "nanoid";
 import { runMigrationWithLibSqlServer } from "./migrate";
 
 // 必要なデータモデルをインポート
-import { authors, playlistVideos, playlists, videos } from "../src/db/models";
+import { authors, playlistVideos, playlists, tags, videoTags, videos } from "../src/db/models";
+
+/**
+ * データベースの既存データをクリーンアップします
+ * @param url libsqlサーバーのURL
+ */
+async function cleanupDatabase(url: string) {
+  console.log(`[cleanup] ${url}の既存データを削除中...`);
+
+  // データベースに接続
+  const client = createClient({
+    url,
+  });
+  const db = drizzle(client);
+
+  try {
+    // 関連テーブルから順番に削除
+    await db.delete(videoTags);
+    await db.delete(playlistVideos);
+    await db.delete(videos);
+    await db.delete(playlists);
+    await db.delete(tags);
+    await db.delete(authors);
+
+    console.log("[cleanup] データの削除が完了しました");
+  } catch (error) {
+    console.error("[cleanup] データ削除中にエラーが発生しました:", error);
+    throw error;
+  }
+}
 
 /**
  * シードデータをデータベースに挿入します
@@ -46,6 +75,32 @@ async function seedDatabase(url: string) {
       ])
       .returning({ id: authors.id });
 
+    // タグデータの挿入
+    console.log("[seed] タグデータを挿入中...");
+    const tagIds = await db
+      .insert(tags)
+      .values([
+        {
+          id: nanoid(),
+          name: "音楽",
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: nanoid(),
+          name: "プログラミング",
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: nanoid(),
+          name: "ゲーム",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      .returning({ id: tags.id });
+
     // 動画データの挿入
     console.log("[seed] 動画データを挿入中...");
     const videoIds = await db
@@ -83,6 +138,35 @@ async function seedDatabase(url: string) {
         },
       ])
       .returning({ id: videos.id });
+
+    // ビデオ-タグ関連データの挿入
+    console.log("[seed] ビデオ-タグ関連データを挿入中...");
+    await db.insert(videoTags).values([
+      {
+        videoId: videoIds[0].id,
+        tagId: tagIds[0].id,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        videoId: videoIds[0].id,
+        tagId: tagIds[1].id,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        videoId: videoIds[1].id,
+        tagId: tagIds[1].id,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        videoId: videoIds[2].id,
+        tagId: tagIds[2].id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
 
     // プレイリストデータの挿入
     console.log("[seed] プレイリストデータを挿入中...");
@@ -153,6 +237,9 @@ async function main() {
       await runMigrationWithLibSqlServer(url);
     }
 
+    // データをクリーンアップ
+    await cleanupDatabase(url);
+
     // シードデータを挿入
     await seedDatabase(url);
   } catch (error) {
@@ -167,4 +254,4 @@ if (require.main === module) {
 }
 
 // 他のファイルからインポートできるようにエクスポート
-export { seedDatabase };
+export { seedDatabase, cleanupDatabase };

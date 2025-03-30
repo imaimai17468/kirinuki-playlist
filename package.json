@@ -17,6 +17,7 @@
     "migrate:server": "bun scripts/migrate.ts",
     "seed": "bun scripts/seed.ts",
     "seed:with-migrate": "bun scripts/seed.ts --with-migration",
+    "db:check": "bun scripts/check-data.ts",
     "db:server": "docker run -d -p 8080:8080 -v $(pwd)/data:/data -e SQLD_DB_PATH=/data/dev.db ghcr.io/tursodatabase/libsql-server:latest",
     "db:server:stop": "docker stop $(docker ps -q --filter ancestor=ghcr.io/tursodatabase/libsql-server:latest)",
     "dev:with-db": "bun run db:server && sleep 3 && bun run migrate:server && bun run dev",
