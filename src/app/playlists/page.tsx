@@ -1,7 +1,11 @@
-export default function Playlists() {
+import { PlaylistsContent } from "@/components/features/playlists/playlists-content";
+import { DataLoading } from "@/components/parts/data-loading";
+import { Suspense } from "react";
+
+export default async function Playlists() {
   return (
-    <div>
-      <h1>Playlists</h1>
-    </div>
+    <Suspense fallback={<DataLoading />}>
+      <PlaylistsContent />
+    </Suspense>
   );
 }
