@@ -3,7 +3,6 @@ import "./globals.css";
 import { MainLayout } from "@/components/layout/main-layout";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Root } from "@/components/parts/video-player";
-import { TanstackProvider } from "@/components/providers/tanstack-provider";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -59,14 +58,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <TanstackProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <MainLayout>
-              <Root />
-              {children}
-            </MainLayout>
-          </ThemeProvider>
-        </TanstackProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <MainLayout>
+            <Root />
+            {children}
+          </MainLayout>
+        </ThemeProvider>
       </body>
     </html>
   );

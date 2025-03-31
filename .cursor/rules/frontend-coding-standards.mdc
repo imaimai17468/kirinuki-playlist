@@ -1,6 +1,7 @@
 ---
 description: Kirinuki-Playlistプロジェクトのフロントエンド開発コーディング規約
 globs: src/**/*.{ts,tsx}
+alwaysApply: false
 ---
 # Kirinuki-Playlist プロジェクトコーディング規約
 
@@ -63,7 +64,6 @@ globs: src/**/*.{ts,tsx}
 - ローカル状態には `useState` または `useReducer` を使用する
 - グローバル状態には React Context または Zustand を使用する
 - 複雑な状態管理ロジックはカスタムフックに抽出する
-- API 状態管理には React Query を使用する
 - フォーム管理には React Hook Form を使用する
 - 状態の型定義は明示的に行う
 - イミュータブルな状態更新を行う
@@ -217,7 +217,6 @@ src/
 - プレイリスト一覧と詳細表示の UI コンポーネントを分離する
 - プレイリスト作成・編集フォームは共通コンポーネントとして実装する
 - 動画の並び替えは drag-and-drop インターフェースで実装する
-- プレイリスト内の動画順序は React Query の optimistic updates で即時反映する
 - プレイリストのクエリキャッシュは適切に無効化する
 - プレイリスト関連の状態変更はサーバーとの同期を確実に行う
 - プレイリスト関連のエラーメッセージはユーザーフレンドリーにする

@@ -1,6 +1,7 @@
 ---
 description: Kirinuki-PlaylistプロジェクトのクライアントサイドAPIアクセス規約
 globs: src/repositories/**/*.ts
+alwaysApply: false
 ---
 
 # クライアントサイドAPIアクセス
@@ -48,7 +49,6 @@ src/
 │   ├── [エンティティ名]/       # 各エンティティごとのディレクトリ
 │   │   ├── index.ts            # 実装
 │   │   ├── types.ts            # 固有の型定義とスキーマ
-│   │   ├── hooks.ts            # React Queryフック
 │   │   └── __tests__/          # テスト
 ```
 
@@ -93,14 +93,6 @@ src/
 - 指定したタグIDをすべて持つ動画IDの取得機能（AND条件）
 - 各機能でのエラーハンドリングと型安全性の確保
 
-### 3. React Queryフック（src/repositories/tags/hooks.ts）
-
-React Queryを使用したフックには以下のものを含めます：
-- 基本的なCRUD操作のためのフック
-- 指定したタグIDに関連する動画IDを取得するフック
-- 指定したタグIDをすべて持つ動画IDを取得するフック
-- 適切なクエリキーの設計とエラーハンドリング
-
 ## 型の定義と検証
 
 ### エラー型の定義
@@ -119,23 +111,6 @@ APIエラーは明確な型定義を持ち、以下のタイプを区別しま�
 
 - エラー作成用関数（createNetworkError, createSchemaErrorなど）
 - HTTPエラー処理関数（handleHttpError）
-
-## React Queryとの統合
-
-リポジトリパターンはReact Queryと統合し、以下の方針に従ってください：
-
-1. **フックの命名規則**:
-   - 取得系: use[エンティティ名]s(), use[エンティティ名]()
-   - 変更系: useCreate[エンティティ名](), useUpdate[エンティティ名](), useDelete[エンティティ名]()
-   - 関連データ取得: useVideosByTagIds(), useVideosByAllTags()
-
-2. **エラーハンドリング**:
-   - リポジトリから返されたResult型をチェック
-   - エラーの場合は適切に例外をスロー
-
-3. **キャッシュ管理**:
-   - 関連するクエリを適切にinvalidate
-   - キャッシュキーを一貫して使用
 
 ## リポジトリテスト
 
