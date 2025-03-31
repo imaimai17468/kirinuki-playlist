@@ -76,6 +76,53 @@ APIルーターとサービスレイヤーの両方で同じ検証を行うと�
 サービスレイヤーでは、操作中に発生する可能性のあるエラーを適切に捕捉し、カスタムエラーとして再スローします。
 既知のエラータイプ（NotFoundErrorなど）はそのまま上位に伝播し、その他のエラーはDatabaseErrorに変換します。
 
+## タグサービスでのエラーハンドリング
+
+タグ関連の処理では、以下の特有のエラーシナリオを考慮してください：
+
+### タグの存在確認
+
+タグを操作する前に必ずタグの存在を確認し、存在しない場合は適切なエラーをスローします：
+
+```typescript
+const tag = await dbClient.select().from(tags).where(eq(tags.id, id)).get();
+if (!tag) {
+  throw new NotFoundError(`ID: ${id} のタグが見つかりません`);
+}
+```
+
+### タグ名の一意性チェック
+
+タグ名は一意である必要があり、重複する場合はUniqueConstraintErrorをスローします：
+
+```typescript
+try {
+  // データベース操作
+} catch (error: unknown) {
+  if (error instanceof Error) {
+    if (error.message.includes("UNIQUE constraint failed")) {
+      throw new UniqueConstraintError("このタグ名はすでに使用されています");
+    }
+    throw new DatabaseError("タグの保存中にエラーが発生しました");
+  }
+  throw error;
+}
+```
+
+### タグと動画の関連操作
+
+タグと動画の関連操作（タグによる動画検索など）では、パラメータの検証を適切に行います：
+
+```typescript
+// クエリパラメータの検証
+if (typeof tagIds === "string") {
+  // 単一の文字列の場合は配列に変換
+  tagIds = [tagIds];
+} else if (!Array.isArray(tagIds) || tagIds.length === 0) {
+  return c.json({ success: true, videoIds: [] });
+}
+```
+
 ## 関連エンティティのエラーハンドリング
 
 プレイリスト、ビデオ、著者などの関連エンティティを扱う場合は、各エンティティの存在を確認し、
@@ -104,6 +151,44 @@ APIエラーは以下のタイプを区別します：
 
 React コンポーネントでは、エラータイプに基づいて適切なUIを表示します。
 各エラータイプに対して、ユーザーに理解しやすいメッセージと適切なアクションを提示します。
+
+### タグ関連機能でのエラーハンドリング例
+
+タグ関連機能のクライアントサイド実装では、以下のようなエラーハンドリングを行います：
+
+```typescript
+// タグIDによる動画検索
+async getVideosByTagIds(tagIds: string[]): Promise<Result<string[], ApiError>> {
+  try {
+    // 空の配列の場合は早期リターン
+    if (tagIds.length === 0) {
+      return ok([]);
+    }
+
+    const client = getApiClient();
+    const response = await client.api.tags.videos.$get({
+      query: { tagIds },
+    });
+
+    if (!response.ok) {
+      return err(handleHttpError(response.status, "タグに関連する動画の取得に失敗しました"));
+    }
+
+    const json = await response.json();
+    const parseResult = tagVideosResponseSchema.safeParse(json);
+
+    if (!parseResult.success) {
+      return err(createSchemaError(parseResult.error.message));
+    }
+
+    return ok(parseResult.data.videoIds);
+  } catch (error) {
+    return err(createNetworkError(`タグに関連する動画の取得中にエラーが発生しました: ${
+      error instanceof Error ? error.message : "不明なエラー"
+    }`));
+  }
+}
+```
 
 ## エラーハンドリングのベストプラクティス
 
