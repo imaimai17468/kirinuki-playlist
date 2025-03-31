@@ -120,8 +120,6 @@ export async function insertTestVideos(dbClient: DbClient) {
       authorId: "author1",
       createdAt: new Date(),
       updatedAt: new Date(),
-      // モックレスポンス用の空の配列を追加
-      tags: [],
     },
     {
       id: "video2",
@@ -132,8 +130,6 @@ export async function insertTestVideos(dbClient: DbClient) {
       authorId: "author2",
       createdAt: new Date(),
       updatedAt: new Date(),
-      // モックレスポンス用の空の配列を追加
-      tags: [],
     },
   ];
 

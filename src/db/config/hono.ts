@@ -1,5 +1,6 @@
 import { authorsRouter } from "@/app/api/[...route]/authors";
 import { playlistsRouter } from "@/app/api/[...route]/playlists";
+import { tagsRouter } from "@/app/api/[...route]/tags";
 import { videosRouter } from "@/app/api/[...route]/videos";
 import type { createDbClient } from "@/db/config/database";
 import { createDevDbClient } from "@/db/config/database";
@@ -51,6 +52,7 @@ export function createHonoApp(options?: { dbClient?: DbClient }) {
     .route("/authors", authorsRouter)
     .route("/videos", videosRouter)
     .route("/playlists", playlistsRouter)
+    .route("/tags", tagsRouter)
     .get("/hello", (c) => c.json({ status: "ok" }));
 
   return app;
