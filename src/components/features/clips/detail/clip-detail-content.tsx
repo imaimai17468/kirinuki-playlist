@@ -8,7 +8,7 @@ import { CLIENT_PATH, getDetailPath } from "@/consts/clientpath";
 import { getVideoById } from "@/repositories/videos";
 import { formatDate } from "@/utils/date";
 import { convertSecondsToTimeFormat } from "@/utils/youtube";
-import { CalendarDays, Clock, Tag } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Tag } from "lucide-react";
 import Link from "next/link";
 import { YoutubePlayer } from "./youtube-player";
 
@@ -28,6 +28,15 @@ export const ClipDetailContent = async ({ id }: Props) => {
   return (
     <ContentLayout endItem={{ id: id as string, label: video?.title ?? "" }}>
       <div className="space-y-8">
+        {/* 一覧に戻るリンク */}
+        <Link
+          href={CLIENT_PATH.CLIPS}
+          className="flex items-center text-sm text-muted-foreground hover:text-green-600 transition-colors w-fit"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          クリップ一覧に戻る
+        </Link>
+
         {/* プレイヤーセクション */}
         <div className="w-full aspect-video rounded-lg overflow-hidden shadow-lg">
           <YoutubePlayer url={video.url} start={video.start} end={video.end} />

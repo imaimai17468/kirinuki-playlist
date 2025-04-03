@@ -3,9 +3,11 @@ import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { CLIENT_PATH } from "@/consts/clientpath";
 import { getAuthorById } from "@/repositories/authors";
 import { formatDate } from "@/utils/date";
-import { CalendarDays, Clock, Link as LinkIcon } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Link as LinkIcon } from "lucide-react";
+import Link from "next/link";
 
 type Props = {
   id: string;
@@ -23,6 +25,15 @@ export const UserDetailContent = async ({ id }: Props) => {
   return (
     <ContentLayout endItem={{ id: id as string, label: author.name }}>
       <div className="space-y-8">
+        {/* 一覧に戻るリンク */}
+        <Link
+          href={CLIENT_PATH.USERS}
+          className="flex items-center text-sm text-muted-foreground hover:text-green-600 transition-colors w-fit"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          ユーザー一覧に戻る
+        </Link>
+
         {/* プロフィールヘッダー */}
         <div className="flex flex-col items-center gap-6 py-8">
           <Avatar className="h-32 w-32">
