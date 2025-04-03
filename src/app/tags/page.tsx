@@ -1,7 +1,13 @@
-export default function Tags() {
+import { TagsContent } from "@/components/features/tags/tags-content";
+import { DataLoading } from "@/components/parts/data-loading";
+import { Suspense } from "react";
+
+export default async function Tags() {
   return (
     <div>
-      <h1>Tags</h1>
+      <Suspense fallback={<DataLoading />}>
+        <TagsContent />
+      </Suspense>
     </div>
   );
 }
