@@ -31,7 +31,7 @@ export const tagUpdateSchema = tagInsertSchema.partial();
 
 // APIレスポンススキーマ
 export const tagsResponseSchema = baseResponseSchema.extend({
-  tags: z.array(tagSchema),
+  tags: z.array(tagWithVideosSchema),
 });
 
 export const tagResponseSchema = baseResponseSchema.extend({

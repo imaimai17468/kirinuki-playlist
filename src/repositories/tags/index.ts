@@ -2,7 +2,6 @@ import { getApiClient } from "@/db/config/client";
 import { type Result, err, ok } from "neverthrow";
 import type { ApiError } from "../types";
 import {
-  type Tag,
   type TagInsert,
   type TagUpdate,
   type TagWithVideos,
@@ -40,7 +39,7 @@ const handleHttpError = (status: number, message: string): ApiError => {
 // タグリポジトリの実装
 export const tagRepository = {
   // 全てのタグを取得
-  async getAllTags(): Promise<Result<Tag[], ApiError>> {
+  async getAllTags(): Promise<Result<TagWithVideos[], ApiError>> {
     try {
       const client = getApiClient();
       const response = await client.api.tags.$get();
