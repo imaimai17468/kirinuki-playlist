@@ -47,7 +47,7 @@ export const ClipDetailContent = async ({ id }: Props) => {
           <h1 className="text-2xl font-bold tracking-tight">{video.title}</h1>
           <div className="flex items-center gap-4">
             <Link
-              href={getDetailPath(CLIENT_PATH.USERS_DETAIL, video.author.id)}
+              href={getDetailPath("USERS", video.author.id)}
               className="flex items-center gap-2 hover:text-green-600 transition-colors"
             >
               <Avatar className="h-8 w-8">
@@ -107,7 +107,7 @@ export const ClipDetailContent = async ({ id }: Props) => {
                   {video.tags.map((tag) => (
                     <Badge key={tag.id} variant="outline" className="px-3 py-1">
                       <Link
-                        href={getDetailPath(CLIENT_PATH.TAG_DETAIL, tag.id)}
+                        href={getDetailPath("TAGS", tag.id)}
                         className="hover:text-green-600 transition-colors flex items-center"
                       >
                         <Tag className="h-3 w-3 mr-1" />

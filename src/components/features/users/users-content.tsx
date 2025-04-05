@@ -1,7 +1,7 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CLIENT_PATH, getDetailPath } from "@/consts/clientpath";
+import { getDetailPath } from "@/consts/clientpath";
 import { getAllAuthors } from "@/repositories/authors";
 import { formatDate } from "@/utils/date";
 import { CalendarDays } from "lucide-react";
@@ -29,10 +29,7 @@ export const UsersContent = async () => {
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <Link
-                  href={getDetailPath(CLIENT_PATH.USERS_DETAIL, author.id)}
-                  className="hover:text-green-600 transition-colors"
-                >
+                <Link href={getDetailPath("USERS", author.id)} className="hover:text-green-600 transition-colors">
                   <h3 className="text-base font-medium truncate">{author.name}</h3>
                 </Link>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
