@@ -1,11 +1,6 @@
 import { ListMusic, Scissors, Settings2, Star, Tag, User, UserSearch, Users } from "lucide-react";
 
 export const SIDEBAR_ITEMS = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: {
     navItems: [
       {

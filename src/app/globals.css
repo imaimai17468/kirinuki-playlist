@@ -94,3 +94,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+.cl-userButton-root {
+  width: 100%;
+}

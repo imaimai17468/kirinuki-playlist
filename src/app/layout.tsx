@@ -3,6 +3,7 @@ import "./globals.css";
 import { MainLayout } from "@/components/layout/main-layout";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Root } from "@/components/parts/video-player";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -56,15 +57,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <MainLayout>
-            <Root />
-            {children}
-          </MainLayout>
-        </ThemeProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            <MainLayout>
+              <Root />
+              {children}
+            </MainLayout>
+          </ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

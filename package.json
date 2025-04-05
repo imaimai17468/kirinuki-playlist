@@ -26,6 +26,7 @@
     "deploy": "bun run pages:build && wrangler pages deploy"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.13.0",
     "@cloudflare/next-on-pages": "^1.13.10",
     "@formkit/tempo": "^0.1.2",
     "@hono/zod-validator": "^0.4.3",
