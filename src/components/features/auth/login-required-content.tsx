@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export function LoginRequiredContent() {
   return (
-    <div className="flex min-h-[80vh] flex-col items-center justify-center p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4">
       <Card className="mx-auto max-w-md p-8 shadow-lg">
         <div className="mb-6 flex flex-col items-center space-y-2 text-center">
           <div className="rounded-full bg-primary/10 p-3">
