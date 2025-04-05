@@ -29,7 +29,7 @@ export const UsersContent = async () => {
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <Link href={getDetailPath("USERS", author.id)} className="hover:text-green-600 transition-colors">
+                <Link href={getDetailPath("USER_DETAIL", author.id)} className="hover:text-green-600 transition-colors">
                   <h3 className="text-base font-medium truncate">{author.name}</h3>
                 </Link>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">

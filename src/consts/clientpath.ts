@@ -24,10 +24,10 @@ export const PUBLIC_PATHS = {
 
 // 詳細パス
 export const DETAIL_PATH = {
-  CLIPS: "/clips/(.*)",
-  USERS: "/users/(.*)",
-  PLAYLISTS: "/playlists/(.*)",
-  TAGS: "/tags/(.*)",
+  CLIP_DETAIL: "/clips/(.*)",
+  USER_DETAIL: "/users/(.*)",
+  PLAYLIST_DETAIL: "/playlists/(.*)",
+  TAG_DETAIL: "/tags/(.*)",
 } as const;
 
 export const CLIENT_PATH = {

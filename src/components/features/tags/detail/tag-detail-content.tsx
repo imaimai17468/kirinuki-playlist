@@ -58,7 +58,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
           {tag.videos.map((video) => (
             <div key={video.id} className="flex flex-col gap-3">
               <div className="relative group">
-                <Link href={getDetailPath("CLIPS", video.id)} className="relative block">
+                <Link href={getDetailPath("CLIP_DETAIL", video.id)} className="relative block">
                   <Image
                     src={`https://img.youtube.com/vi/${getYoutubeId(video.url)}/0.jpg`}
                     alt={video.title}
@@ -81,7 +81,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
               <div className="flex gap-3 items-start">
                 {/* アバター */}
                 {video.author && (
-                  <Link href={getDetailPath("USERS", video.authorId)} className="flex-shrink-0">
+                  <Link href={getDetailPath("USER_DETAIL", video.authorId)} className="flex-shrink-0">
                     <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity duration-300">
                       <AvatarImage src={video.author.iconUrl || ""} alt={video.author.name} />
                       <AvatarFallback className="bg-primary/10 text-primary text-xs">
@@ -92,7 +92,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
                 )}
 
                 <div className="flex flex-col min-w-0">
-                  <Link href={getDetailPath("CLIPS", video.id)} className="group" title={video.title}>
+                  <Link href={getDetailPath("CLIP_DETAIL", video.id)} className="group" title={video.title}>
                     <h3 className="text-sm font-medium line-clamp-2 group-hover:text-green-600 transition-colors">
                       {video.title}
                     </h3>
@@ -101,7 +101,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
                   {video.author && (
                     <div className="flex items-center gap-1 mt-1">
                       <Link
-                        href={getDetailPath("USERS", video.authorId)}
+                        href={getDetailPath("USER_DETAIL", video.authorId)}
                         className="hover:text-green-600 transition-colors"
                         title={video.author.name}
                       >
@@ -121,7 +121,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
                         .map((tagItem) => (
                           <Badge key={tagItem.id} variant="outline" className="px-2 py-0 text-xs cursor-pointer">
                             <Link
-                              href={getDetailPath("TAGS", tagItem.id)}
+                              href={getDetailPath("TAG_DETAIL", tagItem.id)}
                               className="hover:text-green-600 transition-colors flex items-center"
                             >
                               <Tag className="h-3 w-3 mr-1" />
@@ -132,7 +132,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
                       {video.tags.length > 4 && (
                         <Badge variant="outline" className="px-2 py-0 text-xs cursor-pointer">
                           <Link
-                            href={`${getDetailPath("CLIPS", video.id)}#tags`}
+                            href={`${getDetailPath("CLIP_DETAIL", video.id)}#tags`}
                             title="すべてのタグを表示"
                             className="hover:text-green-600 transition-colors"
                           >

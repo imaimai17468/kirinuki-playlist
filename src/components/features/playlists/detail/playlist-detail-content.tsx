@@ -59,7 +59,7 @@ export const PlaylistDetailContent = async ({ id }: Props) => {
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-2">{playlist.title}</h1>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <Link
-                  href={getDetailPath("USERS", playlist.author.id)}
+                  href={getDetailPath("USER_DETAIL", playlist.author.id)}
                   className="flex items-center gap-2 hover:text-green-600 transition-colors"
                 >
                   <Avatar className="h-6 w-6">
@@ -116,7 +116,7 @@ export const PlaylistDetailContent = async ({ id }: Props) => {
                       </p>
                     </div>
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={getDetailPath("CLIPS", video.id)}>
+                      <Link href={getDetailPath("CLIP_DETAIL", video.id)}>
                         <Play className="h-4 w-4 mr-2" />
                         クリップを見る
                       </Link>

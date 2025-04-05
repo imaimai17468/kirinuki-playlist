@@ -36,7 +36,7 @@ export const PlaylistsContent = async () => {
           return (
             <div key={playlist.id} className="flex flex-col gap-3">
               <div className="relative group">
-                <Link href={getDetailPath("PLAYLISTS", playlist.id)} className="relative block">
+                <Link href={getDetailPath("PLAYLIST_DETAIL", playlist.id)} className="relative block">
                   <div className="aspect-video rounded-md overflow-hidden bg-muted">
                     {/* メインサムネイル */}
                     <Image
@@ -84,7 +84,7 @@ export const PlaylistsContent = async () => {
 
               <div className="flex gap-3 items-center">
                 {/* 作成者アバター */}
-                <Link href={getDetailPath("USERS", playlist.authorId)} className="flex-shrink-0">
+                <Link href={getDetailPath("USER_DETAIL", playlist.authorId)} className="flex-shrink-0">
                   <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity duration-300">
                     <AvatarImage src={playlist.author.iconUrl || ""} alt={playlist.author.name} />
                     <AvatarFallback className="bg-primary/10 text-primary text-xs">
@@ -94,7 +94,7 @@ export const PlaylistsContent = async () => {
                 </Link>
 
                 <div className="flex flex-col min-w-0">
-                  <Link href={getDetailPath("PLAYLISTS", playlist.id)} className="group" title={playlist.title}>
+                  <Link href={getDetailPath("PLAYLIST_DETAIL", playlist.id)} className="group" title={playlist.title}>
                     <h3 className="text-sm font-medium line-clamp-2 group-hover:text-green-600 transition-colors">
                       {playlist.title}
                     </h3>
@@ -102,7 +102,7 @@ export const PlaylistsContent = async () => {
 
                   <div className="flex items-center gap-1 mt-1">
                     <Link
-                      href={getDetailPath("USERS", playlist.authorId)}
+                      href={getDetailPath("USER_DETAIL", playlist.authorId)}
                       className="hover:text-green-600 transition-colors"
                       title={playlist.author.name}
                     >
