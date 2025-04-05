@@ -1,4 +1,5 @@
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import { CLIENT_PATH } from "@/consts/clientpath";
 import { cn } from "@/libs/utils";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { LogIn, UserPlus } from "lucide-react";
@@ -9,14 +10,14 @@ export const NavUser = () => {
       <SidebarMenuItem>
         <SignedOut>
           <div className="flex flex-col gap-2">
-            <SignInButton mode="modal">
+            <SignInButton mode="modal" forceRedirectUrl={CLIENT_PATH.CLIPS}>
               <SidebarMenuButton tooltip="ログイン" className="w-full">
                 <LogIn className="h-4 w-4" />
                 <span>ログイン</span>
               </SidebarMenuButton>
             </SignInButton>
 
-            <SignUpButton mode="modal">
+            <SignUpButton mode="modal" forceRedirectUrl={CLIENT_PATH.CLIPS}>
               <SidebarMenuButton tooltip="新規登録" className="w-full">
                 <UserPlus className="h-4 w-4" />
                 <span>新規登録</span>
