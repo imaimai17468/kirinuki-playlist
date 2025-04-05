@@ -60,10 +60,6 @@ export const SIDEBAR_ITEMS = {
             title: "Billing",
             url: "/settings/billing",
           },
-          {
-            title: "Notifications",
-            url: "/settings/notifications",
-          },
         ],
       },
     ],
