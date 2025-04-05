@@ -7,7 +7,10 @@ export const AUTH_REQUIRED_PATHS = {
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
   SETTINGS_ACCOUNT: "/settings/account",
   SETTINGS_BILLING: "/settings/billing",
+  API: "/api/(.*)",
 } as const;
+
+export const AUTH_REQUIRED_PATHS_ARRAY = Object.values(AUTH_REQUIRED_PATHS);
 
 // パブリックルート（認証不要）
 export const PUBLIC_PATHS = {
@@ -17,17 +20,6 @@ export const PUBLIC_PATHS = {
   PLAYLISTS: "/playlists",
   TAGS: "/tags",
   LOGIN_REQUIRED: "/login-required",
-} as const;
-
-// 認証関連パス (モーダル認証のため実際にルートとしては存在しない)
-export const AUTH_PATHS = {
-  SIGN_IN: "#sign-in-modal",
-  SIGN_UP: "#sign-up-modal",
-} as const;
-
-// API関連パス
-export const API_PATHS = {
-  BASE: "/api/(.*)",
 } as const;
 
 // 詳細パス
@@ -42,7 +34,6 @@ export const CLIENT_PATH = {
   ...PUBLIC_PATHS,
   ...DETAIL_PATH,
   ...AUTH_REQUIRED_PATHS,
-  ...AUTH_PATHS,
 } as const;
 
 // 詳細ページのパラメータ付きURL生成関数
@@ -50,9 +41,4 @@ export const getDetailPath = (pattern: keyof typeof DETAIL_PATH, id: string): st
   // キー名からURLパスに変換
   const urlPath = pattern.toLowerCase();
   return `/${urlPath}/${encodeURIComponent(id)}`;
-};
-
-// 公開パスにはパブリックパスと詳細パターンとAUTHパスを含める
-export const getAllPublicPaths = () => {
-  return [...Object.values(PUBLIC_PATHS), ...Object.values(DETAIL_PATH), ...Object.values(AUTH_PATHS)];
 };
