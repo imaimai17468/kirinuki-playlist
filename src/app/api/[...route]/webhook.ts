@@ -2,6 +2,7 @@ import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { authors } from "@/db/models/authors";
 import type { WebhookEvent } from "@clerk/nextjs/server";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { Webhook } from "svix";
 
@@ -131,7 +132,83 @@ export const webhookRouter = new Hono<AppEnv>()
       }
     }
 
-    /* ユーザー更新と削除は現時点では実装しない */
+    // ユーザー情報更新イベントの処理
+    if (eventType === "user.updated") {
+      const { id, image_url, username, first_name, last_name } = event.data;
+
+      if (!id) {
+        console.error("❌ Invalid user data: missing id");
+        return c.json({ success: false, message: "Invalid user data: missing id" }, 400);
+      }
+
+      // 名前の設定（フルネームまたはユーザー名）
+      const name = first_name && last_name ? `${first_name} ${last_name}` : username || "Unknown User";
+
+      // プロフィール画像URL
+      const iconUrl = image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+
+      console.log(`👤 Updating user: ${id} (${name})`);
+
+      try {
+        // ユーザーの存在確認
+        const existingUser = await dbClient.select().from(authors).where(eq(authors.id, id)).get();
+
+        if (!existingUser) {
+          console.error(`❌ User not found: ${id}`);
+          return c.json({ success: false, message: "User not found" }, 404);
+        }
+
+        // データベースのユーザー情報を更新
+        await dbClient
+          .update(authors)
+          .set({
+            name,
+            iconUrl,
+            updatedAt: new Date(),
+          })
+          .where(eq(authors.id, id));
+
+        console.log(`✅ User updated: ${id}`);
+        return c.json({ success: true, message: "User updated" });
+      } catch (error) {
+        console.error("❌ Error updating user:", error);
+        return c.json({ success: false, message: "Error updating user" }, 500);
+      }
+    }
+
+    // ユーザー削除イベントの処理
+    if (eventType === "user.deleted") {
+      const { id } = event.data;
+
+      if (!id) {
+        console.error("❌ Invalid user data: missing id");
+        return c.json({ success: false, message: "Invalid user data: missing id" }, 400);
+      }
+
+      console.log(`👤 Deleting user: ${id}`);
+
+      try {
+        // ユーザーの存在確認
+        const existingUser = await dbClient.select().from(authors).where(eq(authors.id, id)).get();
+
+        if (!existingUser) {
+          console.log(`⚠️ User already deleted or not found: ${id}`);
+          return c.json({
+            success: true,
+            message: "User already deleted or not found",
+          });
+        }
+
+        // データベースからユーザーを削除
+        await dbClient.delete(authors).where(eq(authors.id, id));
+
+        console.log(`✅ User deleted: ${id}`);
+        return c.json({ success: true, message: "User deleted" });
+      } catch (error) {
+        console.error("❌ Error deleting user:", error);
+        return c.json({ success: false, message: "Error deleting user" }, 500);
+      }
+    }
 
     // 他のイベントタイプは単に成功レスポンスを返す
     console.log("✅ Webhook processed successfully");
