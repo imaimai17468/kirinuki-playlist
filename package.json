@@ -23,7 +23,9 @@
     "dev:with-db": "bun run db:server && sleep 3 && bun run migrate:server && bun run dev",
     "pages:build": "bunx @cloudflare/next-on-pages",
     "preview": "bun run pages:build && wrangler pages dev",
-    "deploy": "bun run pages:build && wrangler pages deploy"
+    "deploy": "bun run pages:build && wrangler pages deploy",
+    "webhook:test": "curl -X GET http://localhost:3000/api/webhook/clerk-test",
+    "webhook:ngrok": "ngrok http 3000"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.13.0",
@@ -55,6 +57,7 @@
     "react-call": "^1.7.0",
     "react-dom": "^18",
     "react-youtube": "^10.1.0",
+    "svix": "^1.63.1",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2"
