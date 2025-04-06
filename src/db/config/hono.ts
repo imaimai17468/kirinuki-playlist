@@ -6,11 +6,11 @@ import { webhookRouter } from "@/app/api/[...route]/webhook";
 import type { createDbClient } from "@/db/config/database";
 import { createDevDbClient } from "@/db/config/database";
 import type { createTestDbClient } from "@/db/config/test-database";
+import { corsMiddleware } from "@/db/middlewares/cors-middleware";
 import { errorHandler } from "@/db/middlewares/error-handler";
 import type { Bindings } from "@/db/types/bindings";
 import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 
 // DBクライアント型の定義
 export type DbClient =
@@ -45,15 +45,6 @@ export function createHonoApp(options?: { dbClient?: DbClient }) {
     }
     await next();
   };
-
-  // CORSミドルウェアの設定（開発環境とWebhook用）
-  const corsMiddleware = cors({
-    origin: "*", // すべてのオリジンを許可（開発環境のみ）
-    allowHeaders: ["Content-Type", "svix-id", "svix-timestamp", "svix-signature"],
-    allowMethods: ["POST", "GET", "OPTIONS"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: 600,
-  });
 
   // Honoアプリケーションの組み立て
   const app = new Hono<AppEnv>()
