@@ -7,7 +7,6 @@ export const AUTH_REQUIRED_PATHS = {
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
   SETTINGS_ACCOUNT: "/settings/account",
   SETTINGS_BILLING: "/settings/billing",
-  API: "/api/(.*)",
 } as const;
 
 export const AUTH_REQUIRED_PATHS_ARRAY = Object.values(AUTH_REQUIRED_PATHS);
@@ -39,6 +38,6 @@ export const CLIENT_PATH = {
 // 詳細ページのパラメータ付きURL生成関数
 export const getDetailPath = (pattern: keyof typeof DETAIL_PATH, id: string): string => {
   // キー名からURLパスに変換
-  const urlPath = pattern.toLowerCase();
-  return `/${urlPath}/${encodeURIComponent(id)}`;
+  const urlPath = pattern.replace("_DETAIL", "").toLowerCase();
+  return `/${urlPath}s/${encodeURIComponent(id)}`;
 };
