@@ -1,4 +1,5 @@
 import { authorsRouter } from "@/app/api/[...route]/authors";
+import { followsRouter } from "@/app/api/[...route]/follows";
 import { playlistsRouter } from "@/app/api/[...route]/playlists";
 import { tagsRouter } from "@/app/api/[...route]/tags";
 import { videosRouter } from "@/app/api/[...route]/videos";
@@ -57,6 +58,7 @@ export function createHonoApp(options?: { dbClient?: DbClient }) {
     .route("/playlists", playlistsRouter)
     .route("/tags", tagsRouter)
     .route("/webhook", webhookRouter) // webhookルーターの追加
+    .route("/", followsRouter) // フォローエンドポイントの追加
     .get("/hello", (c) => c.json({ status: "ok" }));
 
   return app;
