@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { runMigrationWithLibSqlServer } from "./migrate";
 
 // 必要なデータモデルをインポート
-import { authors, playlistVideos, playlists, tags, videoTags, videos } from "../src/db/models";
+import { authors, follows, playlistVideos, playlists, tags, videoTags, videos } from "../src/db/models";
 
 /**
  * データベースの既存データをクリーンアップします
@@ -23,6 +23,7 @@ async function cleanupDatabase(url: string) {
     // 関連テーブルから順番に削除
     await db.delete(videoTags);
     await db.delete(playlistVideos);
+    await db.delete(follows);
     await db.delete(videos);
     await db.delete(playlists);
     await db.delete(tags);
@@ -69,6 +70,15 @@ async function seedDatabase(url: string) {
           name: "テスト作者2",
           iconUrl: "https://i.pravatar.cc/150?img=2",
           bio: "2人目のテスト作者です。",
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: "user_2vLSMWubQtjuQaEOg1BKAgbPvVu",
+          name: "Toshiki Imai",
+          iconUrl:
+            "https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvb2F1dGhfZ29vZ2xlL2ltZ18ydkxTTVZCaEUzQTc5Rm5xQlhtVk16Y2ZTNmYifQ?width=128",
+          bio: "",
           createdAt: now,
           updatedAt: now,
         },
@@ -271,6 +281,23 @@ async function seedDatabase(url: string) {
         playlistId: playlistIds[1].id,
         videoId: videoIds[2].id,
         order: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    // フォロー関係データの挿入
+    console.log("[seed] フォロー関係データを挿入中...");
+    await db.insert(follows).values([
+      {
+        followerId: authorIds[0].id,
+        followingId: authorIds[1].id,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        followerId: authorIds[1].id,
+        followingId: authorIds[0].id,
         createdAt: now,
         updatedAt: now,
       },
