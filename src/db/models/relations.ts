@@ -3,6 +3,7 @@ import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { authors } from "./authors";
+import { follows } from "./follows";
 import { playlists } from "./playlists";
 import { tags } from "./tags";
 import { videos } from "./videos";
@@ -49,6 +50,8 @@ export const videosRelations = relations(videos, ({ one, many }) => ({
 export const authorsRelations = relations(authors, ({ many }) => ({
   videos: many(videos),
   playlists: many(playlists),
+  followers: many(follows, { relationName: "following" }),
+  following: many(follows, { relationName: "follower" }),
 }));
 
 export const playlistsRelations = relations(playlists, ({ one, many }) => ({
@@ -104,3 +107,16 @@ export const videoTagInsertSchema = createInsertSchema(videoTags, {
   createdAt: z.undefined(),
   updatedAt: z.undefined(),
 });
+
+export const followsRelations = relations(follows, ({ one }) => ({
+  follower: one(authors, {
+    fields: [follows.followerId],
+    references: [authors.id],
+    relationName: "follower",
+  }),
+  following: one(authors, {
+    fields: [follows.followingId],
+    references: [authors.id],
+    relationName: "following",
+  }),
+}));
