@@ -1,7 +1,7 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { createFollowService } from "@/db/services/follows/follows";
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@/repositories/auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
@@ -9,7 +9,7 @@ export const followsRouter = new Hono<AppEnv>()
   // フォローする
   .post("/users/:id/follow", async (c) => {
     try {
-      const { userId } = await auth();
+      const { userId } = await getAuth();
       if (!userId) {
         return c.json({ success: false, message: "認証が必要です" }, 401);
       }
@@ -52,7 +52,7 @@ export const followsRouter = new Hono<AppEnv>()
   // フォロー解除
   .delete("/users/:id/follow", async (c) => {
     try {
-      const { userId } = await auth();
+      const { userId } = await getAuth();
       if (!userId) {
         return c.json({ success: false, message: "認証が必要です" }, 401);
       }
@@ -149,7 +149,7 @@ export const followsRouter = new Hono<AppEnv>()
   // フォロー状態確認
   .get("/users/:id/is-following", async (c) => {
     try {
-      const { userId } = await auth();
+      const { userId } = await getAuth();
       if (!userId) {
         return c.json({ success: false, message: "認証が必要です" }, 401);
       }

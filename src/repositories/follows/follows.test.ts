@@ -49,7 +49,7 @@ describe("フォローリポジトリのテスト", () => {
 
       if (result.isErr()) {
         const error = result.error;
-        expect(error.type).toBe("serverError");
+        expect(error.type).toBe("notFound");
       }
     });
   });
@@ -72,7 +72,7 @@ describe("フォローリポジトリのテスト", () => {
 
       if (result.isErr()) {
         const error = result.error;
-        expect(error.type).toBe("serverError");
+        expect(error.type).toBe("notFound");
       }
     });
 
@@ -85,7 +85,7 @@ describe("フォローリポジトリのテスト", () => {
 
       if (result.isErr()) {
         const error = result.error;
-        expect(error.type).toBe("serverError");
+        expect(error.type).toBe("notFound");
       }
     });
   });
@@ -114,7 +114,7 @@ describe("フォローリポジトリのテスト", () => {
       // フォロワーがいないユーザー（author3）のフォロワーを取得
       const result = await getUserFollowers("author3");
 
-      // 結果が成功していることを確認
+      // API実装上、成功レスポンスが返ることを期待
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
@@ -133,7 +133,7 @@ describe("フォローリポジトリのテスト", () => {
 
       if (result.isErr()) {
         const error = result.error;
-        expect(error.type).toBe("serverError");
+        expect(error.type).toBe("notFound");
       }
     });
   });
@@ -162,7 +162,7 @@ describe("フォローリポジトリのテスト", () => {
       // フォロー中ユーザーがいないユーザー（author3）の情報を取得
       const result = await getUserFollowing("author3");
 
-      // 結果が成功していることを確認
+      // API実装上、成功レスポンスが返ることを期待
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
@@ -181,7 +181,7 @@ describe("フォローリポジトリのテスト", () => {
 
       if (result.isErr()) {
         const error = result.error;
-        expect(error.type).toBe("serverError");
+        expect(error.type).toBe("notFound");
       }
     });
   });

@@ -3,10 +3,12 @@ import { createHonoApp } from "@/db/config/hono";
 import type { DbClient } from "@/db/config/hono";
 import { createTestDbClient } from "@/db/config/test-database";
 import { authors } from "@/db/models/authors";
+import { follows } from "@/db/models/follows";
 import { playlists } from "@/db/models/playlists";
 import { playlistVideos, videoTags } from "@/db/models/relations";
 import { tags } from "@/db/models/tags";
 import { videos } from "@/db/models/videos";
+import { setTestMode } from "@/repositories/auth";
 import { testClient } from "hono/testing";
 import { nanoid } from "nanoid";
 
@@ -17,6 +19,9 @@ import { nanoid } from "nanoid";
  * - APIクライアントにtestClientをセット
  */
 export async function setupTestEnv() {
+  // テストモードを有効化して固定ユーザーIDを使用
+  setTestMode(true);
+
   // テスト用のDBクライアントを作成
   const dbClient = await createTestDbClient();
 
@@ -31,6 +36,7 @@ export async function setupTestEnv() {
   // 全てのテストデータをクリア
   await dbClient.delete(videoTags).run();
   await dbClient.delete(playlistVideos).run();
+  await dbClient.delete(follows).run();
   await dbClient.delete(playlists).run();
   await dbClient.delete(videos).run();
   await dbClient.delete(tags).run();
@@ -92,6 +98,14 @@ export async function insertTestAuthors(dbClient: DbClient) {
       name: "テスト著者2",
       iconUrl: "https://example.com/icon2.jpg",
       bio: "テスト著者2の説明",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "author3",
+      name: "テスト著者3",
+      iconUrl: "https://example.com/icon3.jpg",
+      bio: "テスト著者3の説明",
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -275,11 +289,40 @@ export async function insertTestVideoTags(dbClient: DbClient) {
 }
 
 /**
+ * テスト用のフォロー関係データを挿入する
+ */
+export async function insertTestFollows(dbClient: DbClient) {
+  // テストフォロー関係データ
+  const testFollows = [
+    {
+      followerId: "author1",
+      followingId: "author2",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      followerId: "author2",
+      followingId: "author1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  // フォロー関係データを挿入
+  for (const relation of testFollows) {
+    await dbClient.insert(follows).values(relation);
+  }
+
+  return testFollows;
+}
+
+/**
  * テスト実行後のクリーンアップ
  */
 export async function cleanupTestData(dbClient: DbClient) {
   await dbClient.delete(videoTags).run();
   await dbClient.delete(playlistVideos).run();
+  await dbClient.delete(follows).run();
   await dbClient.delete(playlists).run();
   await dbClient.delete(videos).run();
   await dbClient.delete(tags).run();
@@ -295,6 +338,7 @@ export async function insertAllTestData(dbClient: DbClient) {
   const tagsData = await insertTestTags(dbClient);
   const videos = await insertTestVideos(dbClient);
   const playlists = await insertTestPlaylists(dbClient);
+  const follows = await insertTestFollows(dbClient);
   const playlistVideoRelations = await insertTestPlaylistVideos(dbClient);
   const videoTagRelations = await insertTestVideoTags(dbClient);
 
@@ -303,6 +347,7 @@ export async function insertAllTestData(dbClient: DbClient) {
     tags: tagsData,
     videos,
     playlists,
+    follows,
     playlistVideoRelations,
     videoTagRelations,
   };
