@@ -7,7 +7,7 @@ import {
   insertTestVideoTags,
   insertTestVideos,
   setupTestEnv,
-} from "@/repositories/test/setup";
+} from "@/repositories/setup";
 import { tagRepository } from ".";
 import type { TagInsert, TagUpdate } from "./types";
 

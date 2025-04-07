@@ -7,7 +7,7 @@ import {
   insertTestPlaylists,
   insertTestVideos,
   setupTestEnv,
-} from "@/repositories/test/setup";
+} from "@/repositories/setup";
 import {
   addVideoToPlaylist,
   createPlaylist,

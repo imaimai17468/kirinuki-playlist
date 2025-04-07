@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { DbClient } from "@/db/config/hono";
-import { cleanupTestData, insertTestAuthors, setupTestEnv } from "@/repositories/test/setup";
+import { cleanupTestData, insertTestAuthors, setupTestEnv } from "@/repositories/setup";
 import { createAuthor, deleteAuthor, getAllAuthors, getAuthorById, updateAuthor } from "../authors";
 import type { AuthorInsert, AuthorUpdate } from "./types";
 
