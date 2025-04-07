@@ -35,13 +35,15 @@ describe("著者リポジトリのテスト", () => {
         const authors = result.value;
 
         // 正しい数の著者が取得できていることを確認
-        expect(authors.length).toBe(2);
+        expect(authors.length).toBe(3);
 
         // 特定のプロパティが正しく含まれていることを確認
         expect(authors[0].id).toBe("author1");
         expect(authors[0].name).toBe("テスト著者1");
         expect(authors[1].id).toBe("author2");
         expect(authors[1].name).toBe("テスト著者2");
+        expect(authors[2].id).toBe("author3");
+        expect(authors[2].name).toBe("テスト著者3");
       }
     });
   });
