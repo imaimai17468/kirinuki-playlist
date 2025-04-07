@@ -3,6 +3,7 @@ import "./globals.css";
 import { MainLayout } from "@/components/layout/main-layout";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Root } from "@/components/parts/video-player";
+import { Toaster } from "@/components/ui/toaster";
 import { ClerkProvider } from "@clerk/nextjs";
 
 export const viewport: Viewport = {
@@ -64,6 +65,7 @@ export default function RootLayout({
             <MainLayout>
               <Root />
               {children}
+              <Toaster />
             </MainLayout>
           </ThemeProvider>
         </body>
