@@ -1,0 +1,124 @@
+import { getApiClient } from "@/db/config/client";
+import type { ApiError } from "@/repositories/types";
+import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
+import { err, ok } from "neverthrow";
+import type { Result } from "neverthrow";
+import type { z } from "zod";
+import { followersResponseSchema, followingResponseSchema, isFollowingResponseSchema } from "./types";
+
+// ユーザーをフォローする
+export async function followUser(userId: string): Promise<Result<void, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.users[":id"].follow.$post({
+      param: { id: userId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    return ok(undefined);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// ユーザーのフォローを解除する
+export async function unfollowUser(userId: string): Promise<Result<void, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.users[":id"].follow.$delete({
+      param: { id: userId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    return ok(undefined);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// ユーザーのフォロワー一覧を取得
+export async function getUserFollowers(
+  userId: string,
+): Promise<Result<z.infer<typeof followersResponseSchema>["followers"], ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.users[":id"].followers.$get({
+      param: { id: userId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = followersResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.followers);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// ユーザーがフォローしているユーザー一覧を取得
+export async function getUserFollowing(
+  userId: string,
+): Promise<Result<z.infer<typeof followingResponseSchema>["following"], ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.users[":id"].following.$get({
+      param: { id: userId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = followingResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.following);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// ユーザーをフォローしているかどうかを確認
+export async function isFollowing(
+  userId: string,
+): Promise<Result<z.infer<typeof isFollowingResponseSchema>["isFollowing"], ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.users[":id"]["is-following"].$get({
+      param: { id: userId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = isFollowingResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.isFollowing);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
