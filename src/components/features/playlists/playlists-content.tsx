@@ -75,7 +75,7 @@ export const PlaylistsContent = async () => {
                 </Link>
                 <Badge className="absolute bottom-2 left-2 z-10 bg-black/70 hover:bg-black/70">
                   <Music className="h-3 w-3 mr-1" />
-                  {videoCount}曲
+                  {videoCount} songs
                 </Badge>
                 <p className="absolute bottom-2 right-2 rounded-md bg-black/50 text-white px-2 py-1 text-xs z-10">
                   {formatDate(playlist.createdAt)}

@@ -66,11 +66,11 @@ export const PlaylistDetailContent = async ({ id }: Props) => {
                   <span className="font-medium">{playlist.author.name}</span>
                 </Link>
                 <span>•</span>
-                <span>{videoCount} 曲</span>
+                <span>{videoCount} songs</span>
                 <span>•</span>
                 <div className="flex items-center gap-1">
                   <CalendarDays className="h-4 w-4" />
-                  <span>{formatDate(playlist.createdAt)}に作成</span>
+                  <span>Created on {formatDate(playlist.createdAt)}</span>
                 </div>
               </div>
             </div>

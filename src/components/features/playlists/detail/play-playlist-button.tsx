@@ -18,7 +18,7 @@ export function PlayPlaylistButton({ playlist }: Props) {
   return (
     <Button onClick={handlePlay}>
       <ListMusic className="h-4 w-4 mr-2" />
-      プレイリストを再生
+      Play Playlist
     </Button>
   );
 }
