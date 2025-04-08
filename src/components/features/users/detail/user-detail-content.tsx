@@ -1,4 +1,4 @@
-import { FollowButton } from "@/components/features/users/FollowButton";
+import { FollowButton } from "@/components/features/users/commons/FollowButton";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
