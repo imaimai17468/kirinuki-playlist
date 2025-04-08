@@ -17,9 +17,8 @@ interface FollowButtonProps {
 export const FollowButton = ({ userId, userName, className }: FollowButtonProps) => {
   const { toast } = useToast();
   const { user } = useClerk();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isFollowed, setIsFollowed] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [targetUserName, setTargetUserName] = useState(userName || "");
 
   // ユーザー名を取得
@@ -43,9 +42,10 @@ export const FollowButton = ({ userId, userName, className }: FollowButtonProps)
   // 現在のフォロー状態を取得
   useEffect(() => {
     const checkFollowStatus = async () => {
+      setLoading(true);
       try {
         if (!user) {
-          setInitialLoading(false);
+          setLoading(false);
           return;
         }
 
@@ -56,7 +56,7 @@ export const FollowButton = ({ userId, userName, className }: FollowButtonProps)
       } catch (error) {
         console.error("フォロー状態の確認中にエラーが発生しました", error);
       } finally {
-        setInitialLoading(false);
+        setLoading(false);
       }
     };
 
@@ -126,21 +126,20 @@ export const FollowButton = ({ userId, userName, className }: FollowButtonProps)
   }
 
   // アイコンの決定: 状態に応じたデフォルトアイコン
-  const buttonIcon =
-    loading || initialLoading ? (
-      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-    ) : isFollowed ? (
-      <UserMinus className="mr-2 h-4 w-4" />
-    ) : (
-      <UserPlus className="mr-2 h-4 w-4" />
-    );
+  const buttonIcon = loading ? (
+    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+  ) : isFollowed ? (
+    <UserMinus className="mr-2 h-4 w-4" />
+  ) : (
+    <UserPlus className="mr-2 h-4 w-4" />
+  );
 
   return (
     <Button
       onClick={handleFollow}
       variant={isFollowed ? "outline" : "default"}
       className={className}
-      disabled={loading || initialLoading}
+      disabled={loading}
     >
       {buttonIcon}
       {isFollowed ? "フォロー解除" : "フォローする"}
