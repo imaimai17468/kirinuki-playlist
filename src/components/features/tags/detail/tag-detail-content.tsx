@@ -34,18 +34,12 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
             <Tag className="h-6 w-6 text-green-600" />
             <h1 className="text-2xl font-bold">{tag.name}</h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            作成日: {formatDate(tag.createdAt)}
-            {tag.updatedAt &&
-              tag.updatedAt.getTime() !== tag.createdAt.getTime() &&
-              ` | 更新日: ${formatDate(tag.updatedAt)}`}
-          </p>
         </div>
 
         <h2 className="text-xl font-semibold flex items-center gap-2">
-          <span>関連動画</span>
+          <span>Related videos</span>
           <Badge variant="secondary" className="text-sm font-normal">
-            {tag.videos.length} 本の動画
+            {tag.videos.length} videos
           </Badge>
         </h2>
 
@@ -145,7 +139,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
 
         {tag.videos.length === 0 && (
           <div className="text-center py-10 border rounded-lg">
-            <p className="text-muted-foreground">このタグに関連付けられた動画がありません</p>
+            <p className="text-muted-foreground">No videos related to this tag</p>
           </div>
         )}
       </div>
