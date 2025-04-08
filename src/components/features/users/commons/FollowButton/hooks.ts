@@ -78,6 +78,7 @@ export function useFollowButton(userId: string, userName?: string) {
         if (result.isOk()) {
           setState((prev) => ({ ...prev, isFollowed: false }));
           toast({
+            variant: "success",
             title: "Unfollowed",
             description: `You have unfollowed ${state.targetUserName}`,
           });
@@ -94,6 +95,7 @@ export function useFollowButton(userId: string, userName?: string) {
         if (result.isOk()) {
           setState((prev) => ({ ...prev, isFollowed: true }));
           toast({
+            variant: "success",
             title: "Following",
             description: `You are now following ${state.targetUserName}`,
           });
