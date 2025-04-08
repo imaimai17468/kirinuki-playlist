@@ -1,4 +1,5 @@
 import { ContentLayout } from "@/components/layout/content-layout";
+import { BackLink } from "@/components/parts/back-link";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { CLIENT_PATH, getDetailPath } from "@/consts/clientpath";
 import { getPlaylistById } from "@/repositories/playlists";
 import { formatDate } from "@/utils/date";
 import { convertSecondsToTimeFormat, getYoutubeId } from "@/utils/youtube";
-import { ArrowLeft, CalendarDays, Play } from "lucide-react";
+import { CalendarDays, Play } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { PlayPlaylistButton } from "./play-playlist-button";
@@ -36,13 +37,7 @@ export const PlaylistDetailContent = async ({ id }: Props) => {
     <ContentLayout endItem={{ id: id as string, label: playlist?.title ?? "" }}>
       <div className="space-y-8">
         {/* ヘッダーセクション */}
-        <Link
-          href={CLIENT_PATH.PLAYLISTS}
-          className="flex items-center text-sm text-muted-foreground hover:text-green-600 transition-colors w-fit"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          プレイリスト一覧に戻る
-        </Link>
+        <BackLink href={CLIENT_PATH.PLAYLISTS} text="Back to Playlists" />
 
         <div className="flex flex-col md:flex-row gap-8 items-start">
           <div className="w-full md:w-1/3 aspect-video rounded-lg overflow-hidden shadow-lg bg-muted flex-shrink-0">

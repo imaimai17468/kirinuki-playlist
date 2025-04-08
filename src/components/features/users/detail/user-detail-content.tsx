@@ -1,5 +1,6 @@
 import { FollowButton } from "@/components/features/users/commons/FollowButton";
 import { ContentLayout } from "@/components/layout/content-layout";
+import { BackLink } from "@/components/parts/back-link";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -7,7 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import { CLIENT_PATH } from "@/consts/clientpath";
 import { getAuthorById } from "@/repositories/authors";
 import { getUserFollowers, getUserFollowing } from "@/repositories/follows";
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 type Props = {
@@ -33,15 +33,7 @@ export const UserDetailContent = async ({ id }: Props) => {
     <ContentLayout endItem={{ id: id as string, label: author.name }}>
       <div className="flex flex-col gap-8">
         {/* 一覧に戻るリンク */}
-        <div>
-          <Link
-            href={CLIENT_PATH.USERS}
-            className="flex items-center text-sm text-muted-foreground hover:text-green-600 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            ユーザー一覧に戻る
-          </Link>
-        </div>
+        <BackLink href={CLIENT_PATH.USERS} text="Back to Users" />
 
         {/* プロフィール情報 */}
         <div className="flex flex-col gap-4">

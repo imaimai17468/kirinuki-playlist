@@ -1,4 +1,5 @@
 import { ContentLayout } from "@/components/layout/content-layout";
+import { BackLink } from "@/components/parts/back-link";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { CLIENT_PATH, getDetailPath } from "@/consts/clientpath";
 import { getVideoById } from "@/repositories/videos";
 import { formatDate } from "@/utils/date";
 import { convertSecondsToTimeFormat } from "@/utils/youtube";
-import { ArrowLeft, CalendarDays, Clock, Tag } from "lucide-react";
+import { CalendarDays, Clock, Tag } from "lucide-react";
 import Link from "next/link";
 import { YoutubePlayer } from "./youtube-player";
 
@@ -29,13 +30,7 @@ export const ClipDetailContent = async ({ id }: Props) => {
     <ContentLayout endItem={{ id: id as string, label: video?.title ?? "" }}>
       <div className="space-y-8">
         {/* 一覧に戻るリンク */}
-        <Link
-          href={CLIENT_PATH.CLIPS}
-          className="flex items-center text-sm text-muted-foreground hover:text-green-600 transition-colors w-fit"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          クリップ一覧に戻る
-        </Link>
+        <BackLink href={CLIENT_PATH.CLIPS} text="Back to Clips" />
 
         {/* プレイヤーセクション */}
         <div className="w-full aspect-video rounded-lg overflow-hidden shadow-lg">

@@ -1,4 +1,5 @@
 import { ContentLayout } from "@/components/layout/content-layout";
+import { BackLink } from "@/components/parts/back-link";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,7 @@ import { CLIENT_PATH } from "@/consts/clientpath";
 import { tagRepository } from "@/repositories/tags";
 import { formatDate } from "@/utils/date";
 import { formatDuration, getYoutubeId } from "@/utils/youtube";
-import { ArrowLeft, Clapperboard, Tag } from "lucide-react";
+import { Clapperboard, Tag } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -28,13 +29,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
     <ContentLayout endItem={{ id: id as string, label: tag?.name ?? "" }}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
-          <Link
-            href={CLIENT_PATH.TAGS}
-            className="flex items-center text-sm text-muted-foreground hover:text-green-600 transition-colors w-fit"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            タグ一覧に戻る
-          </Link>
+          <BackLink href={CLIENT_PATH.TAGS} text="Back to Tags" />
           <div className="flex items-center gap-2">
             <Tag className="h-6 w-6 text-green-600" />
             <h1 className="text-2xl font-bold">{tag.name}</h1>
