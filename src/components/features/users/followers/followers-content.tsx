@@ -1,4 +1,4 @@
-import { UsersList } from "@/components/features/users/UsersList";
+import { UsersList } from "@/components/features/users/commons/UsersList";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
 import { getAuthorById } from "@/repositories/authors";

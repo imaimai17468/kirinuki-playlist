@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-import { FollowButton } from "./commons/FollowButton";
+import { FollowButton } from "./FollowButton";
 
 interface User {
   id: string;
