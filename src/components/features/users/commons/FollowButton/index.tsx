@@ -35,7 +35,7 @@ export const FollowButton = ({ userId, userName, className }: FollowButtonProps)
       disabled={state.loading}
     >
       {buttonIcon}
-      {state.isFollowed ? "フォロー解除" : "フォローする"}
+      {state.isFollowed ? "Unfollow" : "Follow"}
     </Button>
   );
 };

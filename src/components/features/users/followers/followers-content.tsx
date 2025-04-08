@@ -32,8 +32,8 @@ export async function FollowersContent({ id }: FollowersContentProps) {
 
         {/* フォロワー一覧 */}
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold tracking-tight">フォロワー {followers.length}人</h3>
-          <UsersList users={followers} emptyMessage="フォロワーはまだいません" />
+          <h3 className="text-xl font-semibold tracking-tight">Followers {followers.length}</h3>
+          <UsersList users={followers} emptyMessage="No followers yet" />
         </div>
       </div>
     </ContentLayout>

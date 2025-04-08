@@ -14,7 +14,7 @@ interface UsersListProps {
   emptyMessage?: string;
 }
 
-export const UsersList = ({ users, emptyMessage = "ユーザーが見つかりません" }: UsersListProps) => {
+export const UsersList = ({ users, emptyMessage = "No users found" }: UsersListProps) => {
   if (users.length === 0) {
     return <p className="text-center text-muted-foreground my-8">{emptyMessage}</p>;
   }

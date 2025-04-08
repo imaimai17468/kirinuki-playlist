@@ -34,7 +34,7 @@ export const UsersContent = async () => {
                 </Link>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <CalendarDays className="h-3 w-3" />
-                  <span>{formatDate(author.createdAt)}に参加</span>
+                  <span>Joined on {formatDate(author.createdAt)}</span>
                 </div>
               </div>
               {author.bio && <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{author.bio}</p>}

@@ -32,8 +32,8 @@ export async function FollowingContent({ id }: FollowingContentProps) {
 
         {/* フォロー中一覧 */}
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold tracking-tight">フォロー中 {following.length}人</h3>
-          <UsersList users={following} emptyMessage="フォロー中のユーザーはいません" />
+          <h3 className="text-xl font-semibold tracking-tight">Following {following.length} users</h3>
+          <UsersList users={following} emptyMessage="No users are being followed" />
         </div>
       </div>
     </ContentLayout>

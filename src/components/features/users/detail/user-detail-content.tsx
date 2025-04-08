@@ -83,9 +83,11 @@ export const UserDetailContent = async ({ id }: Props) => {
 
         {/* 詳細情報 */}
         <Card>
-          <CardHeader className="text-sm font-medium">コンテンツ情報</CardHeader>
+          <CardHeader className="text-sm font-medium">Content information</CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">今後、プレイリスト数やクリップ数などの統計情報を表示予定</p>
+            <p className="text-sm text-muted-foreground">
+              We will display statistical information such as the number of playlists and clips in the future.
+            </p>
           </CardContent>
         </Card>
       </div>
