@@ -58,6 +58,7 @@
     "react-call": "^1.7.0",
     "react-dom": "^18",
     "react-youtube": "^10.1.0",
+    "remeda": "^2.21.2",
     "svix": "^1.63.1",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",

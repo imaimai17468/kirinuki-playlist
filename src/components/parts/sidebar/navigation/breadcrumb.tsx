@@ -10,16 +10,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import { usePathname } from "next/navigation";
 import React from "react";
+import * as R from "remeda";
 
 export type CustomBreadcrumbItem = {
   id: string;
   label: string;
   position: number; // パス配列の末尾からの位置 (0が最後、1が最後から2番目...)
-};
-
-type BreadcrumbItemType = {
-  title: string;
-  url: string;
 };
 
 type Props = {
@@ -29,82 +25,79 @@ type Props = {
 export const AppBreadcrumb = ({ customItems = [] }: Props) => {
   const pathname = usePathname();
 
-  // 現在のパスからパンくずの初期アイテムを作成
-  const pathItems = pathname
-    .split("/")
-    .slice(1)
-    .map((item: string, index: number, array: string[]) => ({
-      title: item,
+  // 全処理を一度にパイプラインで処理
+  const breadcrumbItems = R.pipe(
+    // 1. パス文字列からパンくずアイテムを作成
+    pathname
+      .split("/")
+      .slice(1),
+    R.map((segment, index, array) => ({
+      title: segment,
       url: `/${array.slice(0, index + 1).join("/")}`,
-    }));
+    })),
+    // 2. カスタムアイテムがあれば適用
+    (pathItems) => {
+      if (R.isEmpty(customItems)) return pathItems;
 
-  let breadcrumbItems: BreadcrumbItemType[] = [];
+      // 3. URLのベース部分とカスタムアイテムの準備
+      const baseUrls = R.map(pathItems, (item) => item.url);
+      const currentUrl = R.last(baseUrls) ?? "";
+      const sortedCustoms = R.sortBy(customItems, (item) => -item.position);
 
-  if (customItems.length > 0) {
-    // カスタムアイテムを使用する場合
+      // 4. カスタム位置とデフォルト位置を取得
+      const positions = new Set(R.map(customItems, (item) => item.position));
 
-    // カスタムアイテムをposition順に並べ替え（大きい順＝トップに近い順）
-    const sortedCustomItems = [...customItems].sort((a, b) => b.position - a.position);
+      // 5. デフォルトアイテムとカスタムアイテムを処理して結合
+      return R.pipe(
+        [
+          // デフォルトアイテム（カスタムで置き換えられていないもの）
+          ...R.filter(pathItems, (_, index) => !positions.has(pathItems.length - 1 - index)),
 
-    // 現在のURLパスの構造（末尾部分）
-    const baseUrls = pathItems.map((item) => item.url);
-    const currentUrl = baseUrls.length > 0 ? baseUrls[baseUrls.length - 1] : "";
+          // カスタムアイテム
+          ...R.map(sortedCustoms, (customItem, index) => {
+            // 最後のアイテム（position = 0）の場合
+            if (customItem.position === 0) {
+              return {
+                title: customItem.label,
+                url: `${currentUrl}/${customItem.id}`,
+              };
+            }
 
-    // カスタムアイテムからパンくずを構築
-    breadcrumbItems = sortedCustomItems.map((customItem, index) => {
-      // 最後のアイテム（position = 0）の場合、現在のURLに対して構築
-      if (customItem.position === 0 && baseUrls.length > 0) {
-        return {
-          title: customItem.label,
-          url: `${currentUrl}/${customItem.id}`,
-        };
-      }
+            // 中間のアイテム - 通常はURLパスの一部を使用
+            const pathIdx = baseUrls.length - 1 - customItem.position;
+            if (pathIdx >= 0 && pathIdx < baseUrls.length) {
+              return {
+                title: customItem.label,
+                url: baseUrls[pathIdx],
+              };
+            }
 
-      // 中間のアイテム - 通常はURLパスの一部を使用
-      const pathItemIndex = baseUrls.length - 1 - customItem.position;
-      if (pathItemIndex >= 0 && pathItemIndex < baseUrls.length) {
-        // 既存のパスアイテムに対応するものがあればそのURLを使用
-        return {
-          title: customItem.label,
-          url: baseUrls[pathItemIndex],
-        };
-      }
+            // パスにない位置のカスタムアイテム
+            const parentIdx = index + 1;
+            const parentUrl =
+              parentIdx < sortedCustoms.length
+                ? (baseUrls[baseUrls.length - 1 - sortedCustoms[parentIdx].position] || "")
+                    .split("/")
+                    .slice(0, -1)
+                    .join("/")
+                : "";
 
-      // パスにない位置のカスタムアイテム（トップに近いもの）
-      // 親のURL + IDのパターンでビルド
-      const parentIndex = index + 1;
-      const parentItem = breadcrumbItems[parentIndex];
-      const parentUrl = parentItem ? parentItem.url.split("/").slice(0, -1).join("/") : "";
-
-      return {
-        title: customItem.label,
-        url: parentUrl ? `${parentUrl}/${customItem.id}` : `/${customItem.id}`,
-      };
-    });
-
-    // カスタムアイテムが存在しない位置のパスアイテム（もしあれば）を追加
-    const customPositions = new Set(customItems.map((item) => item.position));
-    const defaultItems = pathItems.filter((_, index, items) => {
-      const positionFromEnd = items.length - 1 - index;
-      return !customPositions.has(positionFromEnd);
-    });
-
-    // 全アイテムをpositionに基づいて結合（カスタムの方を優先）
-    breadcrumbItems = [...defaultItems, ...breadcrumbItems].sort((a, b) => {
-      // URLのセグメント数でソート（短い方が先）
-      const aDepth = a.url.split("/").filter(Boolean).length;
-      const bDepth = b.url.split("/").filter(Boolean).length;
-      return aDepth - bDepth;
-    });
-  } else {
-    // カスタムアイテムがない場合はそのままpathItemsを使用
-    breadcrumbItems = pathItems;
-  }
+            return {
+              title: customItem.label,
+              url: parentUrl ? `${parentUrl}/${customItem.id}` : `/${customItem.id}`,
+            };
+          }),
+        ],
+        // URLの深さでソート
+        R.sortBy((item) => item.url.split("/").filter(Boolean).length),
+      );
+    },
+  );
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
-        {breadcrumbItems.map((item: BreadcrumbItemType, index: number) => (
+        {breadcrumbItems.map((item, index) => (
           <React.Fragment key={`${item.url}-${index}`}>
             <BreadcrumbItem>
               {index < breadcrumbItems.length - 1 ? (
