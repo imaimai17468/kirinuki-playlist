@@ -34,7 +34,7 @@ export const PlaylistDetailContent = async ({ id }: Props) => {
       : "/images/playlist-placeholder.jpg";
 
   return (
-    <ContentLayout endItem={{ id: id as string, label: playlist?.title ?? "" }}>
+    <ContentLayout customItems={[{ id: id as string, label: playlist?.title ?? "", position: 0 }]}>
       <div className="space-y-8">
         {/* ヘッダーセクション */}
         <BackLink href={CLIENT_PATH.PLAYLISTS} text="Back to Playlists" />

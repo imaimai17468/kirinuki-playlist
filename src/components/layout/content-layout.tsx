@@ -1,18 +1,14 @@
-import { AppBreadcrumb } from "@/components/parts/sidebar/navigation/breadcrumb";
+import { AppBreadcrumb, type CustomBreadcrumbItem } from "@/components/parts/sidebar/navigation/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ModeToggle } from "../parts/mode-toggle";
 
 type Props = {
   children: React.ReactNode;
-  endItem?: {
-    id: string;
-    label: string;
-  };
-  isLoading?: boolean;
+  customItems?: CustomBreadcrumbItem[];
 };
 
-export const ContentLayout: React.FC<Props> = ({ children, endItem, isLoading }) => {
+export const ContentLayout: React.FC<Props> = ({ children, customItems }) => {
   return (
     <div className="flex flex-col mb-16">
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
@@ -20,7 +16,7 @@ export const ContentLayout: React.FC<Props> = ({ children, endItem, isLoading })
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <AppBreadcrumb endItem={endItem} isLoading={isLoading} />
+            <AppBreadcrumb customItems={customItems} />
           </div>
           <ModeToggle />
         </div>

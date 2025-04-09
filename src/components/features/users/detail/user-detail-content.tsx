@@ -30,7 +30,7 @@ export const UserDetailContent = async ({ id }: Props) => {
   const following = followingResult.isOk() ? followingResult.value : [];
 
   return (
-    <ContentLayout endItem={{ id: id as string, label: author.name }}>
+    <ContentLayout customItems={[{ id: id as string, label: author.name, position: 0 }]}>
       <div className="flex flex-col gap-8">
         {/* 一覧に戻るリンク */}
         <BackLink href={CLIENT_PATH.USERS} text="Back to Users" />

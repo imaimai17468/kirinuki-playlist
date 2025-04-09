@@ -27,7 +27,7 @@ export const ClipDetailContent = async ({ id }: Props) => {
   const video = result.value;
 
   return (
-    <ContentLayout endItem={{ id: id as string, label: video?.title ?? "" }}>
+    <ContentLayout customItems={[{ id: id as string, label: video?.title ?? "", position: 0 }]}>
       <div className="space-y-8">
         {/* 一覧に戻るリンク */}
         <BackLink href={CLIENT_PATH.CLIPS} text="Back to Clips" />

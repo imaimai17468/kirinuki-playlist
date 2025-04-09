@@ -25,7 +25,12 @@ export async function FollowersContent({ id }: FollowersContentProps) {
   const followers = followersResult.value;
 
   return (
-    <ContentLayout endItem={{ id: id as string, label: `${author.name}のフォロワー` }}>
+    <ContentLayout
+      customItems={[
+        { id: id as string, label: `${author.name}のフォロワー`, position: 0 },
+        { id: id as string, label: `${author.name}`, position: 1 },
+      ]}
+    >
       <div className="flex flex-col gap-8">
         {/* 戻るリンク */}
         <BackLink href={`/users/${id}`} text={`Back to ${author.name}'s profile`} />

@@ -25,7 +25,12 @@ export async function FollowingContent({ id }: FollowingContentProps) {
   const following = followingResult.value;
 
   return (
-    <ContentLayout endItem={{ id: id as string, label: `${author.name}のフォロー中` }}>
+    <ContentLayout
+      customItems={[
+        { id: id as string, label: `${author.name}のフォロー中`, position: 0 },
+        { id: id as string, label: `${author.name}`, position: 1 },
+      ]}
+    >
       <div className="flex flex-col gap-8">
         {/* 戻るリンク */}
         <BackLink href={`/users/${id}`} text={`Back to ${author.name}'s profile`} />

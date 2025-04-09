@@ -26,7 +26,7 @@ export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
   const tag = result.value;
 
   return (
-    <ContentLayout endItem={{ id: id as string, label: tag?.name ?? "" }}>
+    <ContentLayout customItems={[{ id: id as string, label: tag?.name ?? "", position: 0 }]}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <BackLink href={CLIENT_PATH.TAGS} text="Back to Tags" />
