@@ -13,7 +13,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight, type LucideIcon, User } from "lucide-react";
 import Link from "next/link";
 
 type NavMainProps = {
@@ -26,6 +26,7 @@ type NavMainProps = {
     title: string;
     url: string;
     icon: LucideIcon;
+    isDynamic?: boolean;
   }[];
   collapsibleItems: {
     title: string;
@@ -69,6 +70,14 @@ export const NavMain = ({ navItems, collapsibleItems, myPageNavItems }: NavMainP
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
+            <SidebarMenuItem key="my-page">
+              <SidebarMenuButton tooltip="My Page" asChild>
+                <Link href={`/users/${user.user?.id}`}>
+                  <User />
+                  <span>My Page</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             {collapsibleItems.map((item) => (
               <Collapsible key={item.title} asChild defaultOpen={item.isActive} className="group/collapsible">
                 <SidebarMenuItem>
