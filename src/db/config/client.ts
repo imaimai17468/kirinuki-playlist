@@ -17,7 +17,13 @@ let currentClient: ApiClient | null = null;
  * @returns 実際のAPIに接続するクライアント
  */
 export function createProdClient(): ApiClient {
-  return hc<AppType>(`${getBaseURL()}`);
+  return hc<AppType>(`${getBaseURL()}`, {
+    fetch: (input: RequestInfo | URL, requestInit?: RequestInit) =>
+      fetch(input, {
+        cache: "no-cache",
+        ...requestInit,
+      }),
+  });
 }
 
 /**
