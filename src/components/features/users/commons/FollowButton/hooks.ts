@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getAuthorById } from "@/repositories/authors";
 import { followUser, isFollowing, unfollowUser } from "@/repositories/follows";
 import { useClerk } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface FollowState {
   loading: boolean;
@@ -20,43 +20,61 @@ export function useFollowButton(userId: string, userName?: string) {
     isFollowed: false,
     targetUserName: userName || "",
   });
+  const initializedRef = useRef(false);
+  const initialNameFetchedRef = useRef(false);
+  const initialFollowStatusFetchedRef = useRef(false);
 
-  // 初期化：ユーザー名の取得とフォロー状態の確認
+  // ユーザー名の取得
   useEffect(() => {
-    const initialize = async () => {
-      setState((prev) => ({ ...prev, loading: true }));
+    // すでにuserNameが提供されているか、初期化済みの場合はスキップ
+    if (userName || initialNameFetchedRef.current || !userId) return;
 
+    const fetchUserName = async () => {
       try {
-        // ユーザー名を取得（userName propsがない場合）
-        if (!userName && userId) {
-          const nameResult = await getAuthorById(userId);
-          if (nameResult.isOk()) {
-            setState((prev) => ({
-              ...prev,
-              targetUserName: nameResult.value.name,
-            }));
-          }
-        }
-
-        // フォロー状態を確認（ユーザーがログインしている場合）
-        if (user) {
-          const followResult = await isFollowing(userId);
-          if (followResult.isOk()) {
-            setState((prev) => ({
-              ...prev,
-              isFollowed: followResult.value,
-            }));
-          }
+        const nameResult = await getAuthorById(userId);
+        if (nameResult.isOk()) {
+          setState((prev) => ({
+            ...prev,
+            targetUserName: nameResult.value.name,
+          }));
         }
       } catch (error) {
-        console.error("初期化中にエラーが発生しました", error);
+        console.error("ユーザー名取得中にエラーが発生しました", error);
       } finally {
-        setState((prev) => ({ ...prev, loading: false }));
+        initialNameFetchedRef.current = true;
       }
     };
 
-    initialize();
-  }, [user, userId, userName]);
+    fetchUserName();
+  }, [userId, userName]);
+
+  // フォロー状態の確認
+  useEffect(() => {
+    // ユーザーが未ログインか、すでに初期化済みの場合はスキップ
+    if (!user || initialFollowStatusFetchedRef.current || !userId) return;
+
+    const fetchFollowStatus = async () => {
+      setState((prev) => ({ ...prev, loading: true }));
+
+      try {
+        const followResult = await isFollowing(userId);
+        if (followResult.isOk()) {
+          setState((prev) => ({
+            ...prev,
+            isFollowed: followResult.value,
+          }));
+        }
+      } catch (error) {
+        console.error("フォロー状態確認中にエラーが発生しました", error);
+      } finally {
+        setState((prev) => ({ ...prev, loading: false }));
+        initialFollowStatusFetchedRef.current = true;
+        initializedRef.current = true;
+      }
+    };
+
+    fetchFollowStatus();
+  }, [user, userId]);
 
   // フォロー/アンフォロー処理
   const handleFollow = async () => {
