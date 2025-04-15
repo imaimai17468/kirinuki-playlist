@@ -1,4 +1,5 @@
 import { ClipCard } from "@/components/features/clips/commons/clip-card";
+import { PlaylistCard } from "@/components/features/playlists/commons/playlist-card";
 import { FollowButton } from "@/components/features/users/commons/FollowButton";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { BackLink } from "@/components/parts/back-link";
@@ -7,8 +8,9 @@ import { EmptyState } from "@/components/parts/empty-state";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CLIENT_PATH } from "@/consts/clientpath";
-import { getAuthorWithVideos } from "@/repositories/authors";
+import { getAuthorWithVideosAndPlaylists } from "@/repositories/authors";
 import { getUserFollowers, getUserFollowing } from "@/repositories/follows";
 import Link from "next/link";
 
@@ -18,7 +20,7 @@ type Props = {
 
 export const UserDetailContent = async ({ id }: Props) => {
   const [authorResult, followersResult, followingResult] = await Promise.all([
-    getAuthorWithVideos(id),
+    getAuthorWithVideosAndPlaylists(id),
     getUserFollowers(id),
     getUserFollowing(id),
   ]);
@@ -76,20 +78,46 @@ export const UserDetailContent = async ({ id }: Props) => {
 
         <Separator />
 
-        {/* 動画一覧 */}
-        <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold">投稿動画</h2>
+        {/* タブ付きコンテンツ - 動画とプレイリスト */}
+        <Tabs defaultValue="videos" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="videos">投稿動画</TabsTrigger>
+            <TabsTrigger value="playlists">プレイリスト</TabsTrigger>
+          </TabsList>
 
-          {author.videos && author.videos.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {author.videos.map((video) => (
-                <ClipCard key={video.id} video={video} />
-              ))}
+          {/* 動画タブ */}
+          <TabsContent value="videos" className="mt-0">
+            <div className="flex flex-col gap-4">
+              {author.videos && author.videos.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {author.videos.map((video) => (
+                    <ClipCard key={video.id} video={video} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="動画がありません" description="このユーザーはまだ動画を投稿していません" />
+              )}
             </div>
-          ) : (
-            <EmptyState title="動画がありません" description="このユーザーはまだ動画を投稿していません" />
-          )}
-        </div>
+          </TabsContent>
+
+          {/* プレイリストタブ */}
+          <TabsContent value="playlists" className="mt-0">
+            <div className="flex flex-col gap-4">
+              {author.playlists && author.playlists.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {author.playlists.map((playlist) => (
+                    <PlaylistCard key={playlist.id} playlist={playlist} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="プレイリストがありません"
+                  description="このユーザーはまだプレイリストを作成していません"
+                />
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <Separator />
 
