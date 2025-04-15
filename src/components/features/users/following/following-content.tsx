@@ -29,15 +29,15 @@ export async function FollowingContent({ id }: FollowingContentProps) {
   return (
     <ContentLayout
       customItems={[
-        { id: id as string, label: `${author.name}のフォロー中`, position: 0 },
+        { id: id as string, label: `${author.name}'s Following`, position: 0 },
         { id: id as string, label: `${author.name}`, position: 1 },
       ]}
     >
       <div className="flex flex-col gap-8">
-        {/* 戻るリンク */}
+        {/* Back link */}
         <BackLink href={`/users/${id}`} text={`Back to ${author.name}'s profile`} />
 
-        {/* フォロー中一覧 */}
+        {/* Following list */}
         <div className="space-y-4">
           <h3 className="text-xl font-semibold tracking-tight">Following {following.length} users</h3>
           <div className="space-y-4">
@@ -45,8 +45,8 @@ export async function FollowingContent({ id }: FollowingContentProps) {
               following.map((followedUser) => <UserCard key={followedUser.id} user={followedUser} />)
             ) : (
               <EmptyState
-                title="フォロー中のユーザーがいません"
-                description="まだ誰もフォローしていません。気になるユーザーをフォローすると、ここに表示されます。"
+                title="No users followed"
+                description="You haven't followed any users yet. When you follow users, they will appear here."
                 icon={<Users className="h-12 w-12 text-muted-foreground/50" />}
               />
             )}

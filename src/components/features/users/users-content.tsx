@@ -14,7 +14,7 @@ export const UsersContent = async () => {
 
   return (
     <ContentLayout>
-      <h1 className="text-3xl font-bold mb-8">クリエイター一覧</h1>
+      <h1 className="text-3xl font-bold mb-8">Creators List</h1>
       <div className="space-y-4">
         {authors.map((author) => (
           <UserCard key={author.id} user={author} />

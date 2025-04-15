@@ -14,7 +14,7 @@ interface FollowersContentProps {
 export async function FollowersContent({ id }: FollowersContentProps) {
   const [authorResult, followersResult] = await Promise.all([getAuthorWithCounts(id), getUserFollowers(id)]);
 
-  // エラー処理
+  // Error handling
   if (authorResult.isErr()) {
     return <DataError />;
   }
@@ -29,15 +29,15 @@ export async function FollowersContent({ id }: FollowersContentProps) {
   return (
     <ContentLayout
       customItems={[
-        { id: id as string, label: `${author.name}のフォロワー`, position: 0 },
+        { id: id as string, label: `${author.name}'s Followers`, position: 0 },
         { id: id as string, label: `${author.name}`, position: 1 },
       ]}
     >
       <div className="flex flex-col gap-8">
-        {/* 戻るリンク */}
+        {/* Back link */}
         <BackLink href={`/users/${id}`} text={`Back to ${author.name}'s profile`} />
 
-        {/* フォロワー一覧 */}
+        {/* Followers list */}
         <div className="space-y-4">
           <h3 className="text-xl font-semibold tracking-tight">Followers {followers.length}</h3>
           <div className="space-y-4">
@@ -45,8 +45,8 @@ export async function FollowersContent({ id }: FollowersContentProps) {
               followers.map((follower) => <UserCard key={follower.id} user={follower} />)
             ) : (
               <EmptyState
-                title="フォロワーがいません"
-                description="まだフォロワーがいません。他のユーザーからフォローされるとここに表示されます。"
+                title="No followers"
+                description="You don't have any followers yet. When other users follow you, they will appear here."
                 icon={<UserMinus className="h-12 w-12 text-muted-foreground/50" />}
               />
             )}

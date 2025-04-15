@@ -24,10 +24,10 @@ export const UserCard = ({ user, showDetailButton = true }: UserCardProps) => {
   // フォロワー数を読みやすい形式に変換
   const formatNumber = (num = 0) => {
     if (num >= 10000) {
-      return `${(num / 10000).toFixed(1)}万`;
+      return `${(num / 10000).toFixed(1)}M`;
     }
     if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}千`;
+      return `${(num / 1000).toFixed(1)}k`;
     }
     return num.toString();
   };
@@ -67,19 +67,19 @@ export const UserCard = ({ user, showDetailButton = true }: UserCardProps) => {
               {user.videoCount !== undefined && (
                 <div className="flex items-center">
                   <Film className="h-4 w-4 mr-1" />
-                  <span>動画 {user.videoCount}本</span>
+                  <span>Videos {user.videoCount}</span>
                 </div>
               )}
               {user.playlistCount !== undefined && (
                 <div className="flex items-center">
                   <PlaySquare className="h-4 w-4 mr-1" />
-                  <span>プレイリスト {user.playlistCount}個</span>
+                  <span>Playlists {user.playlistCount}</span>
                 </div>
               )}
               {user.followerCount !== undefined && (
                 <div className="flex items-center">
                   <Users className="h-4 w-4 mr-1" />
-                  <span>フォロワー {formatNumber(user.followerCount)}</span>
+                  <span>Followers {formatNumber(user.followerCount)}</span>
                 </div>
               )}
             </div>
@@ -87,7 +87,7 @@ export const UserCard = ({ user, showDetailButton = true }: UserCardProps) => {
 
           {showDetailButton && (
             <Button asChild className="flex-shrink-0">
-              <Link href={getDetailPath("USER_DETAIL", user.id)}>詳細</Link>
+              <Link href={getDetailPath("USER_DETAIL", user.id)}>Details</Link>
             </Button>
           )}
         </div>

@@ -36,13 +36,13 @@ export const UserDetailContent = async ({ id }: Props) => {
   return (
     <ContentLayout customItems={[{ id: id as string, label: author.name, position: 0 }]}>
       <div className="flex flex-col gap-8">
-        {/* 一覧に戻るリンク */}
+        {/* Back to list link */}
         <BackLink href={CLIENT_PATH.USERS} text="Back to Users" />
 
-        {/* プロフィール情報 - シンプルなデザイン */}
+        {/* Profile information - Simple design */}
         <div className="w-full max-w-md mx-auto p-6">
           <div className="flex flex-col items-center space-y-5">
-            {/* アバター */}
+            {/* Avatar */}
             <Avatar className="h-24 w-24">
               <AvatarImage src={author.iconUrl || ""} alt={author.name} />
               <AvatarFallback className="bg-primary/10 text-primary text-2xl">
@@ -50,42 +50,42 @@ export const UserDetailContent = async ({ id }: Props) => {
               </AvatarFallback>
             </Avatar>
 
-            {/* 名前 */}
+            {/* Name */}
             <div className="text-center">
               <h2 className="text-2xl font-bold">{author.name}</h2>
               <p className="text-xs text-muted-foreground">@{author.id.substring(0, 8)}</p>
             </div>
 
-            {/* フォロー/フォロワー数 */}
+            {/* Follow/Followers count */}
             <div className="flex gap-8 text-sm">
               <Link href={`/users/${id}/following`} className="text-center hover:text-primary transition-colors">
                 <p className="font-medium">{following.length}</p>
-                <p className="text-xs text-muted-foreground">フォロー</p>
+                <p className="text-xs text-muted-foreground">Following</p>
               </Link>
               <Link href={`/users/${id}/followers`} className="text-center hover:text-primary transition-colors">
                 <p className="font-medium">{followers.length}</p>
-                <p className="text-xs text-muted-foreground">フォロワー</p>
+                <p className="text-xs text-muted-foreground">Followers</p>
               </Link>
             </div>
 
             {/* Bio */}
             {author.bio && <p className="text-sm text-center text-muted-foreground">{author.bio}</p>}
 
-            {/* フォローボタン */}
+            {/* Follow button */}
             <FollowButton userId={id} className="w-full max-w-[200px]" />
           </div>
         </div>
 
         <Separator />
 
-        {/* タブ付きコンテンツ - 動画とプレイリスト */}
+        {/* Tabbed content - Videos and Playlists */}
         <Tabs defaultValue="videos" className="w-full">
           <TabsList className="mb-4">
-            <TabsTrigger value="videos">投稿動画</TabsTrigger>
-            <TabsTrigger value="playlists">プレイリスト</TabsTrigger>
+            <TabsTrigger value="videos">Videos</TabsTrigger>
+            <TabsTrigger value="playlists">Playlists</TabsTrigger>
           </TabsList>
 
-          {/* 動画タブ */}
+          {/* Videos tab */}
           <TabsContent value="videos" className="mt-0">
             <div className="flex flex-col gap-4">
               {author.videos && author.videos.length > 0 ? (
@@ -95,12 +95,12 @@ export const UserDetailContent = async ({ id }: Props) => {
                   ))}
                 </div>
               ) : (
-                <EmptyState title="動画がありません" description="このユーザーはまだ動画を投稿していません" />
+                <EmptyState title="No Videos" description="This user has not posted any videos yet" />
               )}
             </div>
           </TabsContent>
 
-          {/* プレイリストタブ */}
+          {/* Playlists tab */}
           <TabsContent value="playlists" className="mt-0">
             <div className="flex flex-col gap-4">
               {author.playlists && author.playlists.length > 0 ? (
@@ -110,10 +110,7 @@ export const UserDetailContent = async ({ id }: Props) => {
                   ))}
                 </div>
               ) : (
-                <EmptyState
-                  title="プレイリストがありません"
-                  description="このユーザーはまだプレイリストを作成していません"
-                />
+                <EmptyState title="No Playlists" description="This user has not created any playlists yet" />
               )}
             </div>
           </TabsContent>

@@ -24,9 +24,9 @@ export function useFollowButton(userId: string, userName?: string) {
   const initialNameFetchedRef = useRef(false);
   const initialFollowStatusFetchedRef = useRef(false);
 
-  // ユーザー名の取得
+  // Get user name
   useEffect(() => {
-    // すでにuserNameが提供されているか、初期化済みの場合はスキップ
+    // Skip if userName is provided or already initialized
     if (userName || initialNameFetchedRef.current || !userId) return;
 
     const fetchUserName = async () => {
@@ -39,7 +39,7 @@ export function useFollowButton(userId: string, userName?: string) {
           }));
         }
       } catch (error) {
-        console.error("ユーザー名取得中にエラーが発生しました", error);
+        console.error("Error occurred while fetching user name", error);
       } finally {
         initialNameFetchedRef.current = true;
       }
@@ -48,9 +48,9 @@ export function useFollowButton(userId: string, userName?: string) {
     fetchUserName();
   }, [userId, userName]);
 
-  // フォロー状態の確認
+  // Check follow status
   useEffect(() => {
-    // ユーザーが未ログインか、すでに初期化済みの場合はスキップ
+    // Skip if user is not logged in or already initialized
     if (!user || initialFollowStatusFetchedRef.current || !userId) return;
 
     const fetchFollowStatus = async () => {
@@ -65,7 +65,7 @@ export function useFollowButton(userId: string, userName?: string) {
           }));
         }
       } catch (error) {
-        console.error("フォロー状態確認中にエラーが発生しました", error);
+        console.error("Error occurred while fetching follow status", error);
       } finally {
         setState((prev) => ({ ...prev, loading: false }));
         initialFollowStatusFetchedRef.current = true;
@@ -76,13 +76,13 @@ export function useFollowButton(userId: string, userName?: string) {
     fetchFollowStatus();
   }, [user, userId]);
 
-  // フォロー/アンフォロー処理
+  // Follow/unfollow process
   const handleFollow = async () => {
     if (!user) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "ログインが必要です",
+        description: "Login required",
       });
       return;
     }
@@ -91,7 +91,7 @@ export function useFollowButton(userId: string, userName?: string) {
 
     try {
       if (state.isFollowed) {
-        // フォロー解除
+        // Unfollow
         const result = await unfollowUser(userId);
         if (result.isOk()) {
           setState((prev) => ({ ...prev, isFollowed: false }));
@@ -108,7 +108,7 @@ export function useFollowButton(userId: string, userName?: string) {
           });
         }
       } else {
-        // フォロー
+        // Follow
         const result = await followUser(userId);
         if (result.isOk()) {
           setState((prev) => ({ ...prev, isFollowed: true }));
@@ -126,7 +126,7 @@ export function useFollowButton(userId: string, userName?: string) {
         }
       }
     } catch (error) {
-      console.error("フォロー処理中にエラーが発生しました", error);
+      console.error("Error occurred during follow/unfollow process", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -137,8 +137,8 @@ export function useFollowButton(userId: string, userName?: string) {
     }
   };
 
-  // 自分自身へのフォローボタンを表示するかどうか
-  // ユーザーがログインしていない場合や自分自身の場合は表示しない
+  // Check whether to show follow button
+  // Don't show button if user is not logged in or is the current user
   const shouldShowButton = !!user && user.id !== userId;
 
   return {
