@@ -1,14 +1,15 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { getDetailPath } from "@/consts/clientpath";
-import { getAllAuthors } from "@/repositories/authors";
+import { getAllAuthorsWithCounts } from "@/repositories/authors";
 import { formatDate } from "@/utils/date";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Film, PlaySquare, UserRound } from "lucide-react";
 import Link from "next/link";
 
 export const UsersContent = async () => {
-  const result = await getAllAuthors();
+  const result = await getAllAuthorsWithCounts();
 
   if (result.isErr()) {
     return <DataError />;
@@ -37,7 +38,29 @@ export const UsersContent = async () => {
                   <span>Joined on {formatDate(author.createdAt)}</span>
                 </div>
               </div>
+
               {author.bio && <p className="text-sm text-muted-foreground line-clamp-1 mt-0.5">{author.bio}</p>}
+
+              <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-1.5">
+                  <UserRound className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Badge variant="outline" className="px-2 py-0 h-5 text-xs">
+                    {author.followerCount} フォロワー
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Film className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Badge variant="outline" className="px-2 py-0 h-5 text-xs">
+                    {author.videoCount} 動画
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <PlaySquare className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Badge variant="outline" className="px-2 py-0 h-5 text-xs">
+                    {author.playlistCount} プレイリスト
+                  </Badge>
+                </div>
+              </div>
             </div>
           </div>
         ))}
