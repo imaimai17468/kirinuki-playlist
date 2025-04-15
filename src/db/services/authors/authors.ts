@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authors } from "../../models/authors";
+import { follows } from "../../models/follows";
 import { playlists } from "../../models/playlists";
 import { videos } from "../../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
@@ -31,6 +32,20 @@ export type AuthorWithVideosAndPlaylists = Author & {
   playlists: PlaylistWithAuthorAndVideos[];
 };
 
+// 著者とフォロワー数・投稿数を含む拡張型
+export type AuthorWithCounts = Author & {
+  followerCount: number;
+  videoCount: number;
+  playlistCount: number;
+};
+
+// 著者と関連データ＋カウント情報を含む拡張型
+export type AuthorWithVideosPlaylistsAndCounts = AuthorWithVideosAndPlaylists & {
+  followerCount: number;
+  videoCount: number;
+  playlistCount: number;
+};
+
 // 依存性注入パターンを使った著者サービスの作成関数
 export const createAuthorService = (dbClient: DbClient) => ({
   async getAllAuthors(): Promise<Author[]> {
@@ -38,6 +53,49 @@ export const createAuthorService = (dbClient: DbClient) => ({
       return await dbClient.select().from(authors).all();
     } catch (_) {
       throw new DatabaseError("著者一覧の取得に失敗しました");
+    }
+  },
+
+  async getAllAuthorsWithCounts(): Promise<AuthorWithCounts[]> {
+    try {
+      // 著者一覧を取得
+      const authorsList = await dbClient.select().from(authors).all();
+
+      // 各著者の追加情報を並列で取得
+      const authorsWithCounts = await Promise.all(
+        authorsList.map(async (author) => {
+          // フォロワー数
+          const followers = await dbClient.select().from(follows).where(eq(follows.followingId, author.id)).all();
+          const followerCount = followers.length;
+
+          // 動画数
+          const authorVideos = await dbClient.select().from(videos).where(eq(videos.authorId, author.id)).all();
+          const videoCount = authorVideos.length;
+
+          // プレイリスト数
+          const authorPlaylists = await dbClient
+            .select()
+            .from(playlists)
+            .where(eq(playlists.authorId, author.id))
+            .all();
+          const playlistCount = authorPlaylists.length;
+
+          return {
+            ...author,
+            followerCount,
+            videoCount,
+            playlistCount,
+          };
+        }),
+      );
+
+      return authorsWithCounts;
+    } catch (error) {
+      throw new DatabaseError(
+        `著者一覧とカウント情報の取得中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`,
+      );
     }
   },
 
@@ -56,6 +114,39 @@ export const createAuthorService = (dbClient: DbClient) => ({
       }
       throw new DatabaseError(
         `著者の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
+      );
+    }
+  },
+
+  async getAuthorWithCounts(id: string): Promise<AuthorWithCounts> {
+    try {
+      // 著者の基本情報を取得
+      const author = await this.getAuthorById(id);
+
+      // フォロワー数を取得
+      const followers = await dbClient.select().from(follows).where(eq(follows.followingId, id)).all();
+      const followerCount = followers.length;
+
+      // 動画数を取得
+      const authorVideos = await dbClient.select().from(videos).where(eq(videos.authorId, id)).all();
+      const videoCount = authorVideos.length;
+
+      // プレイリスト数を取得
+      const authorPlaylists = await dbClient.select().from(playlists).where(eq(playlists.authorId, id)).all();
+      const playlistCount = authorPlaylists.length;
+
+      return {
+        ...author,
+        followerCount,
+        videoCount,
+        playlistCount,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `著者とカウント情報の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
       );
     }
   },
@@ -145,6 +236,31 @@ export const createAuthorService = (dbClient: DbClient) => ({
         `著者の動画とプレイリストの取得中にエラーが発生しました: ${
           error instanceof Error ? error.message : "不明なエラー"
         }`,
+      );
+    }
+  },
+
+  async getAuthorWithVideosPlaylistsAndCounts(id: string): Promise<AuthorWithVideosPlaylistsAndCounts> {
+    try {
+      // 著者の情報と動画・プレイリストを取得
+      const authorWithData = await this.getAuthorWithVideosAndPlaylists(id);
+
+      // フォロワー数を取得
+      const followers = await dbClient.select().from(follows).where(eq(follows.followingId, id)).all();
+      const followerCount = followers.length;
+
+      return {
+        ...authorWithData,
+        followerCount,
+        videoCount: authorWithData.videos.length,
+        playlistCount: authorWithData.playlists.length,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `著者の全データの取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
       );
     }
   },

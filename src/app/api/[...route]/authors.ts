@@ -21,11 +21,23 @@ const authorQuerySchema = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((val) => val === "true"),
+  withCounts: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((val) => val === "true"),
+});
+
+// 一覧取得用のクエリパラメータのバリデーションスキーマ
+const authorsListQuerySchema = z.object({
+  withCounts: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((val) => val === "true"),
 });
 
 export const authorsRouter = new Hono<AppEnv>()
   // 作成者一覧の取得
-  .get("/", async (c) => {
+  .get("/", zValidator("query", authorsListQuerySchema), async (c) => {
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
     if (!dbClient) {
@@ -35,13 +47,27 @@ export const authorsRouter = new Hono<AppEnv>()
     }
 
     const service = createAuthorService(dbClient);
+    const { withCounts = false } = c.req.valid("query");
+
+    if (withCounts) {
+      // カウント情報を含む著者一覧を取得
+      const authorsWithCounts = await service.getAllAuthorsWithCounts();
+      return c.json({ success: true, authors: authorsWithCounts });
+    }
+
+    // 通常の著者一覧を取得
     const authors = await service.getAllAuthors();
     return c.json({ success: true, authors });
   })
   // 作成者の詳細取得
   .get("/:id", zValidator("query", authorQuerySchema), async (c) => {
     const id = c.req.param("id");
-    const { withVideos = false, withPlaylists = false, withVideosAndPlaylists = false } = c.req.valid("query");
+    const {
+      withVideos = false,
+      withPlaylists = false,
+      withVideosAndPlaylists = false,
+      withCounts = false,
+    } = c.req.valid("query");
 
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
@@ -53,18 +79,31 @@ export const authorsRouter = new Hono<AppEnv>()
 
     const service = createAuthorService(dbClient);
 
-    // withVideosAndPlaylistsが優先
+    // 全ての情報を取得する場合
+    if (withVideosAndPlaylists && withCounts) {
+      const authorWithAll = await service.getAuthorWithVideosPlaylistsAndCounts(id);
+      return c.json({ success: true, author: authorWithAll });
+    }
+
+    // 動画とプレイリストの両方を取得する場合
     if (withVideosAndPlaylists) {
       const authorWithAll = await service.getAuthorWithVideosAndPlaylists(id);
       return c.json({ success: true, author: authorWithAll });
     }
 
-    // 次にwithVideosとwithPlaylistsを個別に処理
+    // カウント情報のみを取得する場合
+    if (withCounts) {
+      const authorWithCounts = await service.getAuthorWithCounts(id);
+      return c.json({ success: true, author: authorWithCounts });
+    }
+
+    // 動画情報を取得する場合
     if (withVideos) {
       const authorWithVideos = await service.getAuthorWithVideos(id);
       return c.json({ success: true, author: authorWithVideos });
     }
 
+    // プレイリスト情報を取得する場合
     if (withPlaylists) {
       const authorWithPlaylists = await service.getAuthorWithPlaylists(id);
       return c.json({ success: true, author: authorWithPlaylists });

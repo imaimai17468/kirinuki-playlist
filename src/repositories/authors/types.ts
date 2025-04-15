@@ -31,9 +31,28 @@ export const authorWithVideosAndPlaylistsSchema = authorSchema.extend({
   playlists: z.array(basicPlaylistSchema),
 });
 
+// 著者とカウント情報を含む拡張スキーマ
+export const authorWithCountsSchema = authorSchema.extend({
+  followerCount: z.number(),
+  videoCount: z.number(),
+  playlistCount: z.number(),
+});
+
+// 著者と動画、プレイリスト、カウント情報を含む拡張スキーマ
+export const authorWithVideosPlaylistsAndCountsSchema = authorWithVideosAndPlaylistsSchema.extend({
+  followerCount: z.number(),
+  videoCount: z.number(),
+  playlistCount: z.number(),
+});
+
 // APIレスポンスのZodスキーマ
 export const authorsResponseSchema = baseResponseSchema.extend({
   authors: z.array(authorSchema),
+});
+
+// カウント情報を含む著者一覧レスポンススキーマ
+export const authorsWithCountsResponseSchema = baseResponseSchema.extend({
+  authors: z.array(authorWithCountsSchema),
 });
 
 export const authorResponseSchema = baseResponseSchema.extend({
@@ -42,6 +61,8 @@ export const authorResponseSchema = baseResponseSchema.extend({
     authorWithVideosSchema,
     authorWithPlaylistsSchema,
     authorWithVideosAndPlaylistsSchema,
+    authorWithCountsSchema,
+    authorWithVideosPlaylistsAndCountsSchema,
   ]),
 });
 
@@ -60,6 +81,16 @@ export const authorWithVideosAndPlaylistsResponseSchema = baseResponseSchema.ext
   author: authorWithVideosAndPlaylistsSchema,
 });
 
+// カウント情報を含む著者レスポンス専用のスキーマ
+export const authorWithCountsResponseSchema = baseResponseSchema.extend({
+  author: authorWithCountsSchema,
+});
+
+// 全ての情報を含む著者レスポンス専用のスキーマ
+export const authorWithVideosPlaylistsAndCountsResponseSchema = baseResponseSchema.extend({
+  author: authorWithVideosPlaylistsAndCountsSchema,
+});
+
 // 著者作成レスポンススキーマ
 export const authorCreateResponseSchema = baseResponseSchema.extend({
   id: z.string(),
@@ -72,11 +103,14 @@ export const authorUpdateDeleteResponseSchema = baseResponseSchema.extend({
 });
 
 export type AuthorsResponse = z.infer<typeof authorsResponseSchema>;
+export type AuthorsWithCountsResponse = z.infer<typeof authorsWithCountsResponseSchema>;
 export type AuthorResponse = z.infer<typeof authorResponseSchema>;
 export type AuthorInsert = z.infer<typeof authorInsertSchema>;
 export type AuthorUpdate = z.infer<typeof authorUpdateSchema>;
 export type AuthorWithVideos = z.infer<typeof authorWithVideosSchema>;
 export type AuthorWithPlaylists = z.infer<typeof authorWithPlaylistsSchema>;
 export type AuthorWithVideosAndPlaylists = z.infer<typeof authorWithVideosAndPlaylistsSchema>;
+export type AuthorWithCounts = z.infer<typeof authorWithCountsSchema>;
+export type AuthorWithVideosPlaylistsAndCounts = z.infer<typeof authorWithVideosPlaylistsAndCountsSchema>;
 export type AuthorCreateResponse = z.infer<typeof authorCreateResponseSchema>;
 export type AuthorUpdateDeleteResponse = z.infer<typeof authorUpdateDeleteResponseSchema>;
