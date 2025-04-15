@@ -1,39 +1,12 @@
+import { basicTagSchema, basicVideoSchema } from "@/repositories/common-schemas";
 import { z } from "zod";
-import { authorSchema } from "../authors/types";
 import { baseResponseSchema } from "../types";
 
-// タグスキーマの追加
-export const tagSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  createdAt: z
-    .number()
-    .or(z.string())
-    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
-  updatedAt: z
-    .number()
-    .or(z.string())
-    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
-});
+// タグスキーマの追加（基本スキーマを拡張可能）
+export const tagSchema = basicTagSchema;
 
-export const videoSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  url: z.string().url(),
-  start: z.number(),
-  end: z.number(),
-  authorId: z.string(),
-  createdAt: z
-    .number()
-    .or(z.string())
-    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
-  updatedAt: z
-    .number()
-    .or(z.string())
-    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
-  author: authorSchema,
-  tags: z.array(tagSchema),
-});
+// 動画スキーマ (共通スキーマをそのまま使用)
+export const videoSchema = basicVideoSchema;
 
 // 動画作成用スキーマ
 export const videoInsertSchema = z.object({
