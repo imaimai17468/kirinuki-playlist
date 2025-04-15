@@ -1,20 +1,9 @@
+import { basicAuthorSchema, basicVideoSchema } from "@/repositories/common-schemas";
 import { z } from "zod";
 import { baseResponseSchema } from "../types";
 
-export const authorSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  iconUrl: z.string().url(),
-  bio: z.string().nullable().optional(),
-  createdAt: z
-    .number()
-    .or(z.string())
-    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
-  updatedAt: z
-    .number()
-    .or(z.string())
-    .transform((val) => (typeof val === "string" ? new Date(val) : new Date(val))),
-});
+// 著者スキーマを共通スキーマを元に定義
+export const authorSchema = basicAuthorSchema;
 
 // 著者作成用スキーマ
 export const authorInsertSchema = z.object({
@@ -26,13 +15,23 @@ export const authorInsertSchema = z.object({
 // 著者更新用スキーマ
 export const authorUpdateSchema = authorInsertSchema.partial();
 
+// 著者と動画を含む拡張スキーマ
+export const authorWithVideosSchema = authorSchema.extend({
+  videos: z.array(basicVideoSchema),
+});
+
 // APIレスポンスのZodスキーマ
 export const authorsResponseSchema = baseResponseSchema.extend({
   authors: z.array(authorSchema),
 });
 
 export const authorResponseSchema = baseResponseSchema.extend({
-  author: authorSchema,
+  author: z.union([authorSchema, authorWithVideosSchema]),
+});
+
+// 動画を含む著者レスポンス専用のスキーマ
+export const authorWithVideosResponseSchema = baseResponseSchema.extend({
+  author: authorWithVideosSchema,
 });
 
 // 著者作成レスポンススキーマ
@@ -50,5 +49,6 @@ export type AuthorsResponse = z.infer<typeof authorsResponseSchema>;
 export type AuthorResponse = z.infer<typeof authorResponseSchema>;
 export type AuthorInsert = z.infer<typeof authorInsertSchema>;
 export type AuthorUpdate = z.infer<typeof authorUpdateSchema>;
+export type AuthorWithVideos = z.infer<typeof authorWithVideosSchema>;
 export type AuthorCreateResponse = z.infer<typeof authorCreateResponseSchema>;
 export type AuthorUpdateDeleteResponse = z.infer<typeof authorUpdateDeleteResponseSchema>;

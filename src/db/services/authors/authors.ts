@@ -3,11 +3,19 @@ import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authors } from "../../models/authors";
+import { videos } from "../../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
+import type { VideoWithTagsAndAuthor } from "../videos/videos";
+import { createVideoService } from "../videos/videos";
 
 export type Author = InferSelectModel<typeof authors>;
 export type AuthorInsert = Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">;
 export type AuthorUpdate = Partial<Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">>;
+
+// 著者と関連動画を含む拡張型
+export type AuthorWithVideos = Author & {
+  videos: VideoWithTagsAndAuthor[];
+};
 
 // 依存性注入パターンを使った著者サービスの作成関数
 export const createAuthorService = (dbClient: DbClient) => ({
@@ -34,6 +42,32 @@ export const createAuthorService = (dbClient: DbClient) => ({
       }
       throw new DatabaseError(
         `著者の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
+      );
+    }
+  },
+
+  async getAuthorWithVideos(id: string): Promise<AuthorWithVideos> {
+    try {
+      // 著者の情報を取得
+      const author = await this.getAuthorById(id);
+
+      // 著者に関連する動画を取得
+      const videoService = createVideoService(dbClient);
+      const authorVideos = await dbClient.select().from(videos).where(eq(videos.authorId, id)).all();
+
+      // 各動画の詳細情報（タグ情報を含む）を取得
+      const videosWithDetails = await Promise.all(authorVideos.map((video) => videoService.getVideoById(video.id)));
+
+      return {
+        ...author,
+        videos: videosWithDetails,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `著者と動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
       );
     }
   },

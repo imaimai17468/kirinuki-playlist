@@ -2,9 +2,11 @@ import { getApiClient } from "@/db/config/client";
 import {
   type AuthorInsert,
   type AuthorUpdate,
+  type AuthorWithVideos,
   authorCreateResponseSchema,
   authorResponseSchema,
   authorUpdateDeleteResponseSchema,
+  authorWithVideosResponseSchema,
   authorsResponseSchema,
 } from "@/repositories/authors/types";
 import type { ApiError } from "@/repositories/types";
@@ -44,6 +46,7 @@ export async function getAuthorById(
     const client = getApiClient();
     const response = await client.api.authors[":id"].$get({
       param: { id },
+      query: {},
     });
 
     if (!response.ok) {
@@ -55,6 +58,34 @@ export async function getAuthorById(
 
     if (!result.success) {
       return err(createSchemaError(result.error.message));
+    }
+
+    return ok(result.data.author);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// 作者と動画を一緒に取得
+export async function getAuthorWithVideos(id: string): Promise<Result<AuthorWithVideos, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"].$get({
+      param: { id },
+      query: { withVideos: "true" },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+
+    // 専用のスキーマを使って一回で検証
+    const result = authorWithVideosResponseSchema.safeParse(data);
+    if (!result.success) {
+      console.error(result.error);
+      return err(createSchemaError(`動画情報を含む著者データの検証に失敗しました: ${result.error.message}`));
     }
 
     return ok(result.data.author);
