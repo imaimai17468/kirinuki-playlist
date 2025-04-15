@@ -51,7 +51,7 @@ export const UserCard = ({ user, showDetailButton = true }: UserCardProps) => {
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
               <Link href={getDetailPath("USER_DETAIL", user.id)} className="hover:text-primary transition-colors">
-                <h2 className="text-xl font-bold">{user.name}</h2>
+                <h2 className="text-xl font-bold hover:text-green-600 transition-colors">{user.name}</h2>
               </Link>
               {user.createdAt && (
                 <div className="flex items-center text-sm text-muted-foreground">
