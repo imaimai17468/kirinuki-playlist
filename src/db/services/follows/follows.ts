@@ -1,13 +1,18 @@
 import type { DbClient } from "@/db/config/hono";
-import { authors, follows } from "@/db/models";
+import { authors, follows, playlists, videos } from "@/db/models";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { and, eq } from "drizzle-orm";
 
-// ユーザー情報の型
+// ユーザー情報の型（UserCardコンポーネントと互換性を持つ）
 export interface User {
   id: string;
   name: string;
   iconUrl: string;
+  createdAt?: Date;
+  bio?: string | null;
+  followerCount?: number;
+  videoCount?: number;
+  playlistCount?: number;
 }
 
 // フォローサービスの作成関数
@@ -115,12 +120,35 @@ export const createFollowService = (dbClient: DbClient) => ({
         .where(eq(follows.followingId, userId))
         .all();
 
-      // 結果をUser型に変換
-      const followers: User[] = result.map((row) => ({
-        id: row.authors.id,
-        name: row.authors.name,
-        iconUrl: row.authors.iconUrl,
-      }));
+      // 結果をUser型に変換して拡張情報を追加
+      const followers = await Promise.all(
+        result.map(async (row) => {
+          const authorId = row.authors.id;
+
+          // 動画数を取得
+          const authorVideos = await dbClient.select().from(videos).where(eq(videos.authorId, authorId)).all();
+          const videoCount = authorVideos.length;
+
+          // プレイリスト数を取得
+          const authorPlaylists = await dbClient.select().from(playlists).where(eq(playlists.authorId, authorId)).all();
+          const playlistCount = authorPlaylists.length;
+
+          // フォロワー数を取得
+          const followersCount = await dbClient.select().from(follows).where(eq(follows.followingId, authorId)).all();
+          const followerCount = followersCount.length;
+
+          return {
+            id: row.authors.id,
+            name: row.authors.name,
+            iconUrl: row.authors.iconUrl,
+            createdAt: row.authors.createdAt,
+            bio: row.authors.bio,
+            followerCount,
+            videoCount,
+            playlistCount,
+          };
+        }),
+      );
 
       return followers;
     } catch (error) {
@@ -152,12 +180,35 @@ export const createFollowService = (dbClient: DbClient) => ({
         .where(eq(follows.followerId, userId))
         .all();
 
-      // 結果をUser型に変換
-      const following: User[] = result.map((row) => ({
-        id: row.authors.id,
-        name: row.authors.name,
-        iconUrl: row.authors.iconUrl,
-      }));
+      // 結果をUser型に変換して拡張情報を追加
+      const following = await Promise.all(
+        result.map(async (row) => {
+          const authorId = row.authors.id;
+
+          // 動画数を取得
+          const authorVideos = await dbClient.select().from(videos).where(eq(videos.authorId, authorId)).all();
+          const videoCount = authorVideos.length;
+
+          // プレイリスト数を取得
+          const authorPlaylists = await dbClient.select().from(playlists).where(eq(playlists.authorId, authorId)).all();
+          const playlistCount = authorPlaylists.length;
+
+          // フォロワー数を取得
+          const followersCount = await dbClient.select().from(follows).where(eq(follows.followingId, authorId)).all();
+          const followerCount = followersCount.length;
+
+          return {
+            id: row.authors.id,
+            name: row.authors.name,
+            iconUrl: row.authors.iconUrl,
+            createdAt: row.authors.createdAt,
+            bio: row.authors.bio,
+            followerCount,
+            videoCount,
+            playlistCount,
+          };
+        }),
+      );
 
       return following;
     } catch (error) {

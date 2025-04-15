@@ -6,19 +6,22 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
 export const followsRouter = new Hono<AppEnv>()
-  // フォローする
+  // ユーザーをフォローする
   .post("/users/:id/follow", async (c) => {
     try {
+      const targetId = c.req.param("id");
+
+      // 認証処理
       const { userId } = await getAuth();
       if (!userId) {
-        return c.json({ success: false, message: "認証が必要です" }, 401);
+        throw new HTTPException(401, { message: "認証が必要です" });
       }
-
-      const targetId = c.req.param("id");
 
       // 自分自身をフォローしようとしている場合
       if (userId === targetId) {
-        return c.json({ success: false, message: "自分自身をフォローすることはできません" }, 400);
+        throw new HTTPException(400, {
+          message: "自分自身をフォローすることはできません",
+        });
       }
 
       // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
@@ -39,7 +42,10 @@ export const followsRouter = new Hono<AppEnv>()
           throw new HTTPException(404, { message: error.message });
         }
         if (error.message.includes("すでにフォローしています")) {
-          return c.json({ success: false, message: error.message }, 400);
+          throw new HTTPException(409, { message: error.message });
+        }
+        if (error.message.includes("自分自身をフォロー")) {
+          throw new HTTPException(400, { message: error.message });
         }
       }
       console.error("フォロー処理中のエラー:", error);
@@ -49,15 +55,16 @@ export const followsRouter = new Hono<AppEnv>()
     }
   })
 
-  // フォロー解除
+  // フォローを解除する
   .delete("/users/:id/follow", async (c) => {
     try {
+      const targetId = c.req.param("id");
+
+      // 認証処理
       const { userId } = await getAuth();
       if (!userId) {
-        return c.json({ success: false, message: "認証が必要です" }, 401);
+        throw new HTTPException(401, { message: "認証が必要です" });
       }
-
-      const targetId = c.req.param("id");
 
       // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
       let dbClient = c.get("dbClient");
@@ -74,9 +81,7 @@ export const followsRouter = new Hono<AppEnv>()
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes("見つかりません")) {
-          throw new HTTPException(404, {
-            message: "フォロー関係が見つかりません",
-          });
+          throw new HTTPException(404, { message: error.message });
         }
       }
       console.error("フォロー解除中のエラー:", error);
@@ -86,7 +91,38 @@ export const followsRouter = new Hono<AppEnv>()
     }
   })
 
-  // フォロワー一覧取得
+  // フォロー状態を確認する
+  .get("/users/:id/is-following", async (c) => {
+    try {
+      const targetId = c.req.param("id");
+
+      // 認証処理
+      const { userId } = await getAuth();
+      if (!userId) {
+        throw new HTTPException(401, { message: "認証が必要です" });
+      }
+
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createFollowService(dbClient);
+      const isFollowing = await service.isFollowing(userId, targetId);
+
+      return c.json({ success: true, isFollowing });
+    } catch (error) {
+      console.error("フォロー状態確認中のエラー:", error);
+      throw new HTTPException(500, {
+        message: "フォロー状態の確認中にエラーが発生しました",
+      });
+    }
+  })
+
+  // フォロワー一覧を取得
   .get("/users/:id/followers", async (c) => {
     try {
       const userId = c.req.param("id");
@@ -142,36 +178,6 @@ export const followsRouter = new Hono<AppEnv>()
       console.error("フォロー中ユーザー取得中のエラー:", error);
       throw new HTTPException(500, {
         message: "フォロー中ユーザー取得中にエラーが発生しました",
-      });
-    }
-  })
-
-  // フォロー状態確認
-  .get("/users/:id/is-following", async (c) => {
-    try {
-      const { userId } = await getAuth();
-      if (!userId) {
-        return c.json({ success: false, message: "認証が必要です" }, 401);
-      }
-
-      const targetId = c.req.param("id");
-
-      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
-      let dbClient = c.get("dbClient");
-      if (!dbClient) {
-        const { getRequestContext } = await import("@cloudflare/next-on-pages");
-        const { DB } = getRequestContext().env;
-        dbClient = createDbClient(DB);
-      }
-
-      const service = createFollowService(dbClient);
-      const isFollowing = await service.isFollowing(userId, targetId);
-
-      return c.json({ success: true, isFollowing });
-    } catch (error) {
-      console.error("フォロー状態確認中のエラー:", error);
-      throw new HTTPException(500, {
-        message: "フォロー状態確認中にエラーが発生しました",
       });
     }
   });

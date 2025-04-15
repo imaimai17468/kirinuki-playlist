@@ -4,7 +4,12 @@ import { createNetworkError, createSchemaError, handleHttpError } from "@/reposi
 import { err, ok } from "neverthrow";
 import type { Result } from "neverthrow";
 import type { z } from "zod";
-import { followersResponseSchema, followingResponseSchema, isFollowingResponseSchema } from "./types";
+import {
+  type UserWithCountsType,
+  followersResponseSchema,
+  followingResponseSchema,
+  isFollowingResponseSchema,
+} from "./types";
 
 // ユーザーをフォローする
 export async function followUser(userId: string): Promise<Result<void, ApiError>> {
@@ -42,10 +47,8 @@ export async function unfollowUser(userId: string): Promise<Result<void, ApiErro
   }
 }
 
-// ユーザーのフォロワー一覧を取得
-export async function getUserFollowers(
-  userId: string,
-): Promise<Result<z.infer<typeof followersResponseSchema>["followers"], ApiError>> {
+// ユーザーのフォロワー一覧を取得（UserCardと互換性のあるデータ形式）
+export async function getUserFollowers(userId: string): Promise<Result<UserWithCountsType[], ApiError>> {
   try {
     const client = getApiClient();
     const response = await client.api.users[":id"].followers.$get({
@@ -69,10 +72,8 @@ export async function getUserFollowers(
   }
 }
 
-// ユーザーがフォローしているユーザー一覧を取得
-export async function getUserFollowing(
-  userId: string,
-): Promise<Result<z.infer<typeof followingResponseSchema>["following"], ApiError>> {
+// ユーザーがフォローしているユーザー一覧を取得（UserCardと互換性のあるデータ形式）
+export async function getUserFollowing(userId: string): Promise<Result<UserWithCountsType[], ApiError>> {
   try {
     const client = getApiClient();
     const response = await client.api.users[":id"].following.$get({
