@@ -3,8 +3,11 @@ import { eq } from "drizzle-orm";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { authors } from "../../models/authors";
+import { playlists } from "../../models/playlists";
 import { videos } from "../../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
+import type { PlaylistWithAuthorAndVideos } from "../playlists/playlists";
+import { createPlaylistService } from "../playlists/playlists";
 import type { VideoWithTagsAndAuthor } from "../videos/videos";
 import { createVideoService } from "../videos/videos";
 
@@ -15,6 +18,17 @@ export type AuthorUpdate = Partial<Omit<InferInsertModel<typeof authors>, "id" |
 // 著者と関連動画を含む拡張型
 export type AuthorWithVideos = Author & {
   videos: VideoWithTagsAndAuthor[];
+};
+
+// 著者と関連プレイリストを含む拡張型
+export type AuthorWithPlaylists = Author & {
+  playlists: PlaylistWithAuthorAndVideos[];
+};
+
+// 著者と関連動画・プレイリストを含む拡張型
+export type AuthorWithVideosAndPlaylists = Author & {
+  videos: VideoWithTagsAndAuthor[];
+  playlists: PlaylistWithAuthorAndVideos[];
 };
 
 // 依存性注入パターンを使った著者サービスの作成関数
@@ -68,6 +82,69 @@ export const createAuthorService = (dbClient: DbClient) => ({
       }
       throw new DatabaseError(
         `著者と動画の取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
+      );
+    }
+  },
+
+  async getAuthorWithPlaylists(id: string): Promise<AuthorWithPlaylists> {
+    try {
+      // 著者の情報を取得
+      const author = await this.getAuthorById(id);
+
+      // 著者に関連するプレイリストを取得
+      const playlistService = createPlaylistService(dbClient);
+      const authorPlaylists = await dbClient.select().from(playlists).where(eq(playlists.authorId, id)).all();
+
+      // 各プレイリストの詳細情報（動画情報を含む）を取得
+      const playlistsWithDetails = await Promise.all(
+        authorPlaylists.map((playlist) => playlistService.getPlaylistWithVideosById(playlist.id)),
+      );
+
+      return {
+        ...author,
+        playlists: playlistsWithDetails,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `著者とプレイリストの取得中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
+      );
+    }
+  },
+
+  async getAuthorWithVideosAndPlaylists(id: string): Promise<AuthorWithVideosAndPlaylists> {
+    try {
+      // 著者の情報を取得
+      const author = await this.getAuthorById(id);
+
+      // 著者に関連する動画とプレイリストを並行して取得
+      const videoService = createVideoService(dbClient);
+      const playlistService = createPlaylistService(dbClient);
+
+      const authorVideos = await dbClient.select().from(videos).where(eq(videos.authorId, id)).all();
+      const authorPlaylists = await dbClient.select().from(playlists).where(eq(playlists.authorId, id)).all();
+
+      // 各動画とプレイリストの詳細情報を取得
+      const [videosWithDetails, playlistsWithDetails] = await Promise.all([
+        Promise.all(authorVideos.map((video) => videoService.getVideoById(video.id))),
+        Promise.all(authorPlaylists.map((playlist) => playlistService.getPlaylistWithVideosById(playlist.id))),
+      ]);
+
+      return {
+        ...author,
+        videos: videosWithDetails,
+        playlists: playlistsWithDetails,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `著者の動画とプレイリストの取得中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`,
       );
     }
   },

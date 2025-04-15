@@ -1,4 +1,4 @@
-import { basicAuthorSchema, basicVideoSchema } from "@/repositories/common-schemas";
+import { basicAuthorSchema, basicPlaylistSchema, basicVideoSchema } from "@/repositories/common-schemas";
 import { z } from "zod";
 import { baseResponseSchema } from "../types";
 
@@ -20,18 +20,44 @@ export const authorWithVideosSchema = authorSchema.extend({
   videos: z.array(basicVideoSchema),
 });
 
+// 著者とプレイリストを含む拡張スキーマ
+export const authorWithPlaylistsSchema = authorSchema.extend({
+  playlists: z.array(basicPlaylistSchema),
+});
+
+// 著者と動画、プレイリストを含む拡張スキーマ
+export const authorWithVideosAndPlaylistsSchema = authorSchema.extend({
+  videos: z.array(basicVideoSchema),
+  playlists: z.array(basicPlaylistSchema),
+});
+
 // APIレスポンスのZodスキーマ
 export const authorsResponseSchema = baseResponseSchema.extend({
   authors: z.array(authorSchema),
 });
 
 export const authorResponseSchema = baseResponseSchema.extend({
-  author: z.union([authorSchema, authorWithVideosSchema]),
+  author: z.union([
+    authorSchema,
+    authorWithVideosSchema,
+    authorWithPlaylistsSchema,
+    authorWithVideosAndPlaylistsSchema,
+  ]),
 });
 
 // 動画を含む著者レスポンス専用のスキーマ
 export const authorWithVideosResponseSchema = baseResponseSchema.extend({
   author: authorWithVideosSchema,
+});
+
+// プレイリストを含む著者レスポンス専用のスキーマ
+export const authorWithPlaylistsResponseSchema = baseResponseSchema.extend({
+  author: authorWithPlaylistsSchema,
+});
+
+// 動画とプレイリストを含む著者レスポンス専用のスキーマ
+export const authorWithVideosAndPlaylistsResponseSchema = baseResponseSchema.extend({
+  author: authorWithVideosAndPlaylistsSchema,
 });
 
 // 著者作成レスポンススキーマ
@@ -50,5 +76,7 @@ export type AuthorResponse = z.infer<typeof authorResponseSchema>;
 export type AuthorInsert = z.infer<typeof authorInsertSchema>;
 export type AuthorUpdate = z.infer<typeof authorUpdateSchema>;
 export type AuthorWithVideos = z.infer<typeof authorWithVideosSchema>;
+export type AuthorWithPlaylists = z.infer<typeof authorWithPlaylistsSchema>;
+export type AuthorWithVideosAndPlaylists = z.infer<typeof authorWithVideosAndPlaylistsSchema>;
 export type AuthorCreateResponse = z.infer<typeof authorCreateResponseSchema>;
 export type AuthorUpdateDeleteResponse = z.infer<typeof authorUpdateDeleteResponseSchema>;

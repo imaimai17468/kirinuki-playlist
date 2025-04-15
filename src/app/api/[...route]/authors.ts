@@ -7,9 +7,17 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 
-// withVideosクエリパラメータのバリデーションスキーマ
-const withVideosSchema = z.object({
+// クエリパラメータのバリデーションスキーマ
+const authorQuerySchema = z.object({
   withVideos: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((val) => val === "true"),
+  withPlaylists: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((val) => val === "true"),
+  withVideosAndPlaylists: z
     .enum(["true", "false"])
     .optional()
     .transform((val) => val === "true"),
@@ -31,9 +39,9 @@ export const authorsRouter = new Hono<AppEnv>()
     return c.json({ success: true, authors });
   })
   // 作成者の詳細取得
-  .get("/:id", zValidator("query", withVideosSchema), async (c) => {
+  .get("/:id", zValidator("query", authorQuerySchema), async (c) => {
     const id = c.req.param("id");
-    const { withVideos = false } = c.req.valid("query");
+    const { withVideos = false, withPlaylists = false, withVideosAndPlaylists = false } = c.req.valid("query");
 
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
     let dbClient = c.get("dbClient");
@@ -45,11 +53,24 @@ export const authorsRouter = new Hono<AppEnv>()
 
     const service = createAuthorService(dbClient);
 
+    // withVideosAndPlaylistsが優先
+    if (withVideosAndPlaylists) {
+      const authorWithAll = await service.getAuthorWithVideosAndPlaylists(id);
+      return c.json({ success: true, author: authorWithAll });
+    }
+
+    // 次にwithVideosとwithPlaylistsを個別に処理
     if (withVideos) {
       const authorWithVideos = await service.getAuthorWithVideos(id);
       return c.json({ success: true, author: authorWithVideos });
     }
 
+    if (withPlaylists) {
+      const authorWithPlaylists = await service.getAuthorWithPlaylists(id);
+      return c.json({ success: true, author: authorWithPlaylists });
+    }
+
+    // デフォルトは基本情報のみ
     const author = await service.getAuthorById(id);
     return c.json({ success: true, author });
   })

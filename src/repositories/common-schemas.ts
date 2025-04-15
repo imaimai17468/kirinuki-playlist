@@ -41,7 +41,25 @@ export const basicVideoSchema = z.object({
   tags: z.array(basicTagSchema),
 });
 
+// 基本的なプレイリスト動画スキーマ（順序情報を含む）
+export const basicPlaylistVideoSchema = basicVideoSchema.extend({
+  order: z.number(),
+});
+
+// 基本的なプレイリストスキーマ
+export const basicPlaylistSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  authorId: z.string(),
+  createdAt: z.number().or(z.string()).transform(dateTransformer),
+  updatedAt: z.number().or(z.string()).transform(dateTransformer),
+  author: basicAuthorSchema,
+  videos: z.array(basicPlaylistVideoSchema).optional(),
+});
+
 // 基本的な型定義をエクスポート
 export type BasicTag = z.infer<typeof basicTagSchema>;
 export type BasicAuthor = z.infer<typeof basicAuthorSchema>;
 export type BasicVideo = z.infer<typeof basicVideoSchema>;
+export type BasicPlaylistVideo = z.infer<typeof basicPlaylistVideoSchema>;
+export type BasicPlaylist = z.infer<typeof basicPlaylistSchema>;
