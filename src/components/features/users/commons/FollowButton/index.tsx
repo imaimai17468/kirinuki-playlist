@@ -11,10 +11,10 @@ interface FollowButtonProps {
 }
 
 export const FollowButton = ({ userId, userName, className }: FollowButtonProps) => {
-  const { state, handleFollow, shouldShowButton } = useFollowButton(userId, userName);
+  const { state, handleFollow, shouldShowButton, user } = useFollowButton(userId, userName);
 
-  // 自分自身の場合はボタンを表示しない
-  if (!shouldShowButton) {
+  // ログインしていない場合、または自分自身の場合はボタンを表示しない
+  if (!user || !shouldShowButton) {
     return null;
   }
 

@@ -138,7 +138,8 @@ export function useFollowButton(userId: string, userName?: string) {
   };
 
   // 自分自身へのフォローボタンを表示するかどうか
-  const shouldShowButton = user?.id !== userId;
+  // ユーザーがログインしていない場合や自分自身の場合は表示しない
+  const shouldShowButton = !!user && user.id !== userId;
 
   return {
     state,
