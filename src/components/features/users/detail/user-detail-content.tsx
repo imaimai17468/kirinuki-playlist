@@ -6,7 +6,6 @@ import { BackLink } from "@/components/parts/back-link";
 import { DataError } from "@/components/parts/data-error";
 import { EmptyState } from "@/components/parts/empty-state";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CLIENT_PATH } from "@/consts/clientpath";
@@ -115,18 +114,6 @@ export const UserDetailContent = async ({ id }: Props) => {
             </div>
           </TabsContent>
         </Tabs>
-
-        <Separator />
-
-        {/* 詳細情報 */}
-        <Card>
-          <CardHeader className="text-sm font-medium">Content information</CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              We will display statistical information such as the number of playlists and clips in the future.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </ContentLayout>
   );
