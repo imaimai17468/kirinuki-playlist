@@ -1,7 +1,5 @@
 export const AUTH_REQUIRED_PATHS = {
   FAVORITES: "/favorites",
-  FOLLOWING: "/following",
-  MY_CLIPS: "/my-clips",
   NOTIFICATIONS: "/notifications",
   SETTINGS: "/settings",
   SETTINGS_NOTIFICATIONS: "/settings/notifications",
