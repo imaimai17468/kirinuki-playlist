@@ -16,6 +16,7 @@ export const TagsContent = async () => {
 
   return (
     <ContentLayout>
+      <h1 className="text-3xl font-bold mb-4">Tags</h1>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {tags.map((tag) => (
           <Link key={tag.id} href={getDetailPath("TAG_DETAIL", tag.id)} className="group">

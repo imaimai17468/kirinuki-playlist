@@ -14,6 +14,7 @@ export const ClipsContent = async () => {
 
   return (
     <ContentLayout>
+      <h1 className="text-3xl font-bold mb-4">Clips</h1>
       <div className="grid grid-cols-3 gap-y-8 gap-x-4">
         {videos.map((video) => (
           <ClipCard key={video.id} video={video} />

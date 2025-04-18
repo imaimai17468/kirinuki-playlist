@@ -37,9 +37,12 @@ export async function FollowingContent({ id }: FollowingContentProps) {
         {/* Back link */}
         <BackLink href={`/users/${id}`} text={`Back to ${author.name}'s profile`} />
 
+        {/* Title */}
+        <h1 className="text-3xl font-bold">Following</h1>
+
         {/* Following list */}
         <div className="space-y-4">
-          <h3 className="text-xl font-semibold tracking-tight">Following {following.length} users</h3>
+          <h2 className="text-xl font-semibold tracking-tight">Following {following.length} users</h2>
           <div className="space-y-4">
             {following.length > 0 ? (
               following.map((followedUser) => <UserCard key={followedUser.id} user={followedUser} />)

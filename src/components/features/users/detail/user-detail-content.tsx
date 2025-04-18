@@ -51,7 +51,7 @@ export const UserDetailContent = async ({ id }: Props) => {
 
             {/* Name */}
             <div className="text-center">
-              <h2 className="text-2xl font-bold">{author.name}</h2>
+              <h1 className="text-3xl font-bold">{author.name}</h1>
               <p className="text-xs text-muted-foreground">@{author.id.substring(0, 8)}</p>
             </div>
 
