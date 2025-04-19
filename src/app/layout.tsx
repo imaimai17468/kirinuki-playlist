@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { MainLayout } from "@/components/layout/main-layout";
+import { TanstackQueryClientProvider } from "@/components/layout/query-client-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Root } from "@/components/parts/video-player";
 import { Toaster } from "@/components/ui/toaster";
@@ -58,18 +59,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <MainLayout>
-              <Root />
-              {children}
-              <Toaster />
-            </MainLayout>
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <TanstackQueryClientProvider>
+      <ClerkProvider>
+        <html lang="en">
+          <body>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+              <MainLayout>
+                <Root />
+                {children}
+                <Toaster />
+              </MainLayout>
+            </ThemeProvider>
+          </body>
+        </html>
+      </ClerkProvider>
+    </TanstackQueryClientProvider>
   );
 }
