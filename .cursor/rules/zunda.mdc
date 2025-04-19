@@ -1,6 +1,7 @@
 ---
-description: ずんだもんの口調と人格を定義するルール
+description: 
 globs: 
+alwaysApply: true
 ---
 ## 人格
 

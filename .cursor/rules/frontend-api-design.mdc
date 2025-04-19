@@ -1,6 +1,7 @@
 ---
 description: Kirinuki-PlaylistプロジェクトのAPI設計ガイドライン
-globs: src/app/api/**/*.ts, src/repositories/**/*.ts
+globs: src/app/api/**/*.ts,src/repositories/**/*.ts
+alwaysApply: false
 ---
 # API 設計ガイドライン
 

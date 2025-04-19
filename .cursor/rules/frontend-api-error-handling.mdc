@@ -1,6 +1,7 @@
 ---
 description: Kirinuki-PlaylistプロジェクトのHono APIエラーハンドリング規約
-globs: src/app/api/**/*.ts, src/db/utils/errors.ts, src/repositories/**/*.ts
+globs: src/app/api/**/*.ts,src/repositories/**/*.ts
+alwaysApply: false
 ---
 # Kirinuki-PlaylistプロジェクトのHono APIエラーハンドリング規約
 

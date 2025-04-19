@@ -1,6 +1,6 @@
 ---
-description: Kirinuki-Playlistプロジェクトのフロントエンド開発コーディング規約
-globs: src/**/*.{ts,tsx}
+description: 
+globs: *.ts,*.tsx
 alwaysApply: false
 ---
 # Kirinuki-Playlist プロジェクトコーディング規約

@@ -1,6 +1,7 @@
 ---
-description:
-globs:
+description: 
+globs: src/db/**/*.ts
+alwaysApply: false
 ---
 # Cloudflare D1データベース管理ガイド
 
