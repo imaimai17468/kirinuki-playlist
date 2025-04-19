@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { runMigrationWithLibSqlServer } from "./migrate";
 
 // 必要なデータモデルをインポート
-import { authors, follows, playlistVideos, playlists, tags, videoTags, videos } from "../src/db/models";
+import { authors, follows, playlistVideos, playlists, tags, videoBookmarks, videoTags, videos } from "../src/db/models";
 
 /**
  * データベースの既存データをクリーンアップします
@@ -24,6 +24,7 @@ async function cleanupDatabase(url: string) {
     await db.delete(videoTags);
     await db.delete(playlistVideos);
     await db.delete(follows);
+    await db.delete(videoBookmarks);
     await db.delete(videos);
     await db.delete(playlists);
     await db.delete(tags);
@@ -298,6 +299,46 @@ async function seedDatabase(url: string) {
       {
         followerId: authorIds[1].id,
         followingId: authorIds[0].id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    // ブックマークデータの挿入
+    console.log("[seed] 動画ブックマークデータを挿入中...");
+    await db.insert(videoBookmarks).values([
+      {
+        id: nanoid(),
+        authorId: authorIds[0].id, // テスト作者1が
+        videoId: videoIds[2].id, // テスト動画3をブックマーク
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: nanoid(),
+        authorId: authorIds[0].id, // テスト作者1が
+        videoId: videoIds[4].id, // 多数タグ動画もブックマーク
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: nanoid(),
+        authorId: authorIds[1].id, // テスト作者2が
+        videoId: videoIds[0].id, // テスト動画1をブックマーク
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: nanoid(),
+        authorId: authorIds[2].id, // クラークユーザーが
+        videoId: videoIds[1].id, // テスト動画2をブックマーク
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: nanoid(),
+        authorId: authorIds[2].id, // クラークユーザーが
+        videoId: videoIds[3].id, // タグなし動画もブックマーク
         createdAt: now,
         updatedAt: now,
       },
