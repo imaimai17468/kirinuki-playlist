@@ -1,11 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { bookmarkVideo, hasBookmarkedVideo, unbookmarkVideo } from "@/repositories/authors";
+import { useBookmarkMutations, useBookmarkStatus } from "@/db/services/video_bookmarks/video_bookmarks_hooks";
 import { useUser } from "@clerk/nextjs";
 import { Bookmark as BookmarkIcon, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
 
 type BookmarkButtonProps = {
   videoId: string;
@@ -22,75 +20,22 @@ export const BookmarkButton = ({
   size = "default",
   showText = false,
 }: BookmarkButtonProps) => {
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const { toast } = useToast();
   const { user, isSignedIn } = useUser();
+  const userId = user?.id ?? "";
 
-  useEffect(() => {
-    const checkBookmarkStatus = async () => {
-      if (!isSignedIn || !user?.id) return;
+  // ブックマーク状態を取得
+  const { data: isBookmarked = false, isLoading: isChecking } = useBookmarkStatus(userId, videoId, !!isSignedIn);
 
-      setIsLoading(true);
-      try {
-        const result = await hasBookmarkedVideo(user.id, videoId);
-        if (result.isOk()) {
-          setIsBookmarked(result.value);
-        }
-      } catch (error) {
-        console.error("Failed to check bookmark status", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // ブックマーク追加・削除のミューテーション
+  const { isLoading: isMutating, toggleBookmark } = useBookmarkMutations(userId, videoId);
 
-    checkBookmarkStatus();
-  }, [user?.id, videoId, isSignedIn]);
+  // ローディング状態
+  const isLoading = isChecking || isMutating;
 
-  // Don't display if the user is not logged in
+  // ユーザーがログインしていない場合は表示しない
   if (!isSignedIn || !user) {
     return null;
   }
-
-  const handleToggleBookmark = async () => {
-    setIsLoading(true);
-    try {
-      if (isBookmarked) {
-        // Remove bookmark
-        const result = await unbookmarkVideo(user.id, videoId);
-        if (result.isOk()) {
-          setIsBookmarked(false);
-          toast({
-            title: "Bookmark Removed",
-            description: "The video has been removed from your bookmarks",
-          });
-        } else {
-          throw new Error(result.error.message);
-        }
-      } else {
-        // Add bookmark
-        const result = await bookmarkVideo(user.id, videoId);
-        if (result.isOk()) {
-          setIsBookmarked(true);
-          toast({
-            title: "Bookmark Added",
-            description: "The video has been added to your bookmarks",
-          });
-        } else {
-          throw new Error(result.error.message);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to toggle bookmark", error);
-      toast({
-        title: "Error",
-        description: "An error occurred while processing your bookmark request",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <Button
@@ -99,7 +44,7 @@ export const BookmarkButton = ({
       className={`${className} ${
         isBookmarked ? "text-yellow-500 hover:text-yellow-600" : "text-muted-foreground hover:text-foreground"
       }`}
-      onClick={handleToggleBookmark}
+      onClick={() => toggleBookmark(isBookmarked)}
       disabled={isLoading}
       title={isBookmarked ? "Remove from Bookmarks" : "Add to Bookmarks"}
     >
