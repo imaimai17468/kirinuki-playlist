@@ -2,6 +2,7 @@ import { getApiClient } from "@/db/config/client";
 import {
   type AuthorInsert,
   type AuthorUpdate,
+  type AuthorWithBookmarkedVideos,
   type AuthorWithCounts,
   type AuthorWithPlaylists,
   type AuthorWithVideos,
@@ -10,6 +11,7 @@ import {
   authorCreateResponseSchema,
   authorResponseSchema,
   authorUpdateDeleteResponseSchema,
+  authorWithBookmarkedVideosResponseSchema,
   authorWithCountsResponseSchema,
   authorWithPlaylistsResponseSchema,
   authorWithVideosAndPlaylistsResponseSchema,
@@ -17,8 +19,10 @@ import {
   authorWithVideosResponseSchema,
   authorsResponseSchema,
   authorsWithCountsResponseSchema,
+  bookmarkStatusResponseSchema,
 } from "@/repositories/authors/types";
 import type { ApiError } from "@/repositories/types";
+import { baseResponseSchema } from "@/repositories/types";
 import { createNetworkError, createSchemaError, handleHttpError } from "@/repositories/utils";
 import { err, ok } from "neverthrow";
 import type { Result } from "neverthrow";
@@ -337,6 +341,137 @@ export async function deleteAuthor(id: string): Promise<Result<void, ApiError>> 
     }
 
     return ok(undefined);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// 著者のブックマーク済み動画を取得
+export async function getAuthorBookmarkedVideos(id: string): Promise<Result<AuthorWithBookmarkedVideos, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"]["bookmarked-videos"].$get({
+      param: { id },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+
+    // 専用のスキーマを使って検証
+    const result = authorWithBookmarkedVideosResponseSchema.safeParse(data);
+    if (!result.success) {
+      return err(
+        createSchemaError(`ブックマーク済み動画を含む著者データの検証に失敗しました: ${result.error.message}`),
+      );
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "ブックマーク済み動画情報の取得に失敗しました",
+      });
+    }
+
+    return ok(result.data.author);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// 動画をブックマークする
+export async function bookmarkVideo(authorId: string, videoId: string): Promise<Result<void, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"].bookmarks.videos[":videoId"].$post({
+      param: { id: authorId, videoId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = baseResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(`レスポンスの検証に失敗しました: ${result.error.message}`));
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "動画のブックマークに失敗しました",
+      });
+    }
+
+    return ok(undefined);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// 動画のブックマークを解除する
+export async function unbookmarkVideo(authorId: string, videoId: string): Promise<Result<void, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"].bookmarks.videos[":videoId"].$delete({
+      param: { id: authorId, videoId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = baseResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(`レスポンスの検証に失敗しました: ${result.error.message}`));
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "動画のブックマーク解除に失敗しました",
+      });
+    }
+
+    return ok(undefined);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// 動画のブックマーク状態を確認する
+export async function hasBookmarkedVideo(authorId: string, videoId: string): Promise<Result<boolean, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"].bookmarks.videos[":videoId"].$get({
+      param: { id: authorId, videoId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = bookmarkStatusResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(`レスポンスの検証に失敗しました: ${result.error.message}`));
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "ブックマーク状態の確認に失敗しました",
+      });
+    }
+
+    return ok(result.data.isBookmarked);
   } catch (error) {
     return err(createNetworkError(error));
   }

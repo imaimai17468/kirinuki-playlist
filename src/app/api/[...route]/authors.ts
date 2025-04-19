@@ -3,6 +3,7 @@ import type { AppEnv } from "@/db/config/hono";
 import { authorInsertSchema, authorUpdateSchema } from "@/db/models/authors";
 import { createAuthorService } from "@/db/services/authors/authors";
 import type { AuthorInsert, AuthorUpdate } from "@/db/services/authors/authors";
+import { NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -161,4 +162,124 @@ export const authorsRouter = new Hono<AppEnv>()
     const service = createAuthorService(dbClient);
     await service.deleteAuthor(id);
     return c.json({ success: true });
+  })
+  // ブックマーク関連のエンドポイントを追加
+  .get("/:id/bookmarked-videos", async (c) => {
+    const id = c.req.param("id");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      const author = await service.getAuthorWithBookmarkedVideos(id);
+      return c.json({ success: true, author });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      console.error("著者のブックマーク取得エラー:", error);
+      return c.json(
+        {
+          success: false,
+          error: "著者のブックマーク取得中にエラーが発生しました",
+        },
+        500,
+      );
+    }
+  })
+  // 動画をブックマークする
+  .post("/:id/bookmarks/videos/:videoId", async (c) => {
+    const authorId = c.req.param("id");
+    const videoId = c.req.param("videoId");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      await service.bookmarkVideo(authorId, videoId);
+      return c.json({ success: true });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      if (error instanceof UniqueConstraintError) {
+        return c.json({ success: false, error: error.message }, 409);
+      }
+      console.error("動画ブックマークエラー:", error);
+      return c.json({ success: false, error: "動画のブックマーク中にエラーが発生しました" }, 500);
+    }
+  })
+  // 動画のブックマークを解除する
+  .delete("/:id/bookmarks/videos/:videoId", async (c) => {
+    const authorId = c.req.param("id");
+    const videoId = c.req.param("videoId");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      await service.unbookmarkVideo(authorId, videoId);
+      return c.json({ success: true });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      console.error("動画ブックマーク解除エラー:", error);
+      return c.json(
+        {
+          success: false,
+          error: "動画のブックマーク解除中にエラーが発生しました",
+        },
+        500,
+      );
+    }
+  })
+  // 動画のブックマーク状態を確認する
+  .get("/:id/bookmarks/videos/:videoId", async (c) => {
+    const authorId = c.req.param("id");
+    const videoId = c.req.param("videoId");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      const isBookmarked = await service.hasBookmarkedVideo(authorId, videoId);
+      return c.json({ success: true, isBookmarked });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      console.error("ブックマーク状態確認エラー:", error);
+      return c.json(
+        {
+          success: false,
+          error: "ブックマーク状態の確認中にエラーが発生しました",
+        },
+        500,
+      );
+    }
   });

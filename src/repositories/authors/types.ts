@@ -38,6 +38,11 @@ export const authorWithCountsSchema = authorSchema.extend({
   playlistCount: z.number(),
 });
 
+// 著者とブックマークした動画を含む拡張スキーマ
+export const authorWithBookmarkedVideosSchema = authorSchema.extend({
+  bookmarkedVideos: z.array(basicVideoSchema),
+});
+
 // 著者と動画、プレイリスト、カウント情報を含む拡張スキーマ
 export const authorWithVideosPlaylistsAndCountsSchema = authorWithVideosAndPlaylistsSchema.extend({
   followerCount: z.number(),
@@ -63,6 +68,7 @@ export const authorResponseSchema = baseResponseSchema.extend({
     authorWithVideosAndPlaylistsSchema,
     authorWithCountsSchema,
     authorWithVideosPlaylistsAndCountsSchema,
+    authorWithBookmarkedVideosSchema,
   ]),
 });
 
@@ -86,6 +92,11 @@ export const authorWithCountsResponseSchema = baseResponseSchema.extend({
   author: authorWithCountsSchema,
 });
 
+// ブックマークした動画を含む著者レスポンス専用のスキーマ
+export const authorWithBookmarkedVideosResponseSchema = baseResponseSchema.extend({
+  author: authorWithBookmarkedVideosSchema,
+});
+
 // 全ての情報を含む著者レスポンス専用のスキーマ
 export const authorWithVideosPlaylistsAndCountsResponseSchema = baseResponseSchema.extend({
   author: authorWithVideosPlaylistsAndCountsSchema,
@@ -102,6 +113,11 @@ export const authorUpdateDeleteResponseSchema = baseResponseSchema.extend({
   message: z.string().optional(),
 });
 
+// ブックマークの状態を返すレスポンススキーマ
+export const bookmarkStatusResponseSchema = baseResponseSchema.extend({
+  isBookmarked: z.boolean(),
+});
+
 export type AuthorsResponse = z.infer<typeof authorsResponseSchema>;
 export type AuthorsWithCountsResponse = z.infer<typeof authorsWithCountsResponseSchema>;
 export type AuthorResponse = z.infer<typeof authorResponseSchema>;
@@ -111,6 +127,8 @@ export type AuthorWithVideos = z.infer<typeof authorWithVideosSchema>;
 export type AuthorWithPlaylists = z.infer<typeof authorWithPlaylistsSchema>;
 export type AuthorWithVideosAndPlaylists = z.infer<typeof authorWithVideosAndPlaylistsSchema>;
 export type AuthorWithCounts = z.infer<typeof authorWithCountsSchema>;
+export type AuthorWithBookmarkedVideos = z.infer<typeof authorWithBookmarkedVideosSchema>;
 export type AuthorWithVideosPlaylistsAndCounts = z.infer<typeof authorWithVideosPlaylistsAndCountsSchema>;
 export type AuthorCreateResponse = z.infer<typeof authorCreateResponseSchema>;
 export type AuthorUpdateDeleteResponse = z.infer<typeof authorUpdateDeleteResponseSchema>;
+export type BookmarkStatusResponse = z.infer<typeof bookmarkStatusResponseSchema>;

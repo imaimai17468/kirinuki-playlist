@@ -6,6 +6,7 @@ import { authors } from "./authors";
 import { follows } from "./follows";
 import { playlists } from "./playlists";
 import { tags } from "./tags";
+import { videoBookmarks } from "./video_bookmarks";
 import { videos } from "./videos";
 
 export const playlistVideos = sqliteTable(
@@ -45,6 +46,7 @@ export const videosRelations = relations(videos, ({ one, many }) => ({
   }),
   playlistVideos: many(playlistVideos),
   videoTags: many(videoTags),
+  bookmarks: many(videoBookmarks),
 }));
 
 export const authorsRelations = relations(authors, ({ many }) => ({
@@ -52,6 +54,7 @@ export const authorsRelations = relations(authors, ({ many }) => ({
   playlists: many(playlists),
   followers: many(follows, { relationName: "following" }),
   following: many(follows, { relationName: "follower" }),
+  videoBookmarks: many(videoBookmarks),
 }));
 
 export const playlistsRelations = relations(playlists, ({ one, many }) => ({
@@ -118,5 +121,16 @@ export const followsRelations = relations(follows, ({ one }) => ({
     fields: [follows.followingId],
     references: [authors.id],
     relationName: "following",
+  }),
+}));
+
+export const videoBookmarksRelations = relations(videoBookmarks, ({ one }) => ({
+  author: one(authors, {
+    fields: [videoBookmarks.authorId],
+    references: [authors.id],
+  }),
+  video: one(videos, {
+    fields: [videoBookmarks.videoId],
+    references: [videos.id],
   }),
 }));
