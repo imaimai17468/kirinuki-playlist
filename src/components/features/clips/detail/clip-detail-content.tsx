@@ -11,6 +11,7 @@ import { formatDate } from "@/utils/date";
 import { convertSecondsToTimeFormat } from "@/utils/youtube";
 import { CalendarDays, Clock, Tag } from "lucide-react";
 import Link from "next/link";
+import { BookmarkButton } from "../commons/bookmark-button";
 import { YoutubePlayer } from "./youtube-player";
 
 type Props = {
@@ -39,7 +40,10 @@ export const ClipDetailContent = async ({ id }: Props) => {
 
         {/* タイトルと基本情報 */}
         <div className="space-y-4">
-          <h1 className="text-2xl font-bold tracking-tight">{video.title}</h1>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <h1 className="text-2xl font-bold tracking-tight">{video.title}</h1>
+            <BookmarkButton videoId={video.id} showText={true} className="self-start" />
+          </div>
           <div className="flex items-center gap-4">
             <Link
               href={getDetailPath("USER_DETAIL", video.author.id)}
