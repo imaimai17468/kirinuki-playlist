@@ -21,12 +21,12 @@ export const BookmarksContent = async ({ authorId }: BookmarksContentProps) => {
 
   return (
     <ContentLayout>
-      <h1 className="text-3xl font-bold mb-4">お気に入り動画</h1>
+      <h1 className="text-3xl font-bold mb-4">Favorite Clips</h1>
 
       {bookmarkedVideos.length === 0 ? (
         <EmptyState
-          title="ブックマークされた動画がありません"
-          description="気に入った動画をブックマークすると、ここに表示されます。"
+          title="No favorite clips"
+          description="Bookmark your favorite clips to see them here."
           icon={<Bookmark className="h-12 w-12 text-muted-foreground/50" />}
         />
       ) : (
