@@ -12,6 +12,7 @@ import { convertSecondsToTimeFormat, getYoutubeId } from "@/utils/youtube";
 import { CalendarDays, Play } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { PlaylistBookmarkButton } from "../commons/playlist-bookmark-button";
 import { PlayPlaylistButton } from "./play-playlist-button";
 
 type Props = {
@@ -74,8 +75,13 @@ export const PlaylistDetailContent = async ({ id }: Props) => {
                 </div>
               </div>
             </div>
-            {/* 再生ボタン (クライアントコンポーネント) */}
-            {videoCount > 0 && <PlayPlaylistButton playlist={playlist} />}
+            {/* 再生ボタンとブックマークボタン */}
+            {videoCount > 0 && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <PlayPlaylistButton playlist={playlist} />
+                <PlaylistBookmarkButton playlistId={playlist.id} showText={true} />
+              </div>
+            )}
           </div>
         </div>
 
