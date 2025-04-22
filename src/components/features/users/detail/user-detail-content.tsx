@@ -71,7 +71,7 @@ export const UserDetailContent = async ({ id }: Props) => {
             {author.bio && <p className="text-sm text-center text-muted-foreground">{author.bio}</p>}
 
             {/* Follow button */}
-            <FollowButton userId={id} className="w-full max-w-[200px]" />
+            <FollowButton userId={id} userName={author.name} className="w-full max-w-[200px]" />
           </div>
         </div>
 
