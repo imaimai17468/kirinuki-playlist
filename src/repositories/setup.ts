@@ -4,9 +4,11 @@ import type { DbClient } from "@/db/config/hono";
 import { createTestDbClient } from "@/db/config/test-database";
 import { authors } from "@/db/models/authors";
 import { follows } from "@/db/models/follows";
+import { playlistBookmarks } from "@/db/models/playlist_bookmarks";
 import { playlists } from "@/db/models/playlists";
 import { playlistVideos, videoTags } from "@/db/models/relations";
 import { tags } from "@/db/models/tags";
+import { videoBookmarks } from "@/db/models/video_bookmarks";
 import { videos } from "@/db/models/videos";
 import { setTestMode } from "@/repositories/auth";
 import { testClient } from "hono/testing";
@@ -34,6 +36,8 @@ export async function setupTestEnv() {
   const client = testClient(app);
 
   // 全てのテストデータをクリア
+  await dbClient.delete(videoBookmarks).run();
+  await dbClient.delete(playlistBookmarks).run();
   await dbClient.delete(videoTags).run();
   await dbClient.delete(playlistVideos).run();
   await dbClient.delete(follows).run();
@@ -317,9 +321,78 @@ export async function insertTestFollows(dbClient: DbClient) {
 }
 
 /**
+ * テスト用のビデオブックマークデータを挿入する
+ */
+export async function insertTestVideoBookmarks(dbClient: DbClient) {
+  // テストビデオブックマークデータ
+  const testVideoBookmarks = [
+    {
+      id: nanoid(),
+      authorId: "author1",
+      videoId: "video1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: nanoid(),
+      authorId: "author2",
+      videoId: "video1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: nanoid(),
+      authorId: "author1",
+      videoId: "video2",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  // ビデオブックマークデータを挿入
+  for (const bookmark of testVideoBookmarks) {
+    await dbClient.insert(videoBookmarks).values(bookmark);
+  }
+
+  return testVideoBookmarks;
+}
+
+/**
+ * テスト用のプレイリストブックマークデータを挿入する
+ */
+export async function insertTestPlaylistBookmarks(dbClient: DbClient) {
+  // テストプレイリストブックマークデータ
+  const testPlaylistBookmarks = [
+    {
+      id: nanoid(),
+      authorId: "author1",
+      playlistId: "playlist2",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: nanoid(),
+      authorId: "author2",
+      playlistId: "playlist1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  // プレイリストブックマークデータを挿入
+  for (const bookmark of testPlaylistBookmarks) {
+    await dbClient.insert(playlistBookmarks).values(bookmark);
+  }
+
+  return testPlaylistBookmarks;
+}
+
+/**
  * テスト実行後のクリーンアップ
  */
 export async function cleanupTestData(dbClient: DbClient) {
+  await dbClient.delete(videoBookmarks).run();
+  await dbClient.delete(playlistBookmarks).run();
   await dbClient.delete(videoTags).run();
   await dbClient.delete(playlistVideos).run();
   await dbClient.delete(follows).run();
@@ -341,6 +414,8 @@ export async function insertAllTestData(dbClient: DbClient) {
   const follows = await insertTestFollows(dbClient);
   const playlistVideoRelations = await insertTestPlaylistVideos(dbClient);
   const videoTagRelations = await insertTestVideoTags(dbClient);
+  const videoBookmarks = await insertTestVideoBookmarks(dbClient);
+  const playlistBookmarks = await insertTestPlaylistBookmarks(dbClient);
 
   return {
     authors,
@@ -350,5 +425,7 @@ export async function insertAllTestData(dbClient: DbClient) {
     follows,
     playlistVideoRelations,
     videoTagRelations,
+    videoBookmarks,
+    playlistBookmarks,
   };
 }

@@ -2,19 +2,23 @@ import { getApiClient } from "@/db/config/client";
 import {
   type AuthorInsert,
   type AuthorUpdate,
+  type AuthorWithBookmarkedPlaylists,
   type AuthorWithBookmarkedVideos,
   type AuthorWithCounts,
   type AuthorWithPlaylists,
   type AuthorWithVideos,
   type AuthorWithVideosAndPlaylists,
+  type AuthorWithVideosPlaylistsAndBookmarks,
   type AuthorWithVideosPlaylistsAndCounts,
   authorCreateResponseSchema,
   authorResponseSchema,
   authorUpdateDeleteResponseSchema,
+  authorWithBookmarkedPlaylistsResponseSchema,
   authorWithBookmarkedVideosResponseSchema,
   authorWithCountsResponseSchema,
   authorWithPlaylistsResponseSchema,
   authorWithVideosAndPlaylistsResponseSchema,
+  authorWithVideosPlaylistsAndBookmarksResponseSchema,
   authorWithVideosPlaylistsAndCountsResponseSchema,
   authorWithVideosResponseSchema,
   authorsResponseSchema,
@@ -472,6 +476,180 @@ export async function hasBookmarkedVideo(authorId: string, videoId: string): Pro
     }
 
     return ok(result.data.isBookmarked);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// 著者のブックマーク済みプレイリストを取得
+export async function getAuthorBookmarkedPlaylists(
+  id: string,
+): Promise<Result<AuthorWithBookmarkedPlaylists, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"]["bookmarked-playlists"].$get({
+      param: { id },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+
+    // 専用のスキーマを使って検証
+    const result = authorWithBookmarkedPlaylistsResponseSchema.safeParse(data);
+    if (!result.success) {
+      return err(
+        createSchemaError(`ブックマーク済みプレイリストを含む著者データの検証に失敗しました: ${result.error.message}`),
+      );
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "ブックマーク済みプレイリスト情報の取得に失敗しました",
+      });
+    }
+
+    return ok(result.data.author);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// プレイリストをブックマークする
+export async function bookmarkPlaylist(authorId: string, playlistId: string): Promise<Result<void, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"].bookmarks.playlists[":playlistId"].$post({
+      param: { id: authorId, playlistId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = baseResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(`レスポンスの検証に失敗しました: ${result.error.message}`));
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "プレイリストのブックマークに失敗しました",
+      });
+    }
+
+    return ok(undefined);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// プレイリストのブックマークを解除する
+export async function unbookmarkPlaylist(authorId: string, playlistId: string): Promise<Result<void, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"].bookmarks.playlists[":playlistId"].$delete({
+      param: { id: authorId, playlistId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = baseResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(`レスポンスの検証に失敗しました: ${result.error.message}`));
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "プレイリストのブックマーク解除に失敗しました",
+      });
+    }
+
+    return ok(undefined);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+// プレイリストのブックマーク状態を確認する
+export async function hasBookmarkedPlaylist(authorId: string, playlistId: string): Promise<Result<boolean, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"].bookmarks.playlists[":playlistId"].$get({
+      param: { id: authorId, playlistId },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+    const result = bookmarkStatusResponseSchema.safeParse(data);
+
+    if (!result.success) {
+      return err(createSchemaError(`レスポンスの検証に失敗しました: ${result.error.message}`));
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "プレイリストブックマーク状態の確認に失敗しました",
+      });
+    }
+
+    return ok(result.data.isBookmarked);
+  } catch (error) {
+    return err(createNetworkError(error));
+  }
+}
+
+/**
+ * 作者の詳細（動画・プレイリスト・ブックマーク情報を含む）を取得
+ * @param id 作者ID
+ * @returns 作者情報（動画・プレイリスト・ブックマーク情報を含む）
+ */
+export async function getAuthorWithVideosPlaylistsAndBookmarks(
+  id: string,
+): Promise<Result<AuthorWithVideosPlaylistsAndBookmarks, ApiError>> {
+  try {
+    const client = getApiClient();
+    const response = await client.api.authors[":id"]["all-with-bookmarks"].$get({
+      param: { id },
+    });
+
+    if (!response.ok) {
+      return handleHttpError(response);
+    }
+
+    const data = await response.json();
+
+    // 専用のスキーマを使って検証
+    const result = authorWithVideosPlaylistsAndBookmarksResponseSchema.safeParse(data);
+    if (!result.success) {
+      return err(
+        createSchemaError(`全ての情報とブックマークを含む著者データの検証に失敗しました: ${result.error.message}`),
+      );
+    }
+
+    if (!result.data.success) {
+      return err({
+        type: "badRequest",
+        message: "著者の全データとブックマーク情報の取得に失敗しました",
+      });
+    }
+
+    return ok(result.data.author);
   } catch (error) {
     return err(createNetworkError(error));
   }

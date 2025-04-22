@@ -7,6 +7,7 @@ import { follows } from "../../models/follows";
 import { playlists } from "../../models/playlists";
 import { videos } from "../../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
+import { createPlaylistBookmarkService } from "../playlist_bookmarks/playlist_bookmarks";
 import type { PlaylistWithAuthorAndVideos } from "../playlists/playlists";
 import { createPlaylistService } from "../playlists/playlists";
 import { createVideoBookmarkService } from "../video_bookmarks/video_bookmarks";
@@ -52,9 +53,15 @@ export type AuthorWithBookmarkedVideos = Author & {
   bookmarkedVideos: VideoWithTagsAndAuthor[];
 };
 
+// 著者とブックマークしたプレイリストを含む拡張型
+export type AuthorWithBookmarkedPlaylists = Author & {
+  bookmarkedPlaylists: PlaylistWithAuthorAndVideos[];
+};
+
 // 著者と動画・プレイリスト・ブックマークを含む完全拡張型
 export type AuthorWithVideosPlaylistsAndBookmarks = AuthorWithVideosAndPlaylists & {
   bookmarkedVideos: VideoWithTagsAndAuthor[];
+  bookmarkedPlaylists: PlaylistWithAuthorAndVideos[];
 };
 
 // 依存性注入パターンを使った著者サービスの作成関数
@@ -301,25 +308,25 @@ export const createAuthorService = (dbClient: DbClient) => ({
     }
   },
 
-  async getAuthorWithVideosPlaylistsAndBookmarks(id: string): Promise<AuthorWithVideosPlaylistsAndBookmarks> {
+  async getAuthorWithBookmarkedPlaylists(id: string): Promise<AuthorWithBookmarkedPlaylists> {
     try {
-      // 著者の基本情報と動画・プレイリストを取得
-      const authorWithData = await this.getAuthorWithVideosAndPlaylists(id);
+      // 著者の基本情報を取得
+      const author = await this.getAuthorById(id);
 
-      // 著者がブックマークした動画を取得
-      const videoBookmarkService = createVideoBookmarkService(dbClient);
-      const bookmarkedVideos = await videoBookmarkService.getBookmarksByAuthorId(id);
+      // 著者がブックマークしたプレイリストを取得
+      const playlistBookmarkService = createPlaylistBookmarkService(dbClient);
+      const bookmarkedPlaylists = await playlistBookmarkService.getBookmarksByAuthorId(id);
 
       return {
-        ...authorWithData,
-        bookmarkedVideos,
+        ...author,
+        bookmarkedPlaylists,
       };
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
       }
       throw new DatabaseError(
-        `著者の全データ（ブックマーク含む）の取得中にエラーが発生しました: ${
+        `著者とブックマークプレイリスト情報の取得中にエラーが発生しました: ${
           error instanceof Error ? error.message : "不明なエラー"
         }`,
       );
@@ -379,6 +386,69 @@ export const createAuthorService = (dbClient: DbClient) => ({
       }
       throw new DatabaseError(
         `ブックマーク状態の確認中にエラーが発生しました: ${error instanceof Error ? error.message : "不明なエラー"}`,
+      );
+    }
+  },
+
+  async bookmarkPlaylist(authorId: string, playlistId: string): Promise<void> {
+    try {
+      // 著者の存在を確認
+      await this.getAuthorById(authorId);
+
+      // ブックマークサービスを使用してブックマークを作成
+      const playlistBookmarkService = createPlaylistBookmarkService(dbClient);
+      await playlistBookmarkService.createBookmark(authorId, playlistId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      if (error instanceof UniqueConstraintError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `プレイリストのブックマーク中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`,
+      );
+    }
+  },
+
+  async unbookmarkPlaylist(authorId: string, playlistId: string): Promise<void> {
+    try {
+      // 著者の存在を確認
+      await this.getAuthorById(authorId);
+
+      // ブックマークサービスを使用してブックマークを削除
+      const playlistBookmarkService = createPlaylistBookmarkService(dbClient);
+      await playlistBookmarkService.deleteBookmark(authorId, playlistId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `プレイリストのブックマーク解除中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`,
+      );
+    }
+  },
+
+  async hasBookmarkedPlaylist(authorId: string, playlistId: string): Promise<boolean> {
+    try {
+      // 著者の存在を確認
+      await this.getAuthorById(authorId);
+
+      // ブックマーク状態を確認
+      const playlistBookmarkService = createPlaylistBookmarkService(dbClient);
+      return await playlistBookmarkService.hasBookmarked(authorId, playlistId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `プレイリストブックマーク状態の確認中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`,
       );
     }
   },
@@ -464,6 +534,36 @@ export const createAuthorService = (dbClient: DbClient) => ({
       }
 
       throw error;
+    }
+  },
+
+  async getAuthorWithVideosPlaylistsAndBookmarks(id: string): Promise<AuthorWithVideosPlaylistsAndBookmarks> {
+    try {
+      // 著者の基本情報と動画・プレイリストを取得
+      const authorWithData = await this.getAuthorWithVideosAndPlaylists(id);
+
+      // 著者がブックマークした動画を取得
+      const videoBookmarkService = createVideoBookmarkService(dbClient);
+      const bookmarkedVideos = await videoBookmarkService.getBookmarksByAuthorId(id);
+
+      // 著者がブックマークしたプレイリストを取得
+      const playlistBookmarkService = createPlaylistBookmarkService(dbClient);
+      const bookmarkedPlaylists = await playlistBookmarkService.getBookmarksByAuthorId(id);
+
+      return {
+        ...authorWithData,
+        bookmarkedVideos,
+        bookmarkedPlaylists,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new DatabaseError(
+        `著者の全データ（ブックマーク含む）の取得中にエラーが発生しました: ${
+          error instanceof Error ? error.message : "不明なエラー"
+        }`,
+      );
     }
   },
 });

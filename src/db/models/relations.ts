@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { authors } from "./authors";
 import { follows } from "./follows";
+import { playlistBookmarks } from "./playlist_bookmarks";
 import { playlists } from "./playlists";
 import { tags } from "./tags";
 import { videoBookmarks } from "./video_bookmarks";
@@ -52,9 +53,10 @@ export const videosRelations = relations(videos, ({ one, many }) => ({
 export const authorsRelations = relations(authors, ({ many }) => ({
   videos: many(videos),
   playlists: many(playlists),
-  followers: many(follows, { relationName: "following" }),
+  followedBy: many(follows, { relationName: "followed" }),
   following: many(follows, { relationName: "follower" }),
   videoBookmarks: many(videoBookmarks),
+  playlistBookmarks: many(playlistBookmarks),
 }));
 
 export const playlistsRelations = relations(playlists, ({ one, many }) => ({
@@ -132,5 +134,16 @@ export const videoBookmarksRelations = relations(videoBookmarks, ({ one }) => ({
   video: one(videos, {
     fields: [videoBookmarks.videoId],
     references: [videos.id],
+  }),
+}));
+
+export const playlistBookmarksRelations = relations(playlistBookmarks, ({ one }) => ({
+  author: one(authors, {
+    fields: [playlistBookmarks.authorId],
+    references: [authors.id],
+  }),
+  playlist: one(playlists, {
+    fields: [playlistBookmarks.playlistId],
+    references: [playlists.id],
   }),
 }));

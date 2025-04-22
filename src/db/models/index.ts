@@ -5,3 +5,4 @@ export * from "./playlists";
 export * from "./tags";
 export * from "./follows";
 export * from "./video_bookmarks";
+export * from "./playlist_bookmarks";

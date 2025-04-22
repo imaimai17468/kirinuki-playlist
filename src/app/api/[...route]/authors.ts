@@ -26,6 +26,10 @@ const authorQuerySchema = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((val) => val === "true"),
+  withBookmarks: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((val) => val === "true"),
 });
 
 // 一覧取得用のクエリパラメータのバリデーションスキーマ
@@ -68,6 +72,7 @@ export const authorsRouter = new Hono<AppEnv>()
       withPlaylists = false,
       withVideosAndPlaylists = false,
       withCounts = false,
+      withBookmarks = false,
     } = c.req.valid("query");
 
     // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
@@ -80,22 +85,16 @@ export const authorsRouter = new Hono<AppEnv>()
 
     const service = createAuthorService(dbClient);
 
+    // 動画・プレイリスト・ブックマーク情報を全て取得する場合
+    if (withVideosAndPlaylists && withBookmarks) {
+      const authorWithAll = await service.getAuthorWithVideosPlaylistsAndBookmarks(id);
+      return c.json({ success: true, author: authorWithAll });
+    }
+
     // 全ての情報を取得する場合
     if (withVideosAndPlaylists && withCounts) {
       const authorWithAll = await service.getAuthorWithVideosPlaylistsAndCounts(id);
       return c.json({ success: true, author: authorWithAll });
-    }
-
-    // 動画とプレイリストの両方を取得する場合
-    if (withVideosAndPlaylists) {
-      const authorWithAll = await service.getAuthorWithVideosAndPlaylists(id);
-      return c.json({ success: true, author: authorWithAll });
-    }
-
-    // カウント情報のみを取得する場合
-    if (withCounts) {
-      const authorWithCounts = await service.getAuthorWithCounts(id);
-      return c.json({ success: true, author: authorWithCounts });
     }
 
     // 動画情報を取得する場合
@@ -278,6 +277,162 @@ export const authorsRouter = new Hono<AppEnv>()
         {
           success: false,
           error: "ブックマーク状態の確認中にエラーが発生しました",
+        },
+        500,
+      );
+    }
+  })
+  // プレイリストのブックマーク関連のエンドポイントを追加
+  .get("/:id/bookmarked-playlists", async (c) => {
+    const id = c.req.param("id");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      const author = await service.getAuthorWithBookmarkedPlaylists(id);
+      return c.json({ success: true, author });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      console.error("著者のプレイリストブックマーク取得エラー:", error);
+      return c.json(
+        {
+          success: false,
+          error: "著者のプレイリストブックマーク取得中にエラーが発生しました",
+        },
+        500,
+      );
+    }
+  })
+  // プレイリストをブックマークする
+  .post("/:id/bookmarks/playlists/:playlistId", async (c) => {
+    const authorId = c.req.param("id");
+    const playlistId = c.req.param("playlistId");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      await service.bookmarkPlaylist(authorId, playlistId);
+      return c.json({ success: true });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      if (error instanceof UniqueConstraintError) {
+        return c.json({ success: false, error: error.message }, 409);
+      }
+      console.error("プレイリストブックマークエラー:", error);
+      return c.json(
+        {
+          success: false,
+          error: "プレイリストのブックマーク中にエラーが発生しました",
+        },
+        500,
+      );
+    }
+  })
+  // プレイリストのブックマークを解除する
+  .delete("/:id/bookmarks/playlists/:playlistId", async (c) => {
+    const authorId = c.req.param("id");
+    const playlistId = c.req.param("playlistId");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      await service.unbookmarkPlaylist(authorId, playlistId);
+      return c.json({ success: true });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      console.error("プレイリストブックマーク解除エラー:", error);
+      return c.json(
+        {
+          success: false,
+          error: "プレイリストのブックマーク解除中にエラーが発生しました",
+        },
+        500,
+      );
+    }
+  })
+  // プレイリストのブックマーク状態を確認する
+  .get("/:id/bookmarks/playlists/:playlistId", async (c) => {
+    const authorId = c.req.param("id");
+    const playlistId = c.req.param("playlistId");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      const isBookmarked = await service.hasBookmarkedPlaylist(authorId, playlistId);
+      return c.json({ success: true, isBookmarked });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      console.error("プレイリストブックマーク状態確認エラー:", error);
+      return c.json(
+        {
+          success: false,
+          error: "プレイリストブックマーク状態の確認中にエラーが発生しました",
+        },
+        500,
+      );
+    }
+  })
+  // 新しいエンドポイントを追加
+  .get("/:id/all-with-bookmarks", async (c) => {
+    const id = c.req.param("id");
+
+    try {
+      // コンテキストからdbClientを取得するか、ない場合は従来通りの方法で取得
+      let dbClient = c.get("dbClient");
+      if (!dbClient) {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { DB } = getRequestContext().env;
+        dbClient = createDbClient(DB);
+      }
+
+      const service = createAuthorService(dbClient);
+      const author = await service.getAuthorWithVideosPlaylistsAndBookmarks(id);
+      return c.json({ success: true, author });
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return c.json({ success: false, error: error.message }, 404);
+      }
+      console.error("著者の全データ（ブックマーク含む）取得エラー:", error);
+      return c.json(
+        {
+          success: false,
+          error: "著者の全データ（ブックマーク含む）取得中にエラーが発生しました",
         },
         500,
       );
