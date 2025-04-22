@@ -4,7 +4,17 @@ import { nanoid } from "nanoid";
 import { runMigrationWithLibSqlServer } from "./migrate";
 
 // 必要なデータモデルをインポート
-import { authors, follows, playlistVideos, playlists, tags, videoBookmarks, videoTags, videos } from "../src/db/models";
+import {
+  authors,
+  follows,
+  playlistBookmarks,
+  playlistVideos,
+  playlists,
+  tags,
+  videoBookmarks,
+  videoTags,
+  videos,
+} from "../src/db/models";
 
 /**
  * データベースの既存データをクリーンアップします
@@ -25,6 +35,7 @@ async function cleanupDatabase(url: string) {
     await db.delete(playlistVideos);
     await db.delete(follows);
     await db.delete(videoBookmarks);
+    await db.delete(playlistBookmarks);
     await db.delete(videos);
     await db.delete(playlists);
     await db.delete(tags);
@@ -339,6 +350,32 @@ async function seedDatabase(url: string) {
         id: nanoid(),
         authorId: authorIds[2].id, // クラークユーザーが
         videoId: videoIds[3].id, // タグなし動画もブックマーク
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    // プレイリストブックマークデータの挿入
+    console.log("[seed] プレイリストブックマークデータを挿入中...");
+    await db.insert(playlistBookmarks).values([
+      {
+        id: nanoid(),
+        authorId: authorIds[0].id, // テスト作者1が
+        playlistId: playlistIds[1].id, // テストプレイリスト2をブックマーク
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: nanoid(),
+        authorId: authorIds[1].id, // テスト作者2が
+        playlistId: playlistIds[0].id, // テストプレイリスト1をブックマーク
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: nanoid(),
+        authorId: authorIds[2].id, // クラークユーザーが
+        playlistId: playlistIds[0].id, // テストプレイリスト1をブックマーク
         createdAt: now,
         updatedAt: now,
       },
