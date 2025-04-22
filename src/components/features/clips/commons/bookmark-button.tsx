@@ -46,14 +46,14 @@ export const BookmarkButton = ({
       }`}
       onClick={() => toggleBookmark(isBookmarked)}
       disabled={isLoading}
-      title={isBookmarked ? "Remove from Bookmarks" : "Add to Bookmarks"}
+      title={isBookmarked ? "Bookmarked" : "Bookmark"}
     >
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin mr-2" />
       ) : (
         <BookmarkIcon className={`h-4 w-4 ${showText ? "mr-2" : ""}`} fill={isBookmarked ? "currentColor" : "none"} />
       )}
-      {showText && (isBookmarked ? "Remove from Bookmarks" : "Add to Bookmarks")}
+      {showText && (isBookmarked ? "Bookmarked" : "Bookmark")}
     </Button>
   );
 };
