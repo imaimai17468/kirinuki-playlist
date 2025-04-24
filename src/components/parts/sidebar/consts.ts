@@ -39,10 +39,6 @@ export const SIDEBAR_ITEMS = {
         isActive: false,
         items: [
           {
-            title: "General",
-            url: "/settings/general",
-          },
-          {
             title: "Account",
             url: "/settings/account",
           },

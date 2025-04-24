@@ -1,8 +1,6 @@
 export const AUTH_REQUIRED_PATHS = {
   FAVORITES: "/favorites",
-  NOTIFICATIONS: "/notifications",
   SETTINGS: "/settings",
-  SETTINGS_NOTIFICATIONS: "/settings/notifications",
   SETTINGS_ACCOUNT: "/settings/account",
   SETTINGS_BILLING: "/settings/billing",
 } as const;
