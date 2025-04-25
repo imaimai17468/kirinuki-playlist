@@ -234,6 +234,8 @@ export const createTagService = (dbClient: DbClient) => ({
 
         // タグを削除
         await tx.delete(tags).where(eq(tags.id, id)).run();
+
+        return; // 明示的なreturnを追加
       });
     } catch (error: unknown) {
       if (error instanceof NotFoundError) {
