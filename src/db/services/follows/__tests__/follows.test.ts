@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createTestDbClient } from "@/db/config/test-database";
+import { authors } from "@/db/models/authors";
+import { follows } from "@/db/models/follows";
+import { createFollowService } from "@/db/services/follows";
+import { NotFoundError } from "@/db/utils/errors";
 import { and, count, eq } from "drizzle-orm";
-import { createTestDbClient } from "../../config/test-database";
-import { authors } from "../../models/authors";
-import { follows } from "../../models/follows";
-import { NotFoundError } from "../../utils/errors";
-import { createFollowService } from "./follows";
 
 // 各テストで使用するテストデータ
 const testAuthors = [

@@ -2,21 +2,10 @@ import type { DbClient } from "@/db/config/hono";
 import { authors, follows, playlists, videos } from "@/db/models";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { and, eq } from "drizzle-orm";
+import type { User } from "./types";
 
-// ユーザー情報の型（UserCardコンポーネントと互換性を持つ）
-export interface User {
-  id: string;
-  name: string;
-  iconUrl: string;
-  createdAt?: Date;
-  bio?: string | null;
-  followerCount?: number;
-  videoCount?: number;
-  playlistCount?: number;
-}
-
-// フォローサービスの作成関数
-export const createFollowService = (dbClient: DbClient) => ({
+// フォローサービスの基本操作
+export const createBaseFollowService = (dbClient: DbClient) => ({
   // ユーザーをフォローする
   async followUser(followerId: string, followingId: string): Promise<void> {
     if (followerId === followingId) {
@@ -98,6 +87,24 @@ export const createFollowService = (dbClient: DbClient) => ({
 
       if (error instanceof Error) {
         throw new DatabaseError(`フォロー解除中にエラーが発生しました: ${error.message}`);
+      }
+      throw error;
+    }
+  },
+
+  // フォロー関係を確認する
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    try {
+      const follow = await dbClient
+        .select()
+        .from(follows)
+        .where(and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)))
+        .get();
+
+      return !!follow;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new DatabaseError(`フォロー状態の確認中にエラーが発生しました: ${error.message}`);
       }
       throw error;
     }
@@ -218,24 +225,6 @@ export const createFollowService = (dbClient: DbClient) => ({
 
       if (error instanceof Error) {
         throw new DatabaseError(`フォロー中ユーザー取得中にエラーが発生しました: ${error.message}`);
-      }
-      throw error;
-    }
-  },
-
-  // フォロー関係を確認する
-  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
-    try {
-      const follow = await dbClient
-        .select()
-        .from(follows)
-        .where(and(eq(follows.followerId, followerId), eq(follows.followingId, followingId)))
-        .get();
-
-      return !!follow;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new DatabaseError(`フォロー状態の確認中にエラーが発生しました: ${error.message}`);
       }
       throw error;
     }

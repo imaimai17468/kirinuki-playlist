@@ -1,6 +1,6 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
-import { createFollowService } from "@/db/services/follows/follows";
+import { createFollowService } from "@/db/services/follows";
 import { getAuth } from "@/repositories/auth";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
