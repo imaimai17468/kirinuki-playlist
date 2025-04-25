@@ -1,8 +1,8 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { authorInsertSchema, authorUpdateSchema } from "@/db/models/authors";
-import { createAuthorService } from "@/db/services/authors/authors";
-import type { AuthorInsert, AuthorUpdate } from "@/db/services/authors/authors";
+import { createAuthorService } from "@/db/services/authors";
+import type { AuthorInsert, AuthorUpdate } from "@/db/services/authors";
 import { NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -95,6 +95,18 @@ export const authorsRouter = new Hono<AppEnv>()
     if (withVideosAndPlaylists && withCounts) {
       const authorWithAll = await service.getAuthorWithVideosPlaylistsAndCounts(id);
       return c.json({ success: true, author: authorWithAll });
+    }
+
+    // 動画とプレイリスト情報を取得する場合
+    if (withVideosAndPlaylists) {
+      const authorWithVideosAndPlaylists = await service.getAuthorWithVideosAndPlaylists(id);
+      return c.json({ success: true, author: authorWithVideosAndPlaylists });
+    }
+
+    // カウント情報を取得する場合
+    if (withCounts) {
+      const authorWithCounts = await service.getAuthorWithCounts(id);
+      return c.json({ success: true, author: authorWithCounts });
     }
 
     // 動画情報を取得する場合
