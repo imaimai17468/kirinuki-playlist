@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { DbClient } from "@/db/config/hono";
 import { cleanupTestData, insertTestAuthors, insertTestFollows, setupTestEnv } from "@/repositories/setup";
-import { followUser, getUserFollowers, getUserFollowing, isFollowing, unfollowUser } from "../follows";
+import { followUser, getUserFollowers, getUserFollowing, isFollowing, unfollowUser } from "..";
 
 // テスト用の状態を保持する変数
 let dbClient: DbClient;
