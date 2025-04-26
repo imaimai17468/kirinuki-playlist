@@ -8,7 +8,7 @@ import type {
   AuthorWithVideosPlaylistsAndBookmarks,
 } from "@/db/services/authors/types";
 import type { BaseAuthorService } from "@/db/services/authors/types-internal";
-import { createPlaylistBookmarkService } from "@/db/services/playlist_bookmarks/playlist_bookmarks";
+import { createPlaylistBookmarkService } from "@/db/services/playlist_bookmarks";
 import { createPlaylistService } from "@/db/services/playlists/playlists";
 import { createVideoBookmarkService } from "@/db/services/video_bookmarks/video_bookmarks";
 import { createVideoService } from "@/db/services/videos/videos";

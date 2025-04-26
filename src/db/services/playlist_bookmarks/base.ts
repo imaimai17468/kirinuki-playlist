@@ -7,15 +7,10 @@ import { playlists } from "../../models/playlists";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
 import type { PlaylistWithAuthorAndVideos } from "../playlists/playlists";
 import { createPlaylistService } from "../playlists/playlists";
-
-export type BookmarkResult = {
-  id: string;
-  playlistId: string;
-  authorId: string;
-};
+import type { BookmarkResult } from "./types";
 
 // 依存性注入パターンを使ったプレイリストブックマークサービスの作成関数
-export const createPlaylistBookmarkService = (dbClient: DbClient) => ({
+export const createBasePlaylistBookmarkService = (dbClient: DbClient) => ({
   // 著者のブックマーク一覧を取得
   async getBookmarksByAuthorId(authorId: string): Promise<PlaylistWithAuthorAndVideos[]> {
     try {

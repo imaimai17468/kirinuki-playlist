@@ -1,7 +1,7 @@
 import type { DbClient } from "@/db/config/hono";
 import type { AuthorWithBookmarkedPlaylists, AuthorWithBookmarkedVideos } from "@/db/services/authors/types";
 import type { BaseAuthorService } from "@/db/services/authors/types-internal";
-import { createPlaylistBookmarkService } from "@/db/services/playlist_bookmarks/playlist_bookmarks";
+import { createPlaylistBookmarkService } from "@/db/services/playlist_bookmarks";
 import { createVideoBookmarkService } from "@/db/services/video_bookmarks/video_bookmarks";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 

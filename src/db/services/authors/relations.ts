@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { playlists } from "../../models/playlists";
 import { videos } from "../../models/videos";
 import { DatabaseError, NotFoundError } from "../../utils/errors";
-import { createPlaylistBookmarkService } from "../playlist_bookmarks/playlist_bookmarks";
+import { createPlaylistBookmarkService } from "../playlist_bookmarks";
 import { createPlaylistService } from "../playlists/playlists";
 import { createVideoBookmarkService } from "../video_bookmarks/video_bookmarks";
 import { createVideoService } from "../videos/videos";

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createTestDbClient } from "@/db/config/test-database";
+import { authors } from "@/db/models/authors";
+import { playlistBookmarks } from "@/db/models/playlist_bookmarks";
+import { playlists } from "@/db/models/playlists";
+import { createPlaylistBookmarkService } from "@/db/services/playlist_bookmarks";
+import { NotFoundError } from "@/db/utils/errors";
 import { and, eq } from "drizzle-orm";
-import { createTestDbClient } from "../../config/test-database";
-import { authors } from "../../models/authors";
-import { playlistBookmarks } from "../../models/playlist_bookmarks";
-import { playlists } from "../../models/playlists";
-import { NotFoundError } from "../../utils/errors";
-import { createPlaylistBookmarkService } from "./playlist_bookmarks";
 
 // Each test will use this test data
 const testAuthors = [
