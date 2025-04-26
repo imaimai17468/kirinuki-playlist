@@ -7,15 +7,9 @@ import { videos } from "../../models/videos";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
 import type { VideoWithTagsAndAuthor } from "../videos/videos";
 import { createVideoService } from "../videos/videos";
+import type { BookmarkResult } from "./types";
 
-export type BookmarkResult = {
-  id: string;
-  videoId: string;
-  authorId: string;
-};
-
-// 依存性注入パターンを使ったビデオブックマークサービスの作成関数
-export const createVideoBookmarkService = (dbClient: DbClient) => ({
+export const createBaseVideoBookmarkService = (dbClient: DbClient) => ({
   // 著者のブックマーク一覧を取得
   async getBookmarksByAuthorId(authorId: string): Promise<VideoWithTagsAndAuthor[]> {
     try {
