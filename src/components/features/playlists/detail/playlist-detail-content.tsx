@@ -1,3 +1,5 @@
+import { PlaylistBookmarkButton } from "@/components/features/playlists/commons/playlist-bookmark-button";
+import { PlayPlaylistButton } from "@/components/features/playlists/detail/play-playlist-button";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { BackLink } from "@/components/parts/back-link";
 import { DataError } from "@/components/parts/data-error";
@@ -12,8 +14,6 @@ import { convertSecondsToTimeFormat, getYoutubeId } from "@/utils/youtube";
 import { CalendarDays, Play } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { PlaylistBookmarkButton } from "../commons/playlist-bookmark-button";
-import { PlayPlaylistButton } from "./play-playlist-button";
 
 type Props = {
   id: string;

@@ -1,12 +1,12 @@
 import type { DbClient } from "@/db/config/hono";
+import { authors } from "@/db/models/authors";
+import { videoTags } from "@/db/models/relations";
+import { tags } from "@/db/models/tags";
+import { videos } from "@/db/models/videos";
+import type { VideoBase, VideoInsert, VideoUpdate, VideoWithTagsAndAuthor } from "@/db/services/videos/types";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authors } from "../../models/authors";
-import { videoTags } from "../../models/relations";
-import { tags } from "../../models/tags";
-import { videos } from "../../models/videos";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
-import type { VideoBase, VideoInsert, VideoUpdate, VideoWithTagsAndAuthor } from "./types";
 
 export const createBaseVideoService = (dbClient: DbClient) => ({
   // 内部使用のメソッド（著者情報なし）

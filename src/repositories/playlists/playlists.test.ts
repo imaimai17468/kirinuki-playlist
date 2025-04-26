@@ -1,14 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { DbClient } from "@/db/config/hono";
 import {
-  cleanupTestData,
-  insertTestAuthors,
-  insertTestPlaylistVideos,
-  insertTestPlaylists,
-  insertTestVideos,
-  setupTestEnv,
-} from "@/repositories/setup";
-import {
   addVideoToPlaylist,
   createPlaylist,
   deletePlaylist,
@@ -17,8 +9,21 @@ import {
   removeVideoFromPlaylist,
   updatePlaylist,
   updatePlaylistVideo,
-} from "../playlists";
-import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert, PlaylistVideoUpdate } from "../playlists/types";
+} from "@/repositories/playlists";
+import type {
+  PlaylistInsert,
+  PlaylistUpdate,
+  PlaylistVideoInsert,
+  PlaylistVideoUpdate,
+} from "@/repositories/playlists/types";
+import {
+  cleanupTestData,
+  insertTestAuthors,
+  insertTestPlaylistVideos,
+  insertTestPlaylists,
+  insertTestVideos,
+  setupTestEnv,
+} from "@/repositories/setup";
 
 // テスト用の状態を保持する変数
 let dbClient: DbClient;

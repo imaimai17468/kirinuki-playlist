@@ -1,12 +1,12 @@
 import type { DbClient } from "@/db/config/hono";
+import { authors } from "@/db/models/authors";
+import { videoTags } from "@/db/models/relations";
+import { tags } from "@/db/models/tags";
+import { videos } from "@/db/models/videos";
+import type { TagWithVideos } from "@/db/services/tags/types";
+import type { BaseTagService } from "@/db/services/tags/types-internal";
+import { DatabaseError, NotFoundError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
-import { authors } from "../../../models/authors";
-import { videoTags } from "../../../models/relations";
-import { tags } from "../../../models/tags";
-import { videos } from "../../../models/videos";
-import { DatabaseError, NotFoundError } from "../../../utils/errors";
-import type { TagWithVideos } from "../types";
-import type { BaseTagService } from "../types-internal";
 
 export const createRelationsTagService = (dbClient: DbClient, baseService: BaseTagService) => ({
   async getTagById(id: string): Promise<TagWithVideos> {

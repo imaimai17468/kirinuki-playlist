@@ -1,10 +1,10 @@
 import type { DbClient } from "@/db/config/hono";
+import { videoTags } from "@/db/models/relations";
+import { tags } from "@/db/models/tags";
+import type { VideoInsertWithTags, VideoWithTagsAndAuthor } from "@/db/services/videos/types";
+import type { BaseVideoService } from "@/db/services/videos/types-internal";
+import { DatabaseError, NotFoundError } from "@/db/utils/errors";
 import { and, eq, inArray } from "drizzle-orm";
-import { videoTags } from "../../../models/relations";
-import { tags } from "../../../models/tags";
-import { DatabaseError, NotFoundError } from "../../../utils/errors";
-import type { VideoInsertWithTags, VideoWithTagsAndAuthor } from "../types";
-import type { BaseVideoService } from "../types-internal";
 
 export const createVideoTagsService = (dbClient: DbClient, baseService: BaseVideoService) => {
   return {

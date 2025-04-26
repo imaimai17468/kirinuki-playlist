@@ -1,13 +1,13 @@
 import type { DbClient } from "@/db/config/hono";
+import { authors } from "@/db/models/authors";
+import { playlistBookmarks } from "@/db/models/playlist_bookmarks";
+import { playlists } from "@/db/models/playlists";
+import type { BookmarkResult } from "@/db/services/playlist_bookmarks/types";
+import type { PlaylistWithAuthorAndVideos } from "@/db/services/playlists";
+import { createPlaylistService } from "@/db/services/playlists";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authors } from "../../models/authors";
-import { playlistBookmarks } from "../../models/playlist_bookmarks";
-import { playlists } from "../../models/playlists";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
-import type { PlaylistWithAuthorAndVideos } from "../playlists";
-import { createPlaylistService } from "../playlists";
-import type { BookmarkResult } from "./types";
 
 // 依存性注入パターンを使ったプレイリストブックマークサービスの作成関数
 export const createBasePlaylistBookmarkService = (dbClient: DbClient) => ({

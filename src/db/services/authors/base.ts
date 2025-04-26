@@ -1,9 +1,9 @@
 import type { DbClient } from "@/db/config/hono";
+import { authors } from "@/db/models/authors";
+import type { Author, AuthorInsert, AuthorUpdate } from "@/db/services/authors/types";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authors } from "../../models/authors";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
-import type { Author, AuthorInsert, AuthorUpdate } from "./types";
 
 export const createBaseAuthorService = (dbClient: DbClient) => ({
   async getAllAuthors(): Promise<Author[]> {

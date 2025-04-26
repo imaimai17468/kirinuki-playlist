@@ -1,12 +1,12 @@
 import type { DbClient } from "@/db/config/hono";
+import { authors } from "@/db/models/authors";
+import { playlistVideos, videoTags } from "@/db/models/relations";
+import { tags } from "@/db/models/tags";
+import { videos } from "@/db/models/videos";
+import type { PlaylistWithAuthorAndVideos } from "@/db/services/playlists/types";
+import type { BasePlaylistService } from "@/db/services/playlists/types-internal";
+import { DatabaseError, NotFoundError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
-import { authors } from "../../../models/authors";
-import { playlistVideos, videoTags } from "../../../models/relations";
-import { tags } from "../../../models/tags";
-import { videos } from "../../../models/videos";
-import { DatabaseError, NotFoundError } from "../../../utils/errors";
-import type { PlaylistWithAuthorAndVideos } from "../types";
-import type { BasePlaylistService } from "../types-internal";
 
 export const createRelationsPlaylistService = (dbClient: DbClient, baseService: BasePlaylistService) => ({
   async getPlaylistWithVideosById(id: string): Promise<PlaylistWithAuthorAndVideos> {

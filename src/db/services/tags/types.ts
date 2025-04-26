@@ -1,5 +1,5 @@
+import type { tags } from "@/db/models/tags";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import type { tags } from "../../models/tags";
 
 // 基本的なタグの型
 export type TagBase = InferSelectModel<typeof tags>;

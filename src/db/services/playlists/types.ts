@@ -1,6 +1,6 @@
+import type { playlists } from "@/db/models/playlists";
+import type { Playlist } from "@/db/models/playlists";
 import type { InferInsertModel } from "drizzle-orm";
-import type { Playlist } from "../../models/playlists";
-import type { playlists } from "../../models/playlists";
 
 // 著者情報を含むプレイリストの型
 export type PlaylistWithAuthor = Playlist & {

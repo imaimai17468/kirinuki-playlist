@@ -1,9 +1,9 @@
 import type { DbClient } from "@/db/config/hono";
+import { videoTags } from "@/db/models/relations";
+import { tags } from "@/db/models/tags";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { videoTags } from "../../models/relations";
-import { tags } from "../../models/tags";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
 import type { TagBase, TagInsert, TagUpdate, TagWithVideos } from "./types";
 
 export const createBaseTagService = (dbClient: DbClient) => ({

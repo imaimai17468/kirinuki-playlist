@@ -1,3 +1,5 @@
+import { BookmarkButton } from "@/components/features/clips/commons/bookmark-button";
+import { YoutubePlayer } from "@/components/features/clips/detail/youtube-player";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { BackLink } from "@/components/parts/back-link";
 import { DataError } from "@/components/parts/data-error";
@@ -11,8 +13,6 @@ import { formatDate } from "@/utils/date";
 import { convertSecondsToTimeFormat } from "@/utils/youtube";
 import { CalendarDays, Clock, Tag } from "lucide-react";
 import Link from "next/link";
-import { BookmarkButton } from "../commons/bookmark-button";
-import { YoutubePlayer } from "./youtube-player";
 
 type Props = {
   id: string;

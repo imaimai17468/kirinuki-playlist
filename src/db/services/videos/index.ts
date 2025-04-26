@@ -1,7 +1,14 @@
 import type { DbClient } from "@/db/config/hono";
-import { createBaseVideoService } from "./base";
-import { createVideoTagsService } from "./features/tags";
-import type { Video, VideoBase, VideoInsert, VideoInsertWithTags, VideoUpdate, VideoWithTagsAndAuthor } from "./types";
+import { createBaseVideoService } from "@/db/services/videos/base";
+import { createVideoTagsService } from "@/db/services/videos/features/tags";
+import type {
+  Video,
+  VideoBase,
+  VideoInsert,
+  VideoInsertWithTags,
+  VideoUpdate,
+  VideoWithTagsAndAuthor,
+} from "@/db/services/videos/types";
 
 // ビデオサービスの作成関数
 export const createVideoService = (dbClient: DbClient) => {

@@ -1,7 +1,7 @@
 import type { DbClient } from "@/db/config/hono";
-import { createBasePlaylistService } from "./base";
-import { createRelationsPlaylistService } from "./features/relations";
-import { createVideosPlaylistService } from "./features/videos";
+import { createBasePlaylistService } from "@/db/services/playlists/base";
+import { createRelationsPlaylistService } from "@/db/services/playlists/features/relations";
+import { createVideosPlaylistService } from "@/db/services/playlists/features/videos";
 import type {
   PlaylistInsert,
   PlaylistUpdate,

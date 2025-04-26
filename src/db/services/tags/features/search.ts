@@ -1,8 +1,8 @@
 import type { DbClient } from "@/db/config/hono";
+import { videoTags } from "@/db/models/relations";
+import type { BaseTagService } from "@/db/services/tags/types-internal";
+import { DatabaseError } from "@/db/utils/errors";
 import { eq, inArray } from "drizzle-orm";
-import { videoTags } from "../../../models/relations";
-import { DatabaseError } from "../../../utils/errors";
-import type { BaseTagService } from "../types-internal";
 
 export const createSearchTagService = (dbClient: DbClient, _baseService: BaseTagService) => ({
   // 複数のタグIDで動画を取得

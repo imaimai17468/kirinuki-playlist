@@ -1,7 +1,7 @@
+import { ModeToggle } from "@/components/parts/mode-toggle";
 import { AppBreadcrumb, type CustomBreadcrumbItem } from "@/components/parts/sidebar/navigation/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ModeToggle } from "../parts/mode-toggle";
 
 type Props = {
   children: React.ReactNode;

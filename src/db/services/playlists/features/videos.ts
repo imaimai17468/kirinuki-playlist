@@ -1,11 +1,11 @@
 import type { DbClient } from "@/db/config/hono";
+import { playlistVideos } from "@/db/models/relations";
+import { videos } from "@/db/models/videos";
+import type { PlaylistVideoInsert, PlaylistVideoUpdate } from "@/db/services/playlists/types";
+import type { BasePlaylistService } from "@/db/services/playlists/types-internal";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { playlistVideos } from "../../../models/relations";
-import { videos } from "../../../models/videos";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../../utils/errors";
-import type { PlaylistVideoInsert, PlaylistVideoUpdate } from "../types";
-import type { BasePlaylistService } from "../types-internal";
 
 export const createVideosPlaylistService = (dbClient: DbClient, baseService: BasePlaylistService) => ({
   async addVideoToPlaylist(playlistId: string, videoData: PlaylistVideoInsert): Promise<void> {

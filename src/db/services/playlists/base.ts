@@ -1,10 +1,10 @@
 import type { DbClient } from "@/db/config/hono";
+import { authors } from "@/db/models/authors";
+import { playlists } from "@/db/models/playlists";
+import type { PlaylistInsert, PlaylistUpdate, PlaylistWithAuthor } from "@/db/services/playlists/types";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authors } from "../../models/authors";
-import { playlists } from "../../models/playlists";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
-import type { PlaylistInsert, PlaylistUpdate, PlaylistWithAuthor } from "./types";
 
 export const createBasePlaylistService = (dbClient: DbClient) => ({
   async getAllPlaylists(): Promise<PlaylistWithAuthor[]> {

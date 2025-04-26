@@ -1,8 +1,8 @@
 import type { DbClient } from "@/db/config/hono";
-import { createBaseTagService } from "./base";
-import { createRelationsTagService } from "./features/relations";
-import { createSearchTagService } from "./features/search";
-import type { TagBase, TagInsert, TagUpdate, TagWithVideos } from "./types";
+import { createBaseTagService } from "@/db/services/tags/base";
+import { createRelationsTagService } from "@/db/services/tags/features/relations";
+import { createSearchTagService } from "@/db/services/tags/features/search";
+import type { TagBase, TagInsert, TagUpdate, TagWithVideos } from "@/db/services/tags/types";
 
 // タグサービスの作成関数
 export const createTagService = (dbClient: DbClient) => {

@@ -1,6 +1,6 @@
+import type { Tag } from "@/db/models/tags";
+import type { videos } from "@/db/models/videos";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import type { Tag } from "../../models/tags";
-import type { videos } from "../../models/videos";
 
 // 基本的なビデオの型
 export type VideoBase = InferSelectModel<typeof videos>;

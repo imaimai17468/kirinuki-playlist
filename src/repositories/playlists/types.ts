@@ -1,7 +1,7 @@
+import { authorSchema } from "@/repositories/authors/types";
+import { baseResponseSchema } from "@/repositories/types";
+import { tagSchema, videoSchema } from "@/repositories/videos/types";
 import { z } from "zod";
-import { authorSchema } from "../authors/types";
-import { baseResponseSchema } from "../types";
-import { tagSchema, videoSchema } from "../videos/types";
 
 export const playlistVideoSchema = videoSchema.extend({
   order: z.number(),

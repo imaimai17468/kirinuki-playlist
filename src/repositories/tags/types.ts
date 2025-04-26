@@ -1,6 +1,6 @@
+import { videoSchema } from "@/repositories/videos/types";
 import { z } from "zod";
 import { baseResponseSchema } from "../types";
-import { videoSchema } from "../videos/types";
 
 // タグスキーマ - videos/types.tsのタグスキーマと一致させる
 export const tagSchema = z.object({
