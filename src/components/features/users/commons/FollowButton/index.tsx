@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useFollowMutations, useFollowStatus } from "@/repositories/follows/follows_hooks";
+import { useFollowMutations, useFollowStatus } from "@/repositories/follows/hooks";
 import { useClerk } from "@clerk/nextjs";
 import { Loader2, UserMinus, UserPlus } from "lucide-react";
 

@@ -1,10 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  usePlaylistBookmarkMutations,
-  usePlaylistBookmarkStatus,
-} from "@/repositories/playlist_bookmarks/playlist_bookmarks_hooks";
+import { usePlaylistBookmarkMutations, usePlaylistBookmarkStatus } from "@/repositories/playlist_bookmarks/hooks";
 import { useUser } from "@clerk/nextjs";
 import { Bookmark as BookmarkIcon, Loader2 } from "lucide-react";
 
