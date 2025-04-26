@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useBookmarkMutations, useBookmarkStatus } from "@/repositories/video_bookmarks/video_bookmarks_hooks";
+import { useBookmarkMutations, useBookmarkStatus } from "@/repositories/video_bookmarks/hooks";
 import { useUser } from "@clerk/nextjs";
 import { Bookmark as BookmarkIcon, Loader2 } from "lucide-react";
 
