@@ -1,4 +1,4 @@
-import type { VideoWithTagsAndAuthor } from "../videos/videos";
+import type { VideoWithTagsAndAuthor } from "@/db/services/videos";
 import type { BookmarkResult } from "./types";
 
 // ビデオブックマークサービスの基本インターフェース

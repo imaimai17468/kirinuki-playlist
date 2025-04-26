@@ -1,7 +1,7 @@
+import type { authors } from "@/db/models/authors";
+import type { PlaylistWithAuthorAndVideos } from "@/db/services/playlists";
+import type { VideoWithTagsAndAuthor } from "@/db/services/videos";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import type { authors } from "../../models/authors";
-import type { PlaylistWithAuthorAndVideos } from "../playlists";
-import type { VideoWithTagsAndAuthor } from "../videos/videos";
 
 export type Author = InferSelectModel<typeof authors>;
 export type AuthorInsert = Omit<InferInsertModel<typeof authors>, "id" | "createdAt" | "updatedAt">;

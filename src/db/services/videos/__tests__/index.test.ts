@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createTestDbClient } from "@/db/config/test-database";
+import { authors } from "@/db/models/authors";
+import { videoTags } from "@/db/models/relations";
+import { tags } from "@/db/models/tags";
+import { videos } from "@/db/models/videos";
+import { createVideoService } from "@/db/services/videos";
+import { NotFoundError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
-import { createTestDbClient } from "../../config/test-database";
-import { authors } from "../../models/authors";
-import { videoTags } from "../../models/relations";
-import { tags } from "../../models/tags";
-import { videos } from "../../models/videos";
-import { NotFoundError } from "../../utils/errors";
-import { createVideoService } from "./videos";
 
 // 各テストで使用するテストデータ
 const testAuthors = [

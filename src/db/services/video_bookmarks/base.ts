@@ -1,12 +1,12 @@
 import type { DbClient } from "@/db/config/hono";
+import { authors } from "@/db/models/authors";
+import { videoBookmarks } from "@/db/models/video_bookmarks";
+import { videos } from "@/db/models/videos";
+import type { VideoWithTagsAndAuthor } from "@/db/services/videos";
+import { createVideoService } from "@/db/services/videos";
+import { DatabaseError, NotFoundError, UniqueConstraintError } from "@/db/utils/errors";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { authors } from "../../models/authors";
-import { videoBookmarks } from "../../models/video_bookmarks";
-import { videos } from "../../models/videos";
-import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
-import type { VideoWithTagsAndAuthor } from "../videos/videos";
-import { createVideoService } from "../videos/videos";
 import type { BookmarkResult } from "./types";
 
 export const createBaseVideoBookmarkService = (dbClient: DbClient) => ({

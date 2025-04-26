@@ -11,7 +11,7 @@ import type { BaseAuthorService } from "@/db/services/authors/types-internal";
 import { createPlaylistBookmarkService } from "@/db/services/playlist_bookmarks";
 import { createPlaylistService } from "@/db/services/playlists";
 import { createVideoBookmarkService } from "@/db/services/video_bookmarks";
-import { createVideoService } from "@/db/services/videos/videos";
+import { createVideoService } from "@/db/services/videos";
 import { DatabaseError, NotFoundError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";
 
