@@ -2,13 +2,8 @@ import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { playlistInsertSchema, playlistUpdateSchema } from "@/db/models/playlists";
 import { playlistVideoInsertSchema, playlistVideoUpdateSchema } from "@/db/models/relations";
-import { createPlaylistService } from "@/db/services/playlists/playlists";
-import type {
-  PlaylistInsert,
-  PlaylistUpdate,
-  PlaylistVideoInsert,
-  PlaylistVideoUpdate,
-} from "@/db/services/playlists/playlists";
+import { createPlaylistService } from "@/db/services/playlists";
+import type { PlaylistInsert, PlaylistUpdate, PlaylistVideoInsert, PlaylistVideoUpdate } from "@/db/services/playlists";
 import { NotFoundError } from "@/db/utils/errors";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";

@@ -7,7 +7,7 @@ import { playlists } from "@/db/models/playlists";
 import { videoBookmarks } from "@/db/models/video_bookmarks";
 import { videos } from "@/db/models/videos";
 import { type Author, createAuthorService } from "@/db/services/authors";
-import { createPlaylistService } from "@/db/services/playlists/playlists";
+import { createPlaylistService } from "@/db/services/playlists";
 import { createVideoService } from "@/db/services/videos/videos";
 import { NotFoundError } from "@/db/utils/errors";
 import { eq } from "drizzle-orm";

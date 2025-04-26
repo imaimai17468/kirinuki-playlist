@@ -1,4 +1,4 @@
-import type { PlaylistWithAuthorAndVideos } from "../playlists/playlists";
+import type { PlaylistWithAuthorAndVideos } from "../playlists";
 import type { BookmarkResult } from "./types";
 
 // プレイリストブックマークサービスの基本インターフェース

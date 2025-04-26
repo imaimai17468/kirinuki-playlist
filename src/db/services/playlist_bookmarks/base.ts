@@ -5,8 +5,8 @@ import { authors } from "../../models/authors";
 import { playlistBookmarks } from "../../models/playlist_bookmarks";
 import { playlists } from "../../models/playlists";
 import { DatabaseError, NotFoundError, UniqueConstraintError } from "../../utils/errors";
-import type { PlaylistWithAuthorAndVideos } from "../playlists/playlists";
-import { createPlaylistService } from "../playlists/playlists";
+import type { PlaylistWithAuthorAndVideos } from "../playlists";
+import { createPlaylistService } from "../playlists";
 import type { BookmarkResult } from "./types";
 
 // 依存性注入パターンを使ったプレイリストブックマークサービスの作成関数

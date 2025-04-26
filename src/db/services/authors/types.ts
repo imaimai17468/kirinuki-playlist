@@ -1,6 +1,6 @@
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import type { authors } from "../../models/authors";
-import type { PlaylistWithAuthorAndVideos } from "../playlists/playlists";
+import type { PlaylistWithAuthorAndVideos } from "../playlists";
 import type { VideoWithTagsAndAuthor } from "../videos/videos";
 
 export type Author = InferSelectModel<typeof authors>;
