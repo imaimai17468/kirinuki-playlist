@@ -1,8 +1,8 @@
 import { createDbClient } from "@/db/config/database";
 import type { AppEnv } from "@/db/config/hono";
 import { tagInsertSchema, tagUpdateSchema } from "@/db/models/tags";
-import { createTagService } from "@/db/services/tags/tags";
-import type { TagInsert, TagUpdate } from "@/db/services/tags/tags";
+import { createTagService } from "@/db/services/tags";
+import type { TagInsert, TagUpdate } from "@/db/services/tags";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
