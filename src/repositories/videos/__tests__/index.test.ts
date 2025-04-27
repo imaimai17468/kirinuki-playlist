@@ -17,8 +17,8 @@ import {
   getVideoTags,
   removeTagFromVideo,
   updateVideo,
-} from "../videos";
-import type { VideoInsert, VideoUpdate } from "./types";
+} from "..";
+import type { VideoInsert, VideoUpdate } from "../types";
 
 // テスト用の状態を保持する変数
 let dbClient: DbClient;
