@@ -8,8 +8,16 @@ import {
   insertTestVideos,
   setupTestEnv,
 } from "@/repositories/setup";
-import { tagRepository } from ".";
-import type { TagInsert, TagUpdate } from "./types";
+import {
+  createTag,
+  deleteTag,
+  getAllTags,
+  getTagById,
+  getVideosByAllTags,
+  getVideosByTagIds,
+  updateTag,
+} from "@/repositories/tags";
+import type { TagInsert, TagUpdate } from "@/repositories/tags/types";
 
 // テスト用の状態を保持する変数
 let dbClient: DbClient;
@@ -36,7 +44,7 @@ describe("タグリポジトリのテスト", () => {
   describe("getAllTags", () => {
     test("タグ一覧を正しく取得できること", async () => {
       // リポジトリ関数を呼び出し
-      const result = await tagRepository.getAllTags();
+      const result = await getAllTags();
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
@@ -59,7 +67,7 @@ describe("タグリポジトリのテスト", () => {
   describe("getTagById", () => {
     test("存在するタグIDで正しく取得できること", async () => {
       // リポジトリ関数を呼び出し
-      const result = await tagRepository.getTagById("tag1");
+      const result = await getTagById("tag1");
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
@@ -82,7 +90,7 @@ describe("タグリポジトリのテスト", () => {
 
     test("存在しないタグIDではエラーになること", async () => {
       // 存在しないIDでリポジトリ関数を呼び出し
-      const result = await tagRepository.getTagById("non-existent-id");
+      const result = await getTagById("non-existent-id");
 
       // 結果がエラーであることを確認
       expect(result.isErr()).toBe(true);
@@ -104,7 +112,7 @@ describe("タグリポジトリのテスト", () => {
       };
 
       // リポジトリ関数を呼び出し
-      const result = await tagRepository.createTag(tagData);
+      const result = await createTag(tagData);
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
@@ -115,7 +123,7 @@ describe("タグリポジトリのテスト", () => {
         expect(result.value.length).toBeGreaterThan(0);
 
         // 作成されたタグを取得して確認
-        const getResult = await tagRepository.getTagById(result.value);
+        const getResult = await getTagById(result.value);
         // このテスト環境では新しく作成したタグを正常に取得できているようなので、isOkを確認
         expect(getResult.isOk()).toBe(true);
         if (getResult.isOk()) {
@@ -126,7 +134,7 @@ describe("タグリポジトリのテスト", () => {
 
     test("バリデーションエラーが発生した場合はエラーになること", async () => {
       // 不正なデータでリポジトリ関数を呼び出し
-      const result = await tagRepository.createTag({
+      const result = await createTag({
         name: "", // 空の名前は無効
       } as TagInsert);
 
@@ -150,7 +158,7 @@ describe("タグリポジトリのテスト", () => {
       };
 
       // リポジトリ関数を呼び出し
-      const result = await tagRepository.updateTag("tag1", updateData);
+      const result = await updateTag("tag1", updateData);
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
@@ -161,7 +169,7 @@ describe("タグリポジトリのテスト", () => {
 
     test("存在しないタグIDではエラーになること", async () => {
       // 存在しないIDでリポジトリ関数を呼び出し
-      const result = await tagRepository.updateTag("non-existent-id", {
+      const result = await updateTag("non-existent-id", {
         name: "更新テスト",
       });
 
@@ -180,13 +188,13 @@ describe("タグリポジトリのテスト", () => {
   describe("deleteTag", () => {
     test("タグを正しく削除できること", async () => {
       // リポジトリ関数を呼び出し
-      const result = await tagRepository.deleteTag("tag2");
+      const result = await deleteTag("tag2");
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
 
       // 削除したタグを取得しようとするとエラーになることを確認
-      const getResult = await tagRepository.getTagById("tag2");
+      const getResult = await getTagById("tag2");
       expect(getResult.isErr()).toBe(true);
       if (getResult.isErr()) {
         expect(getResult.error.type).toBe("serverError");
@@ -195,7 +203,7 @@ describe("タグリポジトリのテスト", () => {
 
     test("存在しないタグIDではエラーになること", async () => {
       // 存在しないIDでリポジトリ関数を呼び出し
-      const result = await tagRepository.deleteTag("non-existent-id");
+      const result = await deleteTag("non-existent-id");
 
       // 結果がエラーであることを確認
       expect(result.isErr()).toBe(true);
@@ -212,7 +220,7 @@ describe("タグリポジトリのテスト", () => {
   describe("getVideosByTagIds", () => {
     test("指定したタグを持つビデオIDを正しく取得できること", async () => {
       // リポジトリ関数を呼び出し
-      const result = await tagRepository.getVideosByTagIds(["tag1"]);
+      const result = await getVideosByTagIds(["tag1"]);
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
@@ -229,7 +237,7 @@ describe("タグリポジトリのテスト", () => {
 
     test("複数のタグを指定した場合はOR条件で取得できること", async () => {
       // リポジトリ関数を呼び出し
-      const result = await tagRepository.getVideosByTagIds(["tag1", "tag2"]);
+      const result = await getVideosByTagIds(["tag1", "tag2"]);
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
@@ -248,7 +256,7 @@ describe("タグリポジトリのテスト", () => {
   describe("getVideosByAllTags", () => {
     test("指定したすべてのタグを持つビデオIDを正しく取得できること", async () => {
       // リポジトリ関数を呼び出し
-      const result = await tagRepository.getVideosByAllTags(["tag1", "tag2"]);
+      const result = await getVideosByAllTags(["tag1", "tag2"]);
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
@@ -264,7 +272,7 @@ describe("タグリポジトリのテスト", () => {
 
     test("条件に合うビデオがない場合は空配列を返すこと", async () => {
       // 存在しないタグIDを指定
-      const result = await tagRepository.getVideosByAllTags(["tag1", "tag2", "non-existent-tag"]);
+      const result = await getVideosByAllTags(["tag1", "tag2", "non-existent-tag"]);
 
       // 結果が成功していることを確認
       expect(result.isOk()).toBe(true);
