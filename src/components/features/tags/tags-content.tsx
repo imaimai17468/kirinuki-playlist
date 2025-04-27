@@ -1,12 +1,12 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DataError } from "@/components/parts/data-error";
 import { getDetailPath } from "@/consts/clientpath";
-import { tagRepository } from "@/repositories/tags";
+import { getAllTags } from "@/repositories/tags";
 import { Tag, Video } from "lucide-react";
 import Link from "next/link";
 
 export const TagsContent = async () => {
-  const result = await tagRepository.getAllTags();
+  const result = await getAllTags();
 
   if (result.isErr()) {
     return <DataError />;

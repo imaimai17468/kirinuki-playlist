@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { getDetailPath } from "@/consts/clientpath";
 import { CLIENT_PATH } from "@/consts/clientpath";
-import { tagRepository } from "@/repositories/tags";
+import { getTagById } from "@/repositories/tags";
 import { formatDate } from "@/utils/date";
 import { formatDuration, getYoutubeId } from "@/utils/youtube";
 import { Clapperboard, Tag } from "lucide-react";
@@ -17,7 +17,7 @@ interface TagDetailContentProps {
 }
 
 export const TagDetailContent = async ({ id }: TagDetailContentProps) => {
-  const result = await tagRepository.getTagById(id);
+  const result = await getTagById(id);
 
   if (result.isErr()) {
     return <DataError />;
